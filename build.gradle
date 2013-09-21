@@ -1,0 +1,40 @@
+apply plugin: 'groovy'
+apply plugin: 'java'
+apply plugin: 'application'
+
+version = '0.0.14'
+mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile localGroovy()
+    compile 'joda-time:joda-time:+'
+    compile 'postgresql:postgresql:+'
+    compile 'ch.qos.logback:logback-classic:+'
+}
+
+jar {
+    manifest.attributes 'Implementation-Title': 'GaussTrader'
+    manifest.attributes 'Implementation-Version': version
+    manifest.attributes 'Main-Class': 'net.toddsarratt.GaussTrader.GaussTrader'
+
+    from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+}
+
+task listJars << {
+    configurations.compile.each { File file -> println file.name }
+}
+
+task updateLaunchScript {
+     launchScriptFile = file("/home/tsarratt/codeDir/GaussTrader/build/libs/runGaussTrader.sh")
+
+     doLast {
+     	 launchScriptFile.write('#! /bin/sh\n')
+	 launchScriptFile.append('java -jar GaussTrader-')
+	 launchScriptFile.append(version)
+         launchScriptFile.append('.jar > /dev/null\n')
+    }
+}
