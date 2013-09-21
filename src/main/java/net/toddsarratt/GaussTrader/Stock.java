@@ -106,7 +106,8 @@ public class Stock extends Security {
 		}
 	    }
 	}
-	if(historicalPriceMap.size() < GaussTrader.bollBandPeriod) {
+	/* historicalPriceMap was built from PRICE_TRACKING_MAP which contains all necessary epochs as keys as -1.0 for every value, which must be replaced from Yahoo! */
+	if(historicalPriceMap.containsValue(-1.0)) {
 	    LOGGER.debug("Calculating date range for missing stock prices.");
 	    priceRangeToDownload = getMissingPriceDateRange();
 	    if(priceRangeToDownload.earliest.isBefore(priceRangeToDownload.latest.toInstant())) {
