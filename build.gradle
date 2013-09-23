@@ -2,7 +2,19 @@ apply plugin: 'groovy'
 apply plugin: 'java'
 apply plugin: 'application'
 
-version = '0.0.15'
+/*
+ * Gets the version name from the latest Git tag
+ */
+def getVersionName = { ->
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'describe', '--tags'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim()
+}
+
+version = getVersionName
 mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
 
 repositories {
