@@ -2,6 +2,7 @@ package net.toddsarratt.GaussTrader;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.net.MalformedURLException;
 import java.sql.*;
 import javax.sql.DataSource;
@@ -66,37 +67,10 @@ public class GaussTrader {
 	    // TODO : Replace code below with fetch of ticker list from command line
 	    // Currently using DJIA
 	    LOGGER.info("Adding manually entered list of stocks");
-	    tickerList.add("MMM");
-	    tickerList.add("AA");
-	    tickerList.add("AXP");
-	    tickerList.add("T");
-	    tickerList.add("BAC");
-	    tickerList.add("BA");
-	    tickerList.add("CAT");
-	    tickerList.add("CVX");
-	    tickerList.add("CSCO");
-	    tickerList.add("KO");
-	    tickerList.add("DD");
-	    tickerList.add("XOM");
-	    tickerList.add("GE");
-	    tickerList.add("HPQ");
-	    tickerList.add("HD");
-	    tickerList.add("INTC");
-	    tickerList.add("IBM");
-	    tickerList.add("JNJ");
-	    tickerList.add("JPM");
-	    tickerList.add("MCD");
-	    tickerList.add("MRK");
-	    tickerList.add("MSFT");
-	    tickerList.add("PFE");
-	    tickerList.add("PG");
-	    tickerList.add("TRV");
-	    tickerList.add("UNH");
-	    tickerList.add("UTX");
-	    tickerList.add("VZ");
-	    tickerList.add("WMT");
-	    tickerList.add("DIS");
-	    /* Adding AAPL for Bill Skillman */
+	    String[] tickerArray = {"MMM", "AA", "AXP", "T", "GS", "BA", "CAT", "CVX", "CSCO", "KO", "DD", "XOM", "GE", "V", "HD", "INTC", 
+				    "IBM", "JNJ", "JPM", "MCD", "MRK", "MSFT", "PFE", "PG", "TRV", "UNH", "UTX", "VZ", "WMT", "DIS"};
+	    tickerList.addAll(Arrays.asList(tickerArray));
+	    /* Adding AAPL for Bill */
 	    tickerList.add("AAPL");
 	    /* AKS down 10% before 9/20/13, should trigger a trade */
 	    tickerList.add("AKS");

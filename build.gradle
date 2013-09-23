@@ -2,7 +2,7 @@ apply plugin: 'groovy'
 apply plugin: 'java'
 apply plugin: 'application'
 
-version = '0.0.14'
+version = '0.0.15'
 mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
 
 repositories {
@@ -29,11 +29,15 @@ task listJars << {
 }
 
 task updateLaunchScript {
-     launchScriptFile = file("/home/tsarratt/codeDir/GaussTrader/build/libs/runGaussTrader.sh")
+     launchScriptDir = file('build/libs')
+     launchScriptFile = file('build/libs/runGaussTrader.sh')
 
      doLast {
      	 launchScriptFile.write('#! /bin/sh\n')
-	 launchScriptFile.append('java -jar GaussTrader-')
+	 launchScriptFile.append('JAR_DIR=')
+         launchScriptFile.append(launchScriptDir.absolutePath)
+         launchScriptFile.append('/\n\n')
+	 launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
 	 launchScriptFile.append(version)
          launchScriptFile.append('.jar > /dev/null\n')
     }

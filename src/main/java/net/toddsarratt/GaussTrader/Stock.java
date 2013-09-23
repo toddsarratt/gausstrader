@@ -106,11 +106,12 @@ public class Stock extends Security {
 		}
 	    }
 	}
-	/* historicalPriceMap was built from PRICE_TRACKING_MAP which contains all necessary epochs as keys as -1.0 for every value, which must be replaced from Yahoo! */
+	/* historicalPriceMap was built from PRICE_TRACKING_MAP which contains all necessary epochs as keys and -1.0 for every value, 
+	   which must be replaced from the local database first and supplemented by Yahoo! */
 	if(historicalPriceMap.containsValue(-1.0)) {
 	    LOGGER.debug("Calculating date range for missing stock prices.");
 	    priceRangeToDownload = getMissingPriceDateRange();
-	    if(priceRangeToDownload.earliest.isBefore(priceRangeToDownload.latest.toInstant())) {
+	    if(!priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant())) {
 		try {
 		    retrievedYahooPriceMap = retrieveYahooHistoricalPrices(priceRangeToDownload);
 		    for(long epochToCheck : historicalPriceMap.keySet()) {
@@ -128,8 +129,9 @@ public class Stock extends Security {
 		    LOGGER.debug("Caught (IOException ioe) {}", ioe);
 		}
 	    } else {
-		LOGGER.warn("historicalPriceMap.size() < GaussTrader.bollBandPeriod ({} < {}) but !priceRangeToDownload.earliest.isBefore(priceRangeToDownload.latest.toInstant() ({} after {})",
-			    historicalPriceMap.size(), GaussTrader.bollBandPeriod, priceRangeToDownload.earliest.toString(), priceRangeToDownload.latest.toString());
+		LOGGER.warn("historicalPriceMap.containsValue(-1.0) but " + 
+			    "priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant() ({} after {})",
+			    priceRangeToDownload.earliest.toString(), priceRangeToDownload.latest.toString());
 	    }
 	}
     }
@@ -169,22 +171,26 @@ public class Stock extends Security {
         histMutDateTime.setMillisOfDay( (16 * 60 + 20) * 60 * 1000);
         histMutDateTime.addDays(-1);
 
-        LOGGER.debug("Setting mpdr.latest to {} ({})", histMutDateTime.getMillis(), histMutDateTime.toString());
+        LOGGER.debug("Setting mpdr.latest to {} ({})", EARLIEST_PRICE_DATE.getMillis(), EARLIEST_PRICE_DATE.toString());
         mpdr.latest = new DateTime(EARLIEST_PRICE_DATE);
         LOGGER.debug("mpdr.latest = {} ({})", mpdr.latest.getMillis(), mpdr.latest.toString());
+        LOGGER.debug("mpdr.earliest = {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
 	for(long epochPriceRequired : historicalPriceMap.keySet()) {
-	    /* Map defaults to all prices == -1.00 which updates to a real price as returned from the DB */
+	    /* Map defaults all prices == -1.00 which is updated to a real price returned from the DB */
 	    /* Any remaining price of -1.00 needs to be retrieved from Yahoo! */
 	    if(historicalPriceMap.get(epochPriceRequired) < 0.00) {
 		missingDateTimeToCheck = new DateTime(epochPriceRequired, DateTimeZone.forID("America/New_York"));
                 LOGGER.debug("historicalPriceMap.get({}) < 0.00 : {}", epochPriceRequired, missingDateTimeToCheck.toString());
 		if(mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant())) {
-		    LOGGER.debug("mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant()) : {} > {}", mpdr.earliest.toString(), missingDateTimeToCheck.toString());
+		    LOGGER.debug("mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant()) : ({}).isAfter({})",
+				 mpdr.earliest.toString(), missingDateTimeToCheck.toString());
 		    mpdr.earliest = new DateTime(missingDateTimeToCheck).withTime(16, (GaussTrader.delayedQuotes ? 20 : 0), 0, 0);
+		    LOGGER.debug("Updating mpdr.earliest = {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
 		}
 		if(mpdr.latest.isBefore(missingDateTimeToCheck.toInstant())) {
-                    LOGGER.debug("mpdr.latest.isBefore(missingDateTimeToCheck.toInstant()) : {} > {}", mpdr.latest.toString(), missingDateTimeToCheck.toString());
+                    LOGGER.debug("mpdr.latest.isBefore(missingDateTimeToCheck.toInstant()) : ({}).isBefore({})", mpdr.latest.toString(), missingDateTimeToCheck.toString());
 		    mpdr.latest = missingDateTimeToCheck;
+                    LOGGER.debug("Updating mpdr.latest = {} ({})", mpdr.latest.getMillis(), mpdr.latest.toString());
 		}
 	    }
 	}
@@ -210,7 +216,7 @@ public class Stock extends Security {
 	*/
 	if(historicalPriceMap.isEmpty()) {
 	    LOGGER.info("No current prices stored so need to get everything from Yahoo!");
-	    LOGGER.info("Setting earliest date to {} ({})", histMutDateTime.getMillis(), histMutDateTime.toString());
+	    LOGGER.info("Setting earliest date to {} ({})", EARLIEST_PRICE_DATE.getMillis(), EARLIEST_PRICE_DATE.toString());
 	    mpdr.latest = new DateTime(DateTimeZone.forID("America/New_York"));
 	    mpdr.earliest = new DateTime(EARLIEST_PRICE_DATE, DateTimeZone.forID("America/New_York"));
 	}
@@ -223,9 +229,15 @@ public class Stock extends Security {
 	LOGGER.debug("Entering Stock.calculateBollingerBands()");
 	int period = GaussTrader.bollBandPeriod;
 		
-	if(historicalPriceMap.size() < period )
-	    LOGGER.info("Not enough historical data to calculate Bollinger Bands for {}", ticker);
-	else {
+        if(historicalPriceMap.containsValue(-1.0)) {
+	    LOGGER.warn("Not enough historical data to calculate Bollinger Bands for {}", ticker);
+	    bollingerBand[0] = -1.0;
+            bollingerBand[1] = -1.0;
+            bollingerBand[2] = -1.0;
+            bollingerBand[3] = -1.0;
+            bollingerBand[4] = -1.0;
+            bollingerBand[5] = -1.0;
+	} else {
 	    double currentSMASum = 0;
 	    double currentSMA = 0;
 	    double currentSDSum = 0;
