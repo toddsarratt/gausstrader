@@ -8,8 +8,10 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.MutableDateTime;
+import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.PeriodFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +103,7 @@ public class TradingSession {
 	LOGGER.debug("Entering TradingSession.sleepUntilMarketOpen()");
 	LOGGER.debug("Calculating time until market open");
 	long msUntilMarketOpen = marketOpenEpoch - System.currentTimeMillis();
-	LOGGER.debug("msUntilMarketOpen == {} ({} hours {} minutes {} sec)", msUntilMarketOpen, (int)(msUntilMarketOpen/3600000), (int)(msUntilMarketOpen/60000), (int)(msUntilMarketOpen/1000));
+	LOGGER.debug("msUntilMarketOpen == {} ({})", msUntilMarketOpen, (new Period(msUntilMarketOpen).toString(PeriodFormat.wordBased())));
 	if(msUntilMarketOpen > 0) {
 	    try {
 		LOGGER.debug("Sleeping");
@@ -369,7 +371,9 @@ public class TradingSession {
 	LOGGER.debug("Comparing msUntilMarketClose {} with GaussTrader.delayMs {}", msUntilMarketClose, GaussTrader.delayMs);
 	sleepTimeMs = (msUntilMarketClose < GaussTrader.delayMs) ? msUntilMarketClose : GaussTrader.delayMs;
 	try {
-	    LOGGER.debug("Sleeping for {} ms ({} hours, {} minutes, {} seconds)", sleepTimeMs, (int)(sleepTimeMs/3600000), (int)(sleepTimeMs/60000), (int)(sleepTimeMs/1000));
+	    LOGGER.debug("msUntilMarketOpen == {} ({})", msUntilMarketOpen, (new Period(msUntilMarketOpen).toString(PeriodFormat.wordBased())));
+
+	    LOGGER.debug("Sleeping for {} ms ({})", sleepTimeMs, (new Period(sleepTimeMs).toString(PeriodFormat.wordBased())));
 	    Thread.sleep(sleepTimeMs);
 	} catch (InterruptedException ie) {
 	    LOGGER.warn("Interrupted exception trying to sleep {} ms", sleepTimeMs);
