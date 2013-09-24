@@ -4,6 +4,8 @@ apply plugin: 'application'
 
 /*
  * Gets the version name from the latest Git tag
+ * From http://ryanharter.com/blog/2013/07/30/automatic-versioning-with-git-and-gradle/
+ * Thank you to Ryan Harter
  */
 def getVersionName = { ->
     def stdout = new ByteArrayOutputStream()
@@ -14,7 +16,7 @@ def getVersionName = { ->
     return stdout.toString().trim()
 }
 
-version = getVersionName
+version = getVersionName()
 mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
 
 repositories {
@@ -37,10 +39,14 @@ jar {
 }
 
 task listJars << {
+    description = 'Lists dependency jars'
+    group = 'build'
     configurations.compile.each { File file -> println file.name }
 }
 
 task updateLaunchScript {
+     description = 'Update the launch script that gets called from cron'
+     group = 'build'
      launchScriptDir = file('build/libs')
      launchScriptFile = file('build/libs/runGaussTrader.sh')
 

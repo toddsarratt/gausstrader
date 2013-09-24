@@ -321,11 +321,9 @@ public class TradingSession {
 	    openOrderSecType = openOrder.getSecType();
 	    LOGGER.debug("Checking current open orderId {} for ticker {}", openOrder.getOrderId(), openOrder.getTicker());
 	    try {
-		LOGGER.debug("Deciding if order is an option order by looking at {}", openOrderSecType);
 		if(openOrderSecType.equals("CALL") || openOrderSecType.equals("PUT")) {
-		    LOGGER.debug("Assigning Option.lastTick({}) to lastTick", openOrder.getTicker());
 		    double lastTick = Option.lastTick(openOrder.getTicker());
-		    LOGGER.debug("lastTick == {}", lastTick);
+		    LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
 		    if(openOrder.getAction().equals("SELL")) {
 			LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"SELL\" order", lastTick, openOrder.getLimitPrice());
 			if(lastTick >= openOrder.getLimitPrice()) {
@@ -344,19 +342,16 @@ public class TradingSession {
 		} else {              
 		    /* openOrder.getSecType().equals("STOCK") */
 		    LOGGER.debug("Assuming openOrder.getSecType().equals(\"STOCK\")");
-		    LOGGER.debug("Assigning Stock.lastTick({}) to lastTick", openOrder.getTicker());
 		    double lastTick = Stock.lastTick(openOrder.getTicker());
-                    LOGGER.debug("lastTick == {}", lastTick);
+                    LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
 		    if(openOrder.getAction().equals("SELL")) {
                         LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"SELL\" order", lastTick, openOrder.getLimitPrice());
 			if(lastTick >= openOrder.getLimitPrice()) {
-                            LOGGER.debug("Calling portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
 			    portfolio.fillOrder(openOrder, lastTick);
 			}
 		    } else if(openOrder.getAction().equals("BUY")) {
                         LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"BUY\" order", lastTick, openOrder.getLimitPrice());
 			if(lastTick <= openOrder.getLimitPrice()) {
-                            LOGGER.debug("Calling portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
 			    portfolio.fillOrder(openOrder, lastTick);
 			}
 		    }

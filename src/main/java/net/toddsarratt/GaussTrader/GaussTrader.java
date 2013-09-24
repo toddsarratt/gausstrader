@@ -67,14 +67,12 @@ public class GaussTrader {
 	    // TODO : Replace code below with fetch of ticker list from command line
 	    // Currently using DJIA
 	    LOGGER.info("Adding manually entered list of stocks");
-	    String[] tickerArray = {"MMM", "AA", "AXP", "T", "GS", "BA", "CAT", "CVX", "CSCO", "KO", "DD", "XOM", "GE", "V", "HD", "INTC", 
+	    String[] tickerArray = {"MMM", "NKE", "AXP", "T", "GS", "BA", "CAT", "CVX", "CSCO", "KO", "DD", "XOM", "GE", "V", "HD", "INTC", 
 				    "IBM", "JNJ", "JPM", "MCD", "MRK", "MSFT", "PFE", "PG", "TRV", "UNH", "UTX", "VZ", "WMT", "DIS"};
 	    tickerList.addAll(Arrays.asList(tickerArray));
 	    /* Adding AAPL for Bill */
 	    tickerList.add("AAPL");
-	    /* AKS down 10% before 9/20/13, should trigger a trade */
-	    tickerList.add("AKS");
-
+	    LOGGER.debug("tickerList.size() = {}", tickerList.size());
 	    /* Set up DB connection. Pass DataSource to methods that need DB access via DataSource.getConnection() */
 	    LOGGER.debug("dataSource.setServerName({})", DB_IP);
 	    dataSource.setServerName(DB_IP);
