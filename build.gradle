@@ -47,9 +47,10 @@ task listJars << {
 task updateLaunchScript {
      description = 'Update the launch script that gets called from cron'
      group = 'build'
-     launchScriptDir = file('build/libs')
-     launchScriptFile = file('build/libs/runGaussTrader.sh')
-
+     ext {
+     	 launchScriptDir = file('build/libs')
+     	 launchScriptFile = file('build/libs/runGaussTrader.sh')
+     }    
      doLast {
      	 launchScriptFile.write('#! /bin/sh\n')
 	 launchScriptFile.append('JAR_DIR=')
