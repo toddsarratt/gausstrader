@@ -19,6 +19,22 @@ def getVersionName = { ->
 version = getVersionName()
 mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
 
+task updateLaunchScript << {
+     description = 'Update the launch script that gets called from cron'
+     group = 'build'
+     ext {
+         launchScriptDir = file('build/libs')
+         launchScriptFile = file('build/libs/runGaussTrader.sh')
+     }
+     launchScriptFile.write('#! /bin/sh\n')
+     launchScriptFile.append('JAR_DIR=')
+     launchScriptFile.append(launchScriptDir.absolutePath)
+     launchScriptFile.append('/\n\n')
+     launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
+     launchScriptFile.append(version)
+     launchScriptFile.append('.jar > /dev/null\n')
+}
+
 repositories {
     mavenCentral()
 }
@@ -36,28 +52,11 @@ jar {
     manifest.attributes 'Main-Class': 'net.toddsarratt.GaussTrader.GaussTrader'
 
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    tasks.updateLaunchScript.execute()
 }
 
 task listJars << {
     description = 'Lists dependency jars'
     group = 'build'
     configurations.compile.each { File file -> println file.name }
-}
-
-task updateLaunchScript {
-     description = 'Update the launch script that gets called from cron'
-     group = 'build'
-     ext {
-     	 launchScriptDir = file('build/libs')
-     	 launchScriptFile = file('build/libs/runGaussTrader.sh')
-     }    
-     doLast {
-     	 launchScriptFile.write('#! /bin/sh\n')
-	 launchScriptFile.append('JAR_DIR=')
-         launchScriptFile.append(launchScriptDir.absolutePath)
-         launchScriptFile.append('/\n\n')
-	 launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
-	 launchScriptFile.append(version)
-         launchScriptFile.append('.jar > /dev/null\n')
-    }
 }
