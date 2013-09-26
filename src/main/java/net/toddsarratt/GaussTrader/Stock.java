@@ -2,10 +2,11 @@ package net.toddsarratt.GaussTrader;
 
 /*	
  * bollingerBand[0] = moving average (period determined by command line args, default 20DMA)
- * bollingerBand[1] = upperBoll1 = MA + 1 standard deviation
- * bollingerBand[2] = upperBoll2 = MA + 2 standard deviations
- * bollingerBand[3] = lowerBoll1 = MA - 1 standard deviation
- * bollingerBand[4] = lowerBoll2 = MA - 2 standard deviations
+ * SD multiple determined by command line, defaults below
+ * bollingerBand[1] = upperBoll1 = MA + 2 standard deviation
+ * bollingerBand[2] = upperBoll2 = MA + 2.5 standard deviations
+ * bollingerBand[3] = lowerBoll1 = MA - 2 standard deviation
+ * bollingerBand[4] = lowerBoll2 = MA - 2.5 standard deviations
  * bollingerBand[5] = lowerBoll3 = MA - 3 standard deviations
  */	
 
