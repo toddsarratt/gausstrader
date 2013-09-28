@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.regex.Pattern;
@@ -114,7 +115,7 @@ public class Portfolio {
 	while(openOrdersResultSet.next()) {
 	    portfolioOrderEntry = dbToPortfolioOrder(openOrdersResultSet);
             LOGGER.debug("Adding {} {}", portfolioOrderEntry.getOrderId(), portfolioOrderEntry.getTicker());
-	    addOrder(portfolioOrderEntry);
+	    portfolioOrders.add(portfolioOrderEntry);
 	}
     }
 
@@ -228,7 +229,7 @@ public class Portfolio {
 	int openLongCount = 0;
 		
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.Ticker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
+	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
 		portfolioPosition.isLong() && (portfolioPosition.getSecType().equals("PUT")) ) {
 		openLongCount++;
 	    }
@@ -251,7 +252,7 @@ public class Portfolio {
     public void addOrder(Order orderToAdd) throws InsufficientFundsException, SecurityNotFoundException {
 	LOGGER.debug("Entering Portfolio.addOrder(Order orderToAdd)");
 
-	double requiredCash;
+	double requiredCash = 0.00;
 	if(orderToAdd.getAction().equals("SELL")) {
 	    LOGGER.debug("orderToAdd.getAction().equals(\"SELL\")");
 	    if(orderToAdd.getSecType().equals("PUT")) {
@@ -289,7 +290,7 @@ public class Portfolio {
 		    requiredCash = 0.00;
 		}
                 if(freeCash < requiredCash) {
-		    LOGGER.warng("freeCash {} < requiredCash {}", freeCash, requiredCash);
+		    LOGGER.warn("freeCash {} < requiredCash {}", freeCash, requiredCash);
                     throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
                 }
 	    } else { /* If neither PUT nor CALL must be a STOCK */
@@ -309,9 +310,9 @@ public class Portfolio {
 		}
 	    }
 	} else { /* else orderToAdd.getAction().equals("BUY") */
-	    requiredCash = orderToAdd.getLimitPrice() * orderToAdd.getTotalQuantity() * (orderToAdd.getSecType.equals("STOCK")) ? 1 : 100;
+	    requiredCash = orderToAdd.getLimitPrice() * orderToAdd.getTotalQuantity() * ((orderToAdd.getSecType().equals("STOCK")) ? 1 : 100);
 	    LOGGER.debug("requiredCash = orderToAdd.getLimitPrice() {} * orderToAdd.getTotalQuantity() {} * {}", orderToAdd.getLimitPrice(),
-			 orderToAdd.getTotalQuantity(), (orderToAdd.getSecType.equals("STOCK")) ? 1 : 100);
+			 orderToAdd.getTotalQuantity(), (orderToAdd.getSecType().equals("STOCK")) ? 1 : 100);
 	    if(freeCash < requiredCash) {
 		LOGGER.warn("freeCash {} < requiredCash {}", freeCash, requiredCash);
 		throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
@@ -322,7 +323,6 @@ public class Portfolio {
 	LOGGER.info("reservedCash + requiredCash {} = {}, freeCash - requiredCash = {}", requiredCash, reservedCash, freeCash);
 	portfolioOrders.add(orderToAdd);
 	entryCount++;
-	}
 	LOGGER.info("Added order id {} to portfolio {}", orderToAdd.getOrderId(), name);
     }
     public void addPosition(Position position) {
@@ -339,7 +339,7 @@ public class Portfolio {
 		openOrderList.add(portfolioOrder);
 	    }
 	}
-	LOGGER.debug("Returning {}", Arrays.toString(openOrderList.toArray());
+	LOGGER.debug("Returning {}", Arrays.toString(openOrderList.toArray()) );
      	return openOrderList;
     }
     public List<Position> getListOfOpenPositions() {

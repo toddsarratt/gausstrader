@@ -55,11 +55,11 @@ class Order {
 	secType = security.getSecType();
 	if( (secType == "CALL") || (secType == "PUT") ) {
 	    LOGGER.debug("Security is an option");
-	    expiry = (Option)security.getExpiry();
+	    expiry = ((Option)security).getExpiry();
 	    LOGGER.debug("expiry = {}", expiry.toString("MMMM dd YYYY")); 
-	    underlyingTicker = (Option)security.getUnderlyingTicker();
+	    underlyingTicker = ((Option)security).getUnderlyingTicker();
 	    LOGGER.debug("underlyingTicker = {}", underlyingTicker);
-	    strikePrice = (Option)security.getStrike();
+	    strikePrice = ((Option)security).getStrike();
 	    LOGGER.debug("strikePrice = {}", strikePrice);
 	}
 	this.tif = tif;

@@ -192,7 +192,7 @@ public class TradingSession {
                                 try {
                                     portfolio.addOrder(new Order(callToSell, callToSell.lastBid(), "SELL", 1, "GFD"));
                                 } catch(InsufficientFundsException ife) {
-                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), requiredFreeCash, ife);
+                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), callToSell.lastBid(), ife);
                                 } catch(SecurityNotFoundException snfe) {
                                     LOGGER.warn("Missing securities needed to cover attempted order", snfe);
                                 }
@@ -209,7 +209,7 @@ public class TradingSession {
 				try {
 				    portfolio.addOrder(new Order(callToSell, callToSell.lastBid(), "SELL", 1, "GFD"));
 				} catch(InsufficientFundsException ife) {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), requiredFreeCash, ife);
+				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), callToSell.lastBid(), ife);
 				} catch(SecurityNotFoundException snfe) {
 				    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
 				}
@@ -226,7 +226,7 @@ public class TradingSession {
 				try {
 				    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
 				} catch(InsufficientFundsException ife) {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash, ife);
+				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), putToSell.lastBid(), ife);
 				} catch(SecurityNotFoundException snfe) {
 				    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
 				}
@@ -244,7 +244,7 @@ public class TradingSession {
                                 try {
                                     portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
                                 } catch(InsufficientFundsException ife) {
-                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash, ife);
+                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), putToSell.lastBid(), ife);
                                 } catch(SecurityNotFoundException snfe) {
                                     LOGGER.warn("Missing securities needed to cover attempted order", snfe);
                                 }
@@ -261,7 +261,7 @@ public class TradingSession {
                                 try {
                                     portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
                                 } catch(InsufficientFundsException ife) {
-                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash, ife);
+                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), putToSell.lastBid(), ife);
                                 } catch(SecurityNotFoundException snfe) {
                                     LOGGER.warn("Missing securities needed to cover attempted order", snfe);
                                 }
