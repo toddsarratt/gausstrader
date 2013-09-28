@@ -204,7 +204,7 @@ public class Portfolio {
 	int openLongCount = 0;
 		
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.getTicker().equals(portfolioPosition.getTicker())) && portfolioPosition.isOpen() && 
+	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
 		portfolioPosition.isLong() && (portfolioPosition.getSecType().equals("CALL")) ) {
 		openLongCount++;
 	    }
@@ -216,7 +216,7 @@ public class Portfolio {
 	int openShortCount = 0;
 		
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.getTicker().equals(portfolioPosition.getTicker())) && portfolioPosition.isOpen() && 
+	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
 		portfolioPosition.isShort() && (portfolioPosition.getSecType().equals("CALL")) ) {
 		openShortCount++;
 	    }
@@ -228,7 +228,7 @@ public class Portfolio {
 	int openLongCount = 0;
 		
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.getTicker().equals(portfolioPosition.getTicker())) && portfolioPosition.isOpen() && 
+	    if( (security.Ticker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
 		portfolioPosition.isLong() && (portfolioPosition.getSecType().equals("PUT")) ) {
 		openLongCount++;
 	    }
@@ -240,7 +240,7 @@ public class Portfolio {
 	int openShortCount = 0;
 		
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.getTicker().equals(portfolioPosition.getTicker())) && portfolioPosition.isOpen() && 
+	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
 		portfolioPosition.isShort() && (portfolioPosition.getSecType().equals("PUT")) ) {
 		openShortCount++;
 	    }
@@ -248,16 +248,82 @@ public class Portfolio {
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenStockLongs(Security {})", openShortCount, security.getTicker());
 	return openShortCount; 
     }
-    public void addOrder(Order orderToAdd) {
+    public void addOrder(Order orderToAdd) throws InsufficientFundsException, SecurityNotFoundException {
 	LOGGER.debug("Entering Portfolio.addOrder(Order orderToAdd)");
-	double orderCost = orderToAdd.getLimitPrice() * orderToAdd.getTotalQuantity() * (orderToAdd.isOption() ? 100 : 1); 
+
+	double requiredCash;
+	if(orderToAdd.getAction().equals("SELL")) {
+	    LOGGER.debug("orderToAdd.getAction().equals(\"SELL\")");
+	    if(orderToAdd.getSecType().equals("PUT")) {
+		LOGGER.debug("orderToAdd.getSecType().equals(\"PUT\")");
+		requiredCash = orderToAdd.getStrikePrice() * orderToAdd.getTotalQuantity() * 100;
+		LOGGER.debug("requiredCash = orderToAdd.getStrikePrice() ({}) * orderToAdd.getTotalQuantity() ({}) * 100 = {}",
+			     orderToAdd.getStrikePrice(), orderToAdd.getTotalQuantity(), requiredCash);
+		if(freeCash < requiredCash) {
+		    LOGGER.debug("freeCash {} < requiredCash {}", freeCash, requiredCash);
+		    throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
+		}
+	    } else if(orderToAdd.getSecType().equals("CALL")) {
+		LOGGER.debug("orderToAdd.getSecType().equals(\"CALL\")");
+		requiredCash = orderToAdd.getStrikePrice() * orderToAdd.getTotalQuantity() * 100;
+		LOGGER.debug("requiredCash = orderToAdd.getStrikePrice() ({}) * orderToAdd.getTotalQuantity() ({}) * 100 = {}",
+                             orderToAdd.getStrikePrice(), orderToAdd.getTotalQuantity(), requiredCash);
+		for(Position positionForCallCover : getListOfOpenPositions()) {
+		    if(positionForCallCover.getTicker().equals(orderToAdd.getUnderlyingTicker()) &&
+		       positionForCallCover.isLong()) {
+			LOGGER.debug("Found open long stock position {} to write call against", positionForCallCover.getPositionId()); 
+			requiredCash -= orderToAdd.getStrikePrice() * positionForCallCover.getNumberTransacted();
+			LOGGER.debug("requiredCash -= orderToAdd.getStrikePrice() ({}) * orderToAdd.getTotalQuantity() ({}) * 100 = {}",
+				     orderToAdd.getStrikePrice(), orderToAdd.getTotalQuantity(), requiredCash);
+		    }
+		}
+		for(Order competingOpenOrder : getListOfOpenOrders()) {
+		    if(competingOpenOrder.getUnderlyingTicker().equals(orderToAdd.getUnderlyingTicker()) &&
+		       competingOpenOrder.getAction().equals("SELL") &&
+		       competingOpenOrder.getSecType().equals("CALL") ) {
+			requiredCash += orderToAdd.getStrikePrice() * competingOpenOrder.getTotalQuantity() * 100;
+		    }
+		}
+		if(requiredCash < 0.00) {
+		    LOGGER.debug("requiredCash {} < $0.00, setting to $0.00", requiredCash);
+		    requiredCash = 0.00;
+		}
+                if(freeCash < requiredCash) {
+		    LOGGER.warng("freeCash {} < requiredCash {}", freeCash, requiredCash);
+                    throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
+                }
+	    } else { /* If neither PUT nor CALL must be a STOCK */
+		LOGGER.debug("orderToAdd.getSecType().equals neither PUT nor CALL, so must be a STOCK");
+		int shareCountNeededToCover = orderToAdd.getTotalQuantity();
+		LOGGER.debug("shareCountNeededToCover = orderToAdd.getTotalQuantity() ({})", orderToAdd.getTotalQuantity());
+		for(Position positionToSell : getListOfOpenPositions()) {
+		    if(positionToSell.getTicker().equals(orderToAdd.getTicker())) {
+			LOGGER.debug("Found position {} with getNumberTransacted() {} to match sell order against", 
+				     positionToSell.getPositionId(), positionToSell.getNumberTransacted()); 
+			shareCountNeededToCover -= positionToSell.getNumberTransacted();
+		    }
+		}
+		if(shareCountNeededToCover > 0) {
+		    LOGGER.warn("Still need {} shares in the portfolio to cover order", shareCountNeededToCover);
+		    throw new SecurityNotFoundException(orderToAdd.getTicker());
+		}
+	    }
+	} else { /* else orderToAdd.getAction().equals("BUY") */
+	    requiredCash = orderToAdd.getLimitPrice() * orderToAdd.getTotalQuantity() * (orderToAdd.getSecType.equals("STOCK")) ? 1 : 100;
+	    LOGGER.debug("requiredCash = orderToAdd.getLimitPrice() {} * orderToAdd.getTotalQuantity() {} * {}", orderToAdd.getLimitPrice(),
+			 orderToAdd.getTotalQuantity(), (orderToAdd.getSecType.equals("STOCK")) ? 1 : 100);
+	    if(freeCash < requiredCash) {
+		LOGGER.warn("freeCash {} < requiredCash {}", freeCash, requiredCash);
+		throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
+	    }
+	}
+	reservedCash += requiredCash;
+	freeCash -= requiredCash;
+	LOGGER.info("reservedCash + requiredCash {} = {}, freeCash - requiredCash = {}", requiredCash, reservedCash, freeCash);
 	portfolioOrders.add(orderToAdd);
-	freeCash -= orderCost; 
-	reservedCash += orderCost;
 	entryCount++;
+	}
 	LOGGER.info("Added order id {} to portfolio {}", orderToAdd.getOrderId(), name);
-	LOGGER.info("Decremented freeCash by {} to {}", orderCost, freeCash);
-	LOGGER.info("Incremented reservedCash by {} to {}", orderCost, reservedCash);
     }
     public void addPosition(Position position) {
 	LOGGER.debug("Entering Portfolio.addPosition(Position {})", position.getPositionId());
@@ -273,7 +339,7 @@ public class Portfolio {
 		openOrderList.add(portfolioOrder);
 	    }
 	}
-	LOGGER.debug("Returning {}", openOrderList.toString());
+	LOGGER.debug("Returning {}", Arrays.toString(openOrderList.toArray());
      	return openOrderList;
     }
     public List<Position> getListOfOpenPositions() {
@@ -304,13 +370,12 @@ public class Portfolio {
 	LOGGER.debug("Entering Portfolio.fillOrder(Order {}, double {})", orderToFill.getOrderId(), fillPrice);
 	boolean orderIsLong = orderToFill.getAction().equals("BUY");
 	boolean orderIsOption = !orderToFill.getSecType().equals("STOCK");
+	LOGGER.debug("orderIsLong = {}, orderIsOption = {}", orderIsLong, orderIsOption);
 	double costBasis = fillPrice * orderToFill.getTotalQuantity() * (orderIsOption ? 100.0 : 1.0) * (orderIsLong ? 1.0 : -1.0);
+	LOGGER.debug("costBasis {} = fillPrice {} * orderToFill.getTotalQuantity() {} * (orderIsOption ? 100.0 : 1.0) {} * (orderIsLong ? 1.0 : -1.0) {}",
+		     costBasis, fillPrice, orderToFill.getTotalQuantity(), (orderIsOption ? 100.0 : 1.0),  (orderIsLong ? 1.0 : -1.0));
 	addPosition(new Position(orderToFill, fillPrice));
-	if(orderIsLong) {
-	    freeCash -= costBasis;
-	} else {
-	    reservedCash += costBasis;
-	}
+	freeCash -= costBasis;
 	totalCash = freeCash + reservedCash;
 	orderToFill.fill(fillPrice);
     }

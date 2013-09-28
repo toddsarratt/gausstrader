@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 
 /* Class to record each order 
  * Fields :
- * orderId : equal to System.nanoTime() should be rather unique
+ * orderId : generated from System time
  * open : boolean, open or closed order
  * ticker : security being traded
  * limitPrice : Limit orders only
@@ -42,19 +42,31 @@ class Order {
     public Order() {}    
 
     public Order(Security security, double limitPrice, String action, int totalQuantity, String tif) {
+	LOGGER.debug("Entering constructor Order(Security {}, double {}, String {}, int {}, String {})",
+		     security, limitPrice, action, totalQuantity, tif);
 	orderId = GaussTrader.getNewId();
-	LOGGER.info("Security is of type {}", security.getClass());
+	LOGGER.debug("Security is of type {}", security.getClass());
 	ticker = security.getTicker();
-	LOGGER.info("Assigning ticker = {} from security.getTicker() = {}", ticker, security.getTicker());
+	LOGGER.debug("Assigning ticker = {} from security.getTicker() = {}", ticker, security.getTicker());
 	this.limitPrice = limitPrice;
-	LOGGER.info("limitPrice = {}", limitPrice);
+	LOGGER.debug("limitPrice = {}", limitPrice);
 	this.action = action;
 	this.totalQuantity = totalQuantity;
-	this.secType = security.getSecType();
+	secType = security.getSecType();
+	if( (secType == "CALL") || (secType == "PUT") ) {
+	    LOGGER.debug("Security is an option");
+	    expiry = (Option)security.getExpiry();
+	    LOGGER.debug("expiry = {}", expiry.toString("MMMM dd YYYY")); 
+	    underlyingTicker = (Option)security.getUnderlyingTicker();
+	    LOGGER.debug("underlyingTicker = {}", underlyingTicker);
+	    strikePrice = (Option)security.getStrike();
+	    LOGGER.debug("strikePrice = {}", strikePrice);
+	}
 	this.tif = tif;
-	epochOpened = System.currentTimeMillis();
 	open = true;
+        epochOpened = System.currentTimeMillis();
 	LOGGER.info("Created order ID {} to {} {} of {} time in force : {}", orderId, action, totalQuantity, ticker, tif );
+	/* Write to database */
     }
 
     public long getOrderId() {
@@ -108,23 +120,30 @@ class Order {
     public boolean isOption() {
 	return (secType.equals("PUT") || secType.equals("CALL"));
     }
+    /* Write changes in order to database */
     public void fill(double fillPrice) {
+	LOGGER.debug("Entering Order.fill(double {})", fillPrice);
 	closeReason = "FILLED";
 	open = false;
 	this.fillPrice = fillPrice;
 	epochClosed = System.currentTimeMillis();
+	LOGGER.info("Order {} {} @ {} epoch {}", orderId, closeReason, this.fillPrice, epochClosed);
     }
     public void closeExpired() {
+	LOGGER.debug("Entering Order.closeExpired()");
 	closeReason = "EXPIRED";
 	open = false;
 	fillPrice = 0.00;
         epochClosed = System.currentTimeMillis();
+        LOGGER.info("Order {} {} @ {} epoch {}", this.orderId, closeReason, fillPrice, epochClosed);
     }
     public void closeCancelled() {
+	LOGGER.debug("Entering Order.closeCancelled()");
         closeReason = "CANCELLED";
         open = false;
         fillPrice = 0.00;
         epochClosed = System.currentTimeMillis();
+	LOGGER.info("Order {} {} @ {} epoch {}", this.orderId, closeReason, fillPrice, epochClosed);
     }
     void setEpochOpened(long epochOpened) {
         this.epochOpened = epochOpened;
@@ -167,6 +186,10 @@ class Order {
     }
     double getStrikePrice() {
 	return strikePrice;
+    }
+    @Override
+    public String toString() {
+	return (orderId + " : Qty " + totalQuantity + " " + ticker + " @ $" + limitPrice);
     }
     public static void main(String[] args) {
 	// TODO Auto-generated method stub

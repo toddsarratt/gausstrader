@@ -183,123 +183,89 @@ public class TradingSession {
 			    break;
 
 			case 1 : LOGGER.debug("Sell 1 mo call above 1st band.");
-			    LOGGER.debug("Calling Option.getOption({}, \"CALL\", 1, {})", stock.getTicker(), currentPrice);
 			    Option callToSell = Option.getOption(stock.getTicker(), "CALL", 1, currentPrice);
 			    if(callToSell == null) {
 				LOGGER.info("Cannot find a valid option for {}", stock.getTicker());
 				LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
 				stockIterator.remove();
 			    } else {
-				LOGGER.debug("Assigning callToSell.lastBid() to optionLastBid");
-				double optionLastBid = callToSell.lastBid();
-				LOGGER.debug("callToSell.lastBid() returned {}", optionLastBid);
-				LOGGER.debug("Reducing requiredFreeCash by {}", optionLastBid * 100);
-				double requiredFreeCash = optionLastBid * 100;
-				LOGGER.debug("requiredFreeCash == {}", requiredFreeCash);
-				LOGGER.debug("Comparing requiredFreeCash with portfolio.getFreeCash()");
-				if(requiredFreeCash < portfolio.getFreeCash() ) {
-				    LOGGER.debug("Portfolio has enough free cash to execute this order for {}", callToSell.getTicker());
-				    portfolio.addOrder(new Order(callToSell, optionLastBid, "SELL", 1, "GFD"));
-				} else {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), requiredFreeCash);
-				}
-			    }
+                                try {
+                                    portfolio.addOrder(new Order(callToSell, callToSell.lastBid(), "SELL", 1, "GFD"));
+                                } catch(InsufficientFundsException ife) {
+                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), requiredFreeCash, ife);
+                                } catch(SecurityNotFoundException snfe) {
+                                    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
+                                }
+                            }
 			    break; 
 
 			case 2 : LOGGER.debug("Sell 2 mo call above 2nd band.");
-			    LOGGER.debug("Calling Option.getOption({}, \"CALL\", 2, {})", stock.getTicker(), currentPrice);
 			    callToSell = Option.getOption(stock.getTicker(), "CALL", 2, currentPrice);
 			    if(callToSell == null) {
 				LOGGER.info("Cannot find a valid option for " + stock.getTicker());
 				LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
 				stockIterator.remove();
 			    } else {
-				LOGGER.debug("Assigning callToSell.lastBid() to optionLastBid");
-				double optionLastBid = callToSell.lastBid();
-				LOGGER.debug("callToSell.lastBid() returned {}", optionLastBid);
-				LOGGER.debug("Reducing requiredFreeCash by {}", optionLastBid * 100);
-				double requiredFreeCash = optionLastBid * 100;
-				LOGGER.debug("requiredFreeCash == {}", requiredFreeCash);
-				LOGGER.debug("Comparing requiredFreeCash with portfolio.getFreeCash()");
-				if(requiredFreeCash < portfolio.getFreeCash() ) {
-				    LOGGER.debug("Portfolio has enough free cash to execute this order for {}", callToSell.getTicker());
+				try {
 				    portfolio.addOrder(new Order(callToSell, callToSell.lastBid(), "SELL", 1, "GFD"));
-				} else {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), requiredFreeCash);
+				} catch(InsufficientFundsException ife) {
+				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), requiredFreeCash, ife);
+				} catch(SecurityNotFoundException snfe) {
+				    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
 				}
 			    }
 			    break;
 
 			case 3 : LOGGER.debug("Sell 1 mo put below 1st band.");
-			    LOGGER.debug("Calling Option.getOption({}, \"PUT\", 1, {})", stock.getTicker(), currentPrice);
 			    Option putToSell = Option.getOption(stock.getTicker(), "PUT", 1, currentPrice);
 			    if(putToSell == null) {
 				LOGGER.info("Cannot find a valid option for " + stock.getTicker());
 				LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
 				stockIterator.remove();
 			    } else {
-				LOGGER.debug("Assigning callToSell.lastBid() to optionLastBid");
-				double optionLastBid = putToSell.lastBid();
-				LOGGER.debug("callToSell.lastBid() returned {}", optionLastBid);
-				LOGGER.debug("Reducing requiredFreeCash by {}", optionLastBid * 100);
-				double requiredFreeCash = optionLastBid * 100;
-				LOGGER.debug("requiredFreeCash == {}", requiredFreeCash);
-				LOGGER.debug("Comparing requiredFreeCash with portfolio.getFreeCash()");
-				if(requiredFreeCash < portfolio.getFreeCash() ) {
-				    LOGGER.debug("Portfolio has enough free cash to execute this order for {}", putToSell.getTicker());
+				try {
 				    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
-				} else {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash);
+				} catch(InsufficientFundsException ife) {
+				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash, ife);
+				} catch(SecurityNotFoundException snfe) {
+				    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
 				}
 			    }
 			    break;
 
 			case 4 : LOGGER.debug("Sell 2 mo put below 2nd band."); 
-			    LOGGER.debug("Calling Option.getOption({}, \"PUT\", 2, {})", stock.getTicker(), currentPrice);
 			    putToSell = Option.getOption(stock.getTicker(), "PUT", 2, currentPrice);
 			    if(putToSell == null) {
 				LOGGER.info("Cannot find a valid option for " + stock.getTicker());
 				LOGGER.info("Removing " + stock.getTicker() + " from list of tradable securities");
 				stockIterator.remove();
 			    } else {
-				LOGGER.debug("Assigning callToSell.lastBid() to optionLastBid");
-				double optionLastBid = putToSell.lastBid();
-				LOGGER.debug("callToSell.lastBid() returned {}", optionLastBid);
-				LOGGER.debug("Reducing requiredFreeCash by {}", optionLastBid * 100);
-				double requiredFreeCash = optionLastBid * 100;
-				LOGGER.debug("requiredFreeCash == {}", requiredFreeCash);
-				LOGGER.debug("Comparing requiredFreeCash with portfolio.getFreeCash()");
-				if(requiredFreeCash < portfolio.getFreeCash() ) {
-				    LOGGER.debug("Portfolio has enough free cash to execute this order for {}", putToSell.getTicker());
-				    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
-				} else {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash);
-				}
-			    }
+
+                                try {
+                                    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
+                                } catch(InsufficientFundsException ife) {
+                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash, ife);
+                                } catch(SecurityNotFoundException snfe) {
+                                    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
+                                }
+                            }
 			    break;
 
 			case 5 : LOGGER.debug("Sell 6 mo put below 3rd band."); 
-			    LOGGER.debug("Calling Option.getOption({}, \"PUT\", 6, {})", stock.getTicker(), currentPrice);
 			    putToSell = Option.getOption(stock.getTicker(), "PUT", 6, currentPrice);
 			    if(putToSell == null) {
 				LOGGER.info("Cannot find a valid option for " + stock.getTicker());
 				LOGGER.info("Removing " + stock.getTicker() + " from list of tradable securities");
 				stockIterator.remove();
 			    } else {
-				LOGGER.debug("Assigning callToSell.lastBid() to optionLastBid");
-				double optionLastBid = putToSell.lastBid();
-				LOGGER.debug("callToSell.lastBid() returned {}", optionLastBid);
-				LOGGER.debug("Reducing requiredFreeCash by {}", optionLastBid * 100);
-				double requiredFreeCash = optionLastBid * 100;
-				LOGGER.debug("requiredFreeCash == {}", requiredFreeCash);
-				LOGGER.debug("Comparing requiredFreeCash with portfolio.getFreeCash()");
-				if(requiredFreeCash < portfolio.getFreeCash() ) {
-				    LOGGER.debug("Portfolio has enough free cash to execute this order for {}", putToSell.getTicker());
-				    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
-				} else {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash);
-				}
-			    }
+                                try {
+                                    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
+                                } catch(InsufficientFundsException ife) {
+                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), requiredFreeCash, ife);
+                                } catch(SecurityNotFoundException snfe) {
+                                    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
+                                }
+                            }
 			    break;
 
 			default : LOGGER.error("Something is wrong. Should not be in default switch of TradingSession.trade()"); 
@@ -432,7 +398,7 @@ public class TradingSession {
 	}
 		
 	if(stock.getPrice() <= stock.getBollingerBand(3)) {
-	    LOGGER.info("Stock {} at {} is below 1st Bollinger Band of ", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(3));
+	    LOGGER.info("Stock {} at {} is below 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(3));
 	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
 		LOGGER.info("50DMA < 200DMA. Taking no action.");
 		return 0;

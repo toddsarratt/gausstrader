@@ -65,7 +65,7 @@ public class Stock extends Security {
 	this.ticker = ticker;
 	this.dataSource = dataSource;
 	if(!tickerValid(ticker)) {
-	    throw new SecurityNotFoundException();
+	    throw new SecurityNotFoundException("ticker");
 	}
 	populateStockInfo();
 	populateHistoricalPrices();

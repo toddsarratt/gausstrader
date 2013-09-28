@@ -91,8 +91,7 @@ public class GaussTrader {
 		    LOGGER.warn("Security {} does not exist in Yahoo! database.", candidateTicker);
 		    LOGGER.debug("Caught (SecurityNotFoundException snfe)", snfe);
 		} catch(MalformedURLException mue) {
-		    LOGGER.error("Malformed URL Exception.");
-		    LOGGER.error("MalformedURLException mue *** END PROGRAM ***", mue);
+		    LOGGER.error("MalformedURLException *** END PROGRAM ***", mue);
 		    System.exit(1);
 		} catch(IOException ioe) {
 		    LOGGER.error("Cannot connect to Yahoo!");
