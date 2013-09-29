@@ -350,7 +350,7 @@ public class Portfolio {
 		openPositionList.add(portfolioPosition);
 	    }
 	}
-	LOGGER.debug("Returning {}", openPositionList.toString());
+	LOGGER.debug("Returning {}", Arrays.toString(openPositionList.toArray()));
 	return openPositionList;
     }
     public List<Position> getListOfOpenOptionPositions() {

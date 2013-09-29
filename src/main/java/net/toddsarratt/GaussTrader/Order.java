@@ -53,7 +53,7 @@ class Order {
 	this.action = action;
 	this.totalQuantity = totalQuantity;
 	secType = security.getSecType();
-	if( (secType == "CALL") || (secType == "PUT") ) {
+	if( (secType.equals("CALL")) || (secType.equals("PUT")) ) {
 	    LOGGER.debug("Security is an option");
 	    expiry = ((Option)security).getExpiry();
 	    LOGGER.debug("expiry = {}", expiry.toString("MMMM dd YYYY")); 
@@ -65,7 +65,7 @@ class Order {
 	this.tif = tif;
 	open = true;
         epochOpened = System.currentTimeMillis();
-	LOGGER.info("Created order ID {} to {} {} of {} time in force : {}", orderId, action, totalQuantity, ticker, tif );
+	LOGGER.info("Created order ID {} to {} {} of {} @ ${} TIF : {}", orderId, action, totalQuantity, ticker, limitPrice, tif);
 	/* Write to database */
     }
 
