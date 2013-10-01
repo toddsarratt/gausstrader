@@ -49,7 +49,7 @@ public class Portfolio {
 		LOGGER.info("Creating portfolio \"{}\" with {} free cash", name, freeCash);
 	    }
 	} catch(SQLException sqle) {
-	    LOGGER.info("Unable to get connection to {}", GaussTrader.DB_NAME);
+	    LOGGER.info("Error communicating with {}", GaussTrader.DB_NAME);
 	    LOGGER.debug("Caught (SQLException sqle)", sqle);
 	} 
 	/* Leave connection open for further writes from Portfolio ... ?
