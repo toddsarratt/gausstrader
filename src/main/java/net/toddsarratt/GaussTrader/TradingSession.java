@@ -295,13 +295,13 @@ public class TradingSession {
 		    if(openOrder.getAction().equals("SELL")) {
 			LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"SELL\" order", lastTick, openOrder.getLimitPrice());
 			if(lastTick >= openOrder.getLimitPrice()) {
-			    LOGGER.debug("Calling portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
+			    LOGGER.debug("Calling Portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
 			    portfolio.fillOrder(openOrder, lastTick);
 			}
 		    } else if(openOrder.getAction().equals("BUY")) {
                         LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"BUY\" order", lastTick, openOrder.getLimitPrice());
 			if(lastTick <= openOrder.getLimitPrice()) {
-                            LOGGER.debug("Calling portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
+                            LOGGER.debug("Calling Portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
 			    portfolio.fillOrder(openOrder, lastTick);
 			} 
 		    } else {

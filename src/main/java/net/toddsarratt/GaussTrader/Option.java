@@ -206,7 +206,7 @@ public class Option extends Security {
 	 * tickerBuilder.append(expiryDtf.print(expiry));
 	 */
 	tickerBuilder.append(expiry.toString("yyMMdd"));
-	LOGGER.debug("Assembling option ticker with {} (humand readable : {})", expiry.toString("yyMMdd"), expiry.toString("MMMM dd YYYY"));
+	LOGGER.debug("Assembling option ticker with {} (expiry : {})", expiry.toString("yyMMdd"), expiry.toString("MMMM dd YYYY"));
 	tickerBuilder.append(indicator);
 	tickerBuilder.append(String.format("%08d", strikeInt));
 	LOGGER.debug("Returning assembled option ticker {}", tickerBuilder.toString());
@@ -228,11 +228,13 @@ public class Option extends Security {
 
 	if(optionType.equals("CALL")) {
 	    LOGGER.info("Finding call to sell");
-	    strikePrice = (int)(limitStrikePrice + 1.00);
+	    strikePrice = (int)limitStrikePrice + 0.50;
 	    LOGGER.info("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 	    if(strikePrice < limitStrikePrice) {
 		strikePrice += 0.50;
+                LOGGER.info("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 	    }
+	    /* While looking for an option don't go further than 10% out from current underlying security price */
 	    while( (strikePrice - limitStrikePrice) / limitStrikePrice < 0.1 ) {
 		optionTickerToTry = optionTicker(stockTicker, expiryMutableDateTime, 'C', strikePrice);
 		LOGGER.debug("Trying option ticker {}", optionTickerToTry);
@@ -250,15 +252,15 @@ public class Option extends Security {
 	    LOGGER.warn("Couldn't find a CALL in the correct strike range");
 	} else if(optionType.equals("PUT")) {
 	    LOGGER.info("Finding put to sell");
-	    strikePrice = (int)limitStrikePrice - 0.50;
+	    strikePrice = (int)limitStrikePrice + 0.50;
 	    LOGGER.info("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 	    if(strikePrice > limitStrikePrice) {
 		strikePrice -= 0.50;
 		LOGGER.info("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 	    }
+            /* While looking for an option don't go further than 10% out from current underlying security price */
 	    while( (strikePrice - limitStrikePrice) / limitStrikePrice > -0.1 ) {
 		optionTickerToTry = optionTicker(stockTicker, expiryMutableDateTime, 'P', strikePrice);
-		/* Add comments to optionTicker() and optionTickerValid() */
 		try {
 		    if(optionTickerValid(optionTickerToTry)) {
 			LOGGER.debug("Returning new Option(\"{}\")", optionTickerToTry);

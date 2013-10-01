@@ -65,7 +65,7 @@ class Order {
 	this.tif = tif;
 	open = true;
         epochOpened = System.currentTimeMillis();
-	LOGGER.info("Created order ID {} to {} {} of {} @ ${} TIF : {}", orderId, action, totalQuantity, ticker, limitPrice, tif);
+	LOGGER.info("Created order ID {} for {} to {} {} of {} @ ${} TIF : {}", orderId, underlyingTicker, action, totalQuantity, ticker, limitPrice, tif);
 	/* Write to database */
     }
 
@@ -127,7 +127,7 @@ class Order {
 	open = false;
 	this.fillPrice = fillPrice;
 	epochClosed = System.currentTimeMillis();
-	LOGGER.info("Order {} {} @ {} epoch {}", orderId, closeReason, this.fillPrice, epochClosed);
+	LOGGER.info("Order {} {} @ ${} epoch {}", orderId, closeReason, this.fillPrice, epochClosed);
     }
     public void closeExpired() {
 	LOGGER.debug("Entering Order.closeExpired()");
@@ -135,7 +135,7 @@ class Order {
 	open = false;
 	fillPrice = 0.00;
         epochClosed = System.currentTimeMillis();
-        LOGGER.info("Order {} {} @ {} epoch {}", this.orderId, closeReason, fillPrice, epochClosed);
+        LOGGER.info("Order {} {} @ ${} epoch {}", this.orderId, closeReason, fillPrice, epochClosed);
     }
     public void closeCancelled() {
 	LOGGER.debug("Entering Order.closeCancelled()");
@@ -143,7 +143,7 @@ class Order {
         open = false;
         fillPrice = 0.00;
         epochClosed = System.currentTimeMillis();
-	LOGGER.info("Order {} {} @ {} epoch {}", this.orderId, closeReason, fillPrice, epochClosed);
+	LOGGER.info("Order {} {} @ ${} epoch {}", this.orderId, closeReason, fillPrice, epochClosed);
     }
     void setEpochOpened(long epochOpened) {
         this.epochOpened = epochOpened;
