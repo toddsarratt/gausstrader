@@ -450,6 +450,8 @@ public class TradingSession {
 		    }
 		}
 	    }
+	} else {
+	    LOGGER.debug("Today is not Friday, no expirations to check");
 	}
     }
     

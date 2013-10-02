@@ -87,7 +87,7 @@ public class Position {
     public long getPositionId() {
         return positionId;
     }
-    void setPositionId(int positionId ) {
+    void setPositionId(long positionId ) {
         this.positionId = positionId;
     }
     void setOpen(boolean open) {
