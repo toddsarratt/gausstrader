@@ -137,6 +137,7 @@ public class Portfolio {
         positionFromDb.setCostBasis(dbResult.getDouble("cost_basis"));
 	positionFromDb.setLastTick(dbResult.getDouble("last_tick"));
 	positionFromDb.setNetAssetValue(dbResult.getDouble("net_asset_value"));
+	positionFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
         return positionFromDb;
     }
     private static Order dbToPortfolioOrder(ResultSet dbResult) throws SQLException {
@@ -151,6 +152,7 @@ public class Portfolio {
         orderFromDb.setSecType(dbResult.getString("sec_type"));
         orderFromDb.setTif(dbResult.getString("tif"));
         orderFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
+	orderFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
         return orderFromDb;
     }
     public String getName() {
@@ -158,13 +160,13 @@ public class Portfolio {
     }
     public double calculateNetAssetValue() {
 	double openPositionNavs = 0.00;
-	this.totalCash = calculateTotalCash();
+	calculateTotalCash();
 	for(Position positionToUpdate : portfolioPositions) {
 	    if(positionToUpdate.isOpen()) {
 		openPositionNavs += positionToUpdate.calculateNetAssetValue();
 	    }
 	}
-	netAssetValue = this.totalCash + openPositionNavs;
+	netAssetValue = totalCash + openPositionNavs;
 	return netAssetValue;
     }
     public double getFreeCash() {
@@ -396,7 +398,7 @@ public class Portfolio {
 	    LOGGER.debug("freeCash = ${}", freeCash);
 	    /* TODO : Finish this stub */
 	}
-	totalCash = freeCash + reservedCash;
+	calculateTotalCash();
 	orderToFill.fill(fillPrice);
         try {
             updateDbOrder(orderToFill);
@@ -585,7 +587,7 @@ public class Portfolio {
 	LOGGER.debug("Entering Portfolio.insertDbPosition(Position {})", portfolioPosition.getPositionId());
 	String sqlString = new String("INSERT INTO positions (portfolio, position_id, open, ticker, sec_type, epoch_expiry, " +
 				      "underlying_ticker, strike_price, epoch_opened, long_position, number_transacted, price_at_open, " + 
-				      "cost_basis, last_tick, net_asset_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+				      "cost_basis, last_tick, net_asset_value, claim_against_cash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 	PreparedStatement newPositionSqlStatement = null;
 	int insertedRowCount;
 	int updatedRowCount;
@@ -596,7 +598,7 @@ public class Portfolio {
 	newPositionSqlStatement.setString(4, portfolioPosition.getTicker());
 	newPositionSqlStatement.setString(5, portfolioPosition.getSecType());
 	newPositionSqlStatement.setLong(6, portfolioPosition.getExpiry().getMillis());
-	newPositionSqlStatement.setString(7, portfolioPosition.getTicker());
+	newPositionSqlStatement.setString(7, portfolioPosition.getUnderlyingTicker());
 	newPositionSqlStatement.setDouble(8, portfolioPosition.getStrikePrice());
 	newPositionSqlStatement.setLong(9, portfolioPosition.getEpochOpened());
 	newPositionSqlStatement.setBoolean(10, portfolioPosition.isLong());
@@ -605,13 +607,14 @@ public class Portfolio {
 	newPositionSqlStatement.setDouble(13, portfolioPosition.getCostBasis());
 	newPositionSqlStatement.setDouble(14, portfolioPosition.getLastTick());
 	newPositionSqlStatement.setDouble(15, portfolioPosition.calculateNetAssetValue());
+	newPositionSqlStatement.setDouble(16, portfolioPosition.getClaimAgainstCash());
 	LOGGER.debug("Executing INSERT INTO positions (portfolio, position_id, open, ticker, sec_type, epoch_expiry, underlying_ticker, strike_price, epoch_opened, " + 
-		     "long_position, number_transacted, price_at_open, cost_basis, last_tick, net_asset_value) " + 
-		     "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})", 
+		     "long_position, number_transacted, price_at_open, cost_basis, last_tick, net_asset_value, claim_against_cash) " + 
+		     "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {} {})", 
 		     name, portfolioPosition.getPositionId(), portfolioPosition.isOpen(), portfolioPosition.getTicker(), portfolioPosition.getSecType(), 
 		     portfolioPosition.getExpiry().getMillis(), portfolioPosition.getTicker(), portfolioPosition.getStrikePrice(), portfolioPosition.getEpochOpened(), 
 		     portfolioPosition.isLong(), portfolioPosition.getNumberTransacted(), portfolioPosition.getPriceAtOpen(), portfolioPosition.getCostBasis(), 
-		     portfolioPosition.getLastTick(), portfolioPosition.calculateNetAssetValue());
+		     portfolioPosition.getLastTick(), portfolioPosition.calculateNetAssetValue(), portfolioPosition.getClaimAgainstCash());
 	if( (insertedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
 	    LOGGER.warn("Inserted {} rows. Should have inserted 1 row", insertedRowCount);
 	}
@@ -624,9 +627,9 @@ public class Portfolio {
 	    newPositionSqlStatement.setLong(4, portfolioPosition.getPositionId());
 	    LOGGER.debug("Executing UPDATE positions SET epoch_closed = {}, price_at_close = {}, profit = {}, open = 'false' WHERE position_id = {}",
 			 portfolioPosition.getEpochClosed(), portfolioPosition.getPriceAtClose(), portfolioPosition.getProfit(), portfolioPosition.getPositionId());
-	}
-	if( (updatedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
-	    LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
+	    if( (updatedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
+		LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
+	    }
 	}
     }
     private void updateDbOrder(Order portfolioOrder) throws SQLException {
@@ -651,7 +654,7 @@ public class Portfolio {
     private void insertDbOrder(Order portfolioOrder) throws SQLException {
 	LOGGER.debug("Entering Portfolio.insertDbOrder(Order {})", portfolioOrder.getOrderId());
 	String sqlString = new String("INSERT INTO orders (portfolio, order_id, open, ticker, epoch_expiry, underlying_ticker, strike_price, limit_price, " +
-				      "action, total_quantity, sec_type, tif, epoch_opened) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+				      "action, total_quantity, sec_type, tif, epoch_opened, claim_against_cash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 	PreparedStatement newOrderSqlStatement = null;
 	int insertedRowCount;
 	int updatedRowCount;
@@ -669,11 +672,13 @@ public class Portfolio {
 	newOrderSqlStatement.setString(11, portfolioOrder.getSecType());
 	newOrderSqlStatement.setString(12, portfolioOrder.getTif());
 	newOrderSqlStatement.setLong(13, portfolioOrder.getEpochOpened());
+	newOrderSqlStatement.setDouble(14, portfolioOrder.getClaimAgainstCash());
 	LOGGER.debug("Executing INSERT INTO orders (portfolio, order_id, open, ticker, epoch_expiry, underlying_ticker, strike_price, limit_price, " +
-		     "action, total_quantity, sec_type, tif, epoch_opened) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		     "action, total_quantity, sec_type, tif, epoch_opened) VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
 		     name, portfolioOrder.getOrderId(), portfolioOrder.isOpen(), portfolioOrder.getTicker(), portfolioOrder.getExpiry().getMillis(), 
 		     portfolioOrder.getUnderlyingTicker(), portfolioOrder.getStrikePrice(), portfolioOrder.getLimitPrice(), portfolioOrder.getAction(),
-		     portfolioOrder.getTotalQuantity(), portfolioOrder.getSecType(), portfolioOrder.getTif(), portfolioOrder.getEpochOpened());
+		     portfolioOrder.getTotalQuantity(), portfolioOrder.getSecType(), portfolioOrder.getTif(), portfolioOrder.getEpochOpened(), 
+		     portfolioOrder.getClaimAgainstCash());
 	if( (insertedRowCount = newOrderSqlStatement.executeUpdate()) != 1) {
 	    LOGGER.warn("Inserted {} rows. Should have inserted 1 row", insertedRowCount);
 	}
@@ -691,7 +696,27 @@ public class Portfolio {
 	    LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
 	}
     }
+    public void expireOrder(Order expiredOrder) {
+	LOGGER.debug("Entering Portfolio.expireOrder(Order {})", expiredOrder.getOrderId());
+	if(expiredOrder.getSecType().equals("STOCK")) {
+	    LOGGER.debug("Subtracting ${} from reservedCash ${}", (expiredOrder.getLimitPrice() * expiredOrder.getTotalQuantity()), reservedCash);
+	    reservedCash -= expiredOrder.getLimitPrice() * expiredOrder.getTotalQuantity();
+	    LOGGER.debug("Adding ${} to freeCash ${}", (expiredOrder.getLimitPrice() * expiredOrder.getTotalQuantity()), freeCash);
+	    freeCash += expiredOrder.getLimitPrice() * expiredOrder.getTotalQuantity();
+	} else {
+	    reservedCash -= expiredOrder.getStrikePrice() * expiredOrder.getTotalQuantity() * 100.0;
+	    freeCash += expiredOrder.getStrikePrice() * expiredOrder.getTotalQuantity() * 100.0;
+        }
+	calculateTotalCash();
+	expiredOrder.closeExpired();
+        try {
+            updateDbOrder(expiredOrder);
+        } catch(SQLException sqle) {
+            LOGGER.warn("Unable to update filled order {} in DB", expiredOrder.getOrderId());
+            LOGGER.debug("Caught (SQLException sqle)", sqle);
+        }
 
+    }
     public static void main(String[] args) {
 	LOGGER.info("Generating new portfolio");
 	//		Portfolio p = new Portfolio("Test");

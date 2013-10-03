@@ -29,6 +29,7 @@ class Order {
     private String underlyingTicker = null;
     private double strikePrice;
     private double limitPrice;
+    private double claimAgainstCash;
     private String action;
     private int totalQuantity;
     private String secType;
@@ -62,11 +63,23 @@ class Order {
 	    strikePrice = ((Option)security).getStrike();
 	    LOGGER.debug("strikePrice = {}", strikePrice);
 	}
+	double costBasis = limitPrice * totalQuantity * (secType.equals("STOCK") ? 1.0 : 100.0) * (action.equals("BUY") ? 1.0 : -1.0);
+	LOGGER.debug("costBasis = ${}", costBasis);
+	if(action.equals("BUY")) {
+	    claimAgainstCash = costBasis;
+	    if(secType.equals("CALL")) {
+		claimAgainstCash += strikePrice * 100;
+	    }
+	} else {    /* else action.equals("SELL") */
+	    if(secType.equals("PUT")) {
+		claimAgainstCash = strikePrice * 100 + costBasis;
+	    }
+	}
+	LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
 	this.tif = tif;
 	open = true;
         epochOpened = System.currentTimeMillis();
 	LOGGER.info("Created order ID {} for {} to {} {} of {} @ ${} TIF : {}", orderId, underlyingTicker, action, totalQuantity, ticker, limitPrice, tif);
-	/* Write to database */
     }
 
     public long getOrderId() {
@@ -186,6 +199,12 @@ class Order {
     }
     double getStrikePrice() {
 	return strikePrice;
+    }
+    double getClaimAgainstCash() {
+	return claimAgainstCash;
+    }
+    void setClaimAgainstCash(double requiredCash) {
+	claimAgainstCash = requiredCash;
     }
     @Override
     public String toString() {

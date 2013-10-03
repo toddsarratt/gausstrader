@@ -18,6 +18,7 @@ public class Position {
     private int numberTransacted;
     private double priceAtOpen;
     private double costBasis;
+    private double claimAgainstCash;
     private double lastTick = 0.00;
     private double netAssetValue = 0.00;
     private long epochClosed;
@@ -47,6 +48,11 @@ public class Position {
         numberTransacted = orderToFill.getTotalQuantity();
         this.priceAtOpen = priceAtOpen;
         costBasis = priceAtOpen * numberTransacted * (secType.equals("STOCK") ? 1 : 100) * (longPosition ? 1 : -1);
+	if( (secType.equals("CALL") && longPosition) || 
+	    (secType.equals("PUT") && !longPosition) ) {
+	    claimAgainstCash = orderToFill.getStrikePrice() * numberTransacted * 100;
+	}
+	LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
 	lastTick = priceAtOpen;
 	netAssetValue = costBasis;
         LOGGER.info("New position created with positionId " + positionId + " ticker " + ticker + 
@@ -206,6 +212,12 @@ public class Position {
     }
     public boolean isOpen() {
 	return open;
+    }
+    public double getClaimAgainstCash() {
+	return claimAgainstCash;
+    }
+    public void setClaimAgainstCash(double requiredCash) {
+	claimAgainstCash = requiredCash;
     }
     public double calculateNetAssetValue() {
 	try {

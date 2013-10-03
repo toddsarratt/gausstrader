@@ -460,7 +460,7 @@ public class TradingSession {
 	LOGGER.debug("Entering TradingSession.closeGoodForDayOrders()");
 	for(Order checkExpiredOrder : portfolio.getListOfOpenOrders()) {
 	    if(checkExpiredOrder.getTif().equals("GFD")) {
-		checkExpiredOrder.closeExpired();
+		portfolio.expireOrder(checkExpiredOrder);
 	    }
 	}
     }
