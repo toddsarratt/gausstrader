@@ -78,7 +78,7 @@ public class Option extends Security {
 	if(m.find()) {
 	    this.strike = Double.parseDouble(m.group(0)) / 1000.0;
 	}
-	LOGGER.info("Created {} option {} for underlying {} expiry {} for strike {}", 
+	LOGGER.info("Created {} option {} for underlying {} expiry {} for strike ${}", 
 		    secType, this.ticker, this.underlyingTicker, expiry.toString("MMMM dd YYYY"), this.strike);
     }
 	
@@ -229,10 +229,10 @@ public class Option extends Security {
 	if(optionType.equals("CALL")) {
 	    LOGGER.info("Finding call to sell");
 	    strikePrice = (int)limitStrikePrice + 0.50;
-	    LOGGER.info("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+	    LOGGER.info("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
 	    if(strikePrice < limitStrikePrice) {
 		strikePrice += 0.50;
-                LOGGER.info("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+                LOGGER.info("Adjusted strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
 	    }
 	    /* While looking for an option don't go further than 10% out from current underlying security price */
 	    while( (strikePrice - limitStrikePrice) / limitStrikePrice < 0.1 ) {

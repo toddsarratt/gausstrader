@@ -54,6 +54,7 @@ public class GaussTrader {
     }
 
     public static void main(String[] args) {
+	Stock stockToAdd;
 	try {
 	    LOGGER.info("*** START PROGRAM ***");
 	    LOGGER.info("Starting GaussTrader at {}", new DateTime());
@@ -83,10 +84,15 @@ public class GaussTrader {
 	    LOGGER.debug("dataSource.setPassword({})", DB_PASSWORD);
 	    dataSource.setPassword(DB_PASSWORD);
 			
-	    for(String candidateTicker : tickerList)
+	    for(String candidateTicker : tickerList) {
 		try {
 		    LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
-		    tradeableStockList.add(new Stock(candidateTicker, dataSource));
+		    stockToAdd = new Stock(candidateTicker, dataSource);
+		    if(stockToAdd.getBollingerBand(0) > 0.00) {
+			tradeableStockList.add(stockToAdd);
+		    } else {
+			LOGGER.warn("Failed to calculate valid Bollinger Bands for {}", candidateTicker);
+		    }
 		} catch(SecurityNotFoundException snfe) {
 		    LOGGER.warn("Security {} does not exist in Yahoo! database.", candidateTicker);
 		    LOGGER.debug("Caught (SecurityNotFoundException snfe)", snfe);
@@ -101,6 +107,7 @@ public class GaussTrader {
 		    LOGGER.warn("Bad data from Yahoo! for ticker {}", candidateTicker);
 		    LOGGER.debug("Caught (NumberFormatException nfe)", nfe);
 		}
+	    }
 	    LOGGER.info("Creating new TradingSession() with new Portfolio({})", portfolioName);
 	    TradingSession todaysSession = new TradingSession(new Portfolio(portfolioName, dataSource), tradeableStockList);
 	    todaysSession.runTradingDay();

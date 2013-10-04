@@ -50,7 +50,7 @@ class Order {
 	ticker = security.getTicker();
 	LOGGER.debug("Assigning ticker = {} from security.getTicker() = {}", ticker, security.getTicker());
 	this.limitPrice = limitPrice;
-	LOGGER.debug("limitPrice = {}", limitPrice);
+	LOGGER.debug("limitPrice = ${}", limitPrice);
 	this.action = action;
 	this.totalQuantity = totalQuantity;
 	secType = security.getSecType();
@@ -61,20 +61,9 @@ class Order {
 	    underlyingTicker = ((Option)security).getUnderlyingTicker();
 	    LOGGER.debug("underlyingTicker = {}", underlyingTicker);
 	    strikePrice = ((Option)security).getStrike();
-	    LOGGER.debug("strikePrice = {}", strikePrice);
+	    LOGGER.debug("strikePrice = ${}", strikePrice);
 	}
-	double costBasis = limitPrice * totalQuantity * (secType.equals("STOCK") ? 1.0 : 100.0) * (action.equals("BUY") ? 1.0 : -1.0);
-	LOGGER.debug("costBasis = ${}", costBasis);
-	if(action.equals("BUY")) {
-	    claimAgainstCash = costBasis;
-	    if(secType.equals("CALL")) {
-		claimAgainstCash += strikePrice * 100;
-	    }
-	} else {    /* else action.equals("SELL") */
-	    if(secType.equals("PUT")) {
-		claimAgainstCash = strikePrice * 100 + costBasis;
-	    }
-	}
+	calculateClaimAgainstCash();
 	LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
 	this.tif = tif;
 	open = true;
@@ -205,6 +194,22 @@ class Order {
     }
     void setClaimAgainstCash(double requiredCash) {
 	claimAgainstCash = requiredCash;
+    }
+    private void calculateClaimAgainstCash() {
+	LOGGER.debug("Entering Order.calculateClaimAgainstCash()");
+        double costBasis = limitPrice * totalQuantity * (secType.equals("STOCK") ? 1.0 : 100.0) * (action.equals("BUY") ? 1.0 : -1.0);
+        LOGGER.debug("costBasis = ${}", costBasis);
+	claimAgainstCash = 0.00;
+	if(action.equals("BUY")) {
+	    claimAgainstCash = costBasis;
+	    if(secType.equals("CALL")) {
+		claimAgainstCash += strikePrice * 100.0;
+	    }
+	} else {    /* else action.equals("SELL") */
+	    if(secType.equals("PUT")) {
+		claimAgainstCash = strikePrice * 100.0 + costBasis;
+	    }
+	}
     }
     @Override
     public String toString() {

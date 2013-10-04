@@ -129,7 +129,8 @@ public class Portfolio {
         positionFromDb.setOpen(true);
         positionFromDb.setTicker(dbResult.getString("ticker"));
         positionFromDb.setSecType(dbResult.getString("sec_type"));
-	positionFromDb.setExpiry(new DateTime(dbResult.getLong("epoch_expiry"), DateTimeZone.forID("America/New_York")));
+	positionFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
+	positionFromDb.setStrikePrice(dbResult.getDouble("strike_price"));
         positionFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
         positionFromDb.setLongPosition(dbResult.getBoolean("long_position"));
         positionFromDb.setNumberTransacted(dbResult.getInt("number_transacted"));
@@ -137,6 +138,7 @@ public class Portfolio {
         positionFromDb.setCostBasis(dbResult.getDouble("cost_basis"));
 	positionFromDb.setLastTick(dbResult.getDouble("last_tick"));
 	positionFromDb.setNetAssetValue(dbResult.getDouble("net_asset_value"));
+        positionFromDb.setExpiry(new DateTime(dbResult.getLong("epoch_expiry"), DateTimeZone.forID("America/New_York")));
 	positionFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
         return positionFromDb;
     }
@@ -146,6 +148,8 @@ public class Portfolio {
         orderFromDb.setOrderId(dbResult.getLong("order_id"));
 	orderFromDb.setOpen(true);
         orderFromDb.setTicker(dbResult.getString("ticker"));
+	orderFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
+	orderFromDb.setStrikePrice(dbResult.getDouble("strike_price"));
         orderFromDb.setLimitPrice(dbResult.getDouble("limit_price"));
         orderFromDb.setAction(dbResult.getString("action"));
 	orderFromDb.setTotalQuantity(dbResult.getInt("total_quantity"));
@@ -254,78 +258,20 @@ public class Portfolio {
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenStockLongs(Security {})", openShortCount, security.getTicker());
 	return openShortCount; 
     }
-    public void addOrder(Order orderToAdd) throws InsufficientFundsException, SecurityNotFoundException {
-	LOGGER.debug("Entering Portfolio.addOrder(Order {})", orderToAdd);
-
+    public void addNewOrder(Order orderToAdd) throws InsufficientFundsException, SecurityNotFoundException {
+	LOGGER.debug("Entering Portfolio.addNewOrder(Order {})", orderToAdd);
 	double requiredCash = 0.00;
-	if(orderToAdd.getAction().equals("SELL")) {
-	    LOGGER.debug("orderToAdd.getAction().equals(\"SELL\")");
-	    if(orderToAdd.getSecType().equals("PUT")) {
-		LOGGER.debug("orderToAdd.getSecType().equals(\"PUT\")");
-		requiredCash = orderToAdd.getStrikePrice() * orderToAdd.getTotalQuantity() * 100;
-		LOGGER.debug("requiredCash = orderToAdd.getStrikePrice() ${} * orderToAdd.getTotalQuantity() ({}) * 100 = {}",
-			     orderToAdd.getStrikePrice(), orderToAdd.getTotalQuantity(), requiredCash);
-		if(freeCash < requiredCash) {
-		    LOGGER.debug("freeCash {} < requiredCash {}", freeCash, requiredCash);
-		    throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
-		}
-	    } else if(orderToAdd.getSecType().equals("CALL")) {
-		LOGGER.debug("orderToAdd.getSecType().equals(\"CALL\")");
-		requiredCash = orderToAdd.getStrikePrice() * orderToAdd.getTotalQuantity() * 100;
-		LOGGER.debug("requiredCash = orderToAdd.getStrikePrice() ${} * orderToAdd.getTotalQuantity() ({}) * 100 = {}",
-                             orderToAdd.getStrikePrice(), orderToAdd.getTotalQuantity(), requiredCash);
-		for(Position positionForCallCover : getListOfOpenPositions()) {
-		    if(positionForCallCover.getTicker().equals(orderToAdd.getUnderlyingTicker()) &&
-		       positionForCallCover.isLong()) {
-			LOGGER.debug("Found open long stock position {} to write call against", positionForCallCover.getPositionId()); 
-			requiredCash -= orderToAdd.getStrikePrice() * positionForCallCover.getNumberTransacted();
-			LOGGER.debug("requiredCash -= orderToAdd.getStrikePrice() ${} * orderToAdd.getTotalQuantity() ({}) * 100 = {}",
-				     orderToAdd.getStrikePrice(), orderToAdd.getTotalQuantity(), requiredCash);
-		    }
-		}
-		for(Order competingOpenOrder : getListOfOpenOrders()) {
-		    if(competingOpenOrder.getUnderlyingTicker().equals(orderToAdd.getUnderlyingTicker()) &&
-		       competingOpenOrder.getAction().equals("SELL") &&
-		       competingOpenOrder.getSecType().equals("CALL") ) {
-			requiredCash += orderToAdd.getStrikePrice() * competingOpenOrder.getTotalQuantity() * 100;
-		    }
-		}
-		if(requiredCash < 0.00) {
-		    LOGGER.debug("requiredCash {} < $0.00, setting to $0.00", requiredCash);
-		    requiredCash = 0.00;
-		}
-                if(freeCash < requiredCash) {
-		    LOGGER.warn("freeCash {} < requiredCash {}", freeCash, requiredCash);
-                    throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
-                }
-	    } else { /* If neither PUT nor CALL must be a STOCK */
-		LOGGER.debug("orderToAdd.getSecType().equals neither PUT nor CALL, so must be a STOCK");
-		int shareCountNeededToCover = orderToAdd.getTotalQuantity();
-		LOGGER.debug("shareCountNeededToCover = orderToAdd.getTotalQuantity() ({})", orderToAdd.getTotalQuantity());
-		for(Position positionToSell : getListOfOpenPositions()) {
-		    if(positionToSell.getTicker().equals(orderToAdd.getTicker())) {
-			LOGGER.debug("Found position {} with getNumberTransacted() {} to match sell order against", 
-				     positionToSell.getPositionId(), positionToSell.getNumberTransacted()); 
-			shareCountNeededToCover -= positionToSell.getNumberTransacted();
-		    }
-		}
-		if(shareCountNeededToCover > 0) {
-		    LOGGER.warn("Still need {} shares in the portfolio to cover order", shareCountNeededToCover);
-		    throw new SecurityNotFoundException(orderToAdd.getTicker());
-		}
-	    }
-	} else { /* else orderToAdd.getAction().equals("BUY") */
-	    requiredCash = orderToAdd.getLimitPrice() * orderToAdd.getTotalQuantity() * ((orderToAdd.getSecType().equals("STOCK")) ? 1 : 100);
-	    LOGGER.debug("requiredCash = orderToAdd.getLimitPrice() {} * orderToAdd.getTotalQuantity() {} * {}", orderToAdd.getLimitPrice(),
-			 orderToAdd.getTotalQuantity(), (orderToAdd.getSecType().equals("STOCK")) ? 1 : 100);
-	    if(freeCash < requiredCash) {
-		LOGGER.warn("freeCash {} < requiredCash {}", freeCash, requiredCash);
-		throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
-	    }
+	requiredCash = orderToAdd.getClaimAgainstCash();
+	LOGGER.debug("requiredCash = orderToAdd.getClaimAgainstCash() = ${}", requiredCash);
+	if(freeCash < requiredCash) {
+	    LOGGER.debug("freeCash {} < requiredCash {}", freeCash, requiredCash);
+	    throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
 	}
+	LOGGER.debug("reservedCash ${} += requiredCash ${} == ${}", reservedCash, requiredCash, (reservedCash + requiredCash));
 	reservedCash += requiredCash;
+	LOGGER.debug("freeCash ${} -= requiredCash ${} == ${}", freeCash, requiredCash, (freeCash - requiredCash));
 	freeCash -= requiredCash;
-	LOGGER.info("reservedCash + requiredCash {} = {}, freeCash - requiredCash = {}", requiredCash, reservedCash, freeCash);
+	LOGGER.info("requiredCash == ${}, freeCash == ${}, reservedCash == ${}", requiredCash, freeCash, reservedCash);
 	portfolioOrders.add(orderToAdd);
 	entryCount++;
 	LOGGER.info("Added order id {} to portfolio {}", orderToAdd.getOrderId(), name);
@@ -632,11 +578,11 @@ public class Portfolio {
 	    }
 	}
     }
-    private void updateDbOrder(Order portfolioOrder) throws SQLException {
+    private void closeDbOrder(Order portfolioOrder) throws SQLException {
 	/* Nothing changes in an order unless it is filled (i.e. closed) */
 	LOGGER.debug("Entering Portfolio.updateDbOrder(Order {})", portfolioOrder.getOrderId());
 	if(!portfolioOrder.isOpen()) {
-	    String sqlString = new String("UPDATE orders SET epoch_closed = ?, close_reason = ?, fill_price = ? WHERE order_id = ?");
+	    String sqlString = new String("UPDATE orders SET open = false, epoch_closed = ?, close_reason = ?, fill_price = ? WHERE order_id = ?");
 	    PreparedStatement updateOrderSqlStatement = null;
 	    int updatedRowCount;
 	    updateOrderSqlStatement = dbConnection.prepareStatement(sqlString);
@@ -644,13 +590,20 @@ public class Portfolio {
 	    updateOrderSqlStatement.setString(2, portfolioOrder.getCloseReason());
 	    updateOrderSqlStatement.setDouble(3, portfolioOrder.getFillPrice());
 	    updateOrderSqlStatement.setLong(4, portfolioOrder.getOrderId());
-	    LOGGER.debug("Executing UPDATE orders SET epoch_closed = {}, close_reason = {}, fill_price = {} WHERE order_id = {}",
+	    LOGGER.debug("Executing UPDATE orders SET open = false, epoch_closed = {}, close_reason = {}, fill_price = {} WHERE order_id = {}",
 			 portfolioOrder.getEpochClosed(), portfolioOrder.getCloseReason(), portfolioOrder.getFillPrice(), portfolioOrder.getOrderId());
 	    if( (updatedRowCount = updateOrderSqlStatement.executeUpdate()) != 1) {
 		LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
 	    }
 	}
     }
+    private void updateDbOrder(Order portfolioOrder) throws SQLException {
+	/* TODO : Stub here for orders that are not GFD and this method is called at the end
+	 * of the day to reconcile existing open orders with the database
+	 */
+	return;
+    }
+
     private void insertDbOrder(Order portfolioOrder) throws SQLException {
 	LOGGER.debug("Entering Portfolio.insertDbOrder(Order {})", portfolioOrder.getOrderId());
 	String sqlString = new String("INSERT INTO orders (portfolio, order_id, open, ticker, epoch_expiry, underlying_ticker, strike_price, limit_price, " +
@@ -691,9 +644,9 @@ public class Portfolio {
 	    newOrderSqlStatement.setLong(4, portfolioOrder.getOrderId());
 	    LOGGER.debug("Executing UPDATE orders SET epoch_closed = {}, close_reason = {}, fill_price = {}, open = 'false' WHERE order_id = {}",
 			 portfolioOrder.getEpochClosed(), portfolioOrder.getCloseReason(), portfolioOrder.getFillPrice(), portfolioOrder.getOrderId());
-	}
-	if( (updatedRowCount = newOrderSqlStatement.executeUpdate()) != 1) {
-	    LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
+	    if( (updatedRowCount = newOrderSqlStatement.executeUpdate()) != 1) {
+		LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
+	    }
 	}
     }
     public void expireOrder(Order expiredOrder) {

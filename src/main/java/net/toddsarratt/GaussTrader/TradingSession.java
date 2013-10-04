@@ -15,9 +15,20 @@ import org.joda.time.format.PeriodFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+class PriceBasedAction {
+    boolean doSomething;
+    String optionType;
+    int monthsOut;
+    PriceBasedAction(boolean doSomething, String optionType, int monthsOut) {
+	this.doSomething = doSomething;
+	this.optionType = optionType;
+	this.monthsOut = monthsOut;
+    }
+}
+
 public class TradingSession {
     private static final Logger LOGGER = LoggerFactory.getLogger(TradingSession.class);
-	
+    private static final PriceBasedAction DO_NOTHING_PRICE_BASED_ACTION = new PriceBasedAction(false, "", 0);	
     private ArrayList<Stock> stockList = null;
     private Portfolio portfolio = null;
     private static boolean marketOpen = false;
@@ -160,124 +171,39 @@ public class TradingSession {
 	 * may need to remove a stock if a suitable option is not found to trade
 	 */
 	LOGGER.debug("Entering TradingSession.findMispricedStocks()");
-	Iterator<Stock> stockIterator;
+	Iterator<Stock> stockIterator = stockList.iterator();
 	Stock stock;
 	double currentPrice = 0.00;
-	stockIterator = stockList.iterator();
 	while(stockIterator.hasNext()) {
 	    stock = stockIterator.next();
 	    LOGGER.debug("Retrieved stock with ticker {} from stockIterator", stock.getTicker());
-	    if(stock.getBollingerBand(0) == -1.0) {
-		LOGGER.warn("Failed to calculate valid Bollinger Bands for " + stock.getTicker());
-		LOGGER.warn("Removing " + stock.getTicker() + " from list of tradable securities");
-		stockIterator.remove();
-	    } else {
-		try {
-		    currentPrice = stock.lastTick();
-		    LOGGER.debug("stock.lastTick() returns {}", currentPrice);
-		    if( (currentPrice == -1) ) {
-			LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
-		    } else {
-			switch(priceActionable(portfolio, stock)) {
-			case 0 : LOGGER.info("No action to take for {}", stock.getTicker()); 
-			    break;
-
-			case 1 : LOGGER.debug("Sell 1 mo call above 1st band.");
-			    Option callToSell = Option.getOption(stock.getTicker(), "CALL", 1, currentPrice);
-			    if(callToSell == null) {
-				LOGGER.info("Cannot find a valid option for {}", stock.getTicker());
-				LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
-				stockIterator.remove();
-			    } else {
-                                try {
-                                    portfolio.addOrder(new Order(callToSell, callToSell.lastBid(), "SELL", 1, "GFD"));
-                                } catch(InsufficientFundsException ife) {
-                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), callToSell.lastBid(), ife);
-                                } catch(SecurityNotFoundException snfe) {
-                                    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
-                                }
-                            }
-			    break; 
-
-			case 2 : LOGGER.debug("Sell 2 mo call above 2nd band.");
-			    callToSell = Option.getOption(stock.getTicker(), "CALL", 2, currentPrice);
-			    if(callToSell == null) {
-				LOGGER.info("Cannot find a valid option for " + stock.getTicker());
-				LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
-				stockIterator.remove();
-			    } else {
-				try {
-				    portfolio.addOrder(new Order(callToSell, callToSell.lastBid(), "SELL", 1, "GFD"));
-				} catch(InsufficientFundsException ife) {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", callToSell.getTicker(), callToSell.lastBid(), ife);
-				} catch(SecurityNotFoundException snfe) {
-				    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
-				}
+	    try {
+		currentPrice = stock.lastTick();
+		LOGGER.debug("stock.lastTick() returns ${}", currentPrice);
+		if( (currentPrice == -1) ) {
+		    LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
+		} else {
+		    PriceBasedAction actionToTake = priceActionable(portfolio, stock);
+		    if(actionToTake.doSomething) {
+			Option optionToSell = Option.getOption(stock.getTicker(), actionToTake.optionType, actionToTake.monthsOut, currentPrice);
+			if(optionToSell == null) {
+			    LOGGER.info("Cannot find a valid option for {}", stock.getTicker());
+			    LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
+			    stockIterator.remove();
+			} else {
+			    try {
+				portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.monthsOut, "GFD"));
+			    } catch(InsufficientFundsException ife) {
+				LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
+			    } catch(SecurityNotFoundException snfe) {
+				LOGGER.warn("Missing securities needed to cover attempted order", snfe);
 			    }
-			    break;
-
-			case 3 : LOGGER.debug("Sell 1 mo put below 1st band.");
-			    Option putToSell = Option.getOption(stock.getTicker(), "PUT", 1, currentPrice);
-			    if(putToSell == null) {
-				LOGGER.info("Cannot find a valid option for " + stock.getTicker());
-				LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
-				stockIterator.remove();
-			    } else {
-				try {
-				    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
-				} catch(InsufficientFundsException ife) {
-				    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), putToSell.lastBid(), ife);
-				} catch(SecurityNotFoundException snfe) {
-				    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
-				}
-			    }
-			    break;
-
-			case 4 : LOGGER.debug("Sell 2 mo put below 2nd band."); 
-			    putToSell = Option.getOption(stock.getTicker(), "PUT", 2, currentPrice);
-			    if(putToSell == null) {
-				LOGGER.info("Cannot find a valid option for " + stock.getTicker());
-				LOGGER.info("Removing " + stock.getTicker() + " from list of tradable securities");
-				stockIterator.remove();
-			    } else {
-
-                                try {
-                                    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
-                                } catch(InsufficientFundsException ife) {
-                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), putToSell.lastBid(), ife);
-                                } catch(SecurityNotFoundException snfe) {
-                                    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
-                                }
-                            }
-			    break;
-
-			case 5 : LOGGER.debug("Sell 6 mo put below 3rd band."); 
-			    putToSell = Option.getOption(stock.getTicker(), "PUT", 6, currentPrice);
-			    if(putToSell == null) {
-				LOGGER.info("Cannot find a valid option for " + stock.getTicker());
-				LOGGER.info("Removing " + stock.getTicker() + " from list of tradable securities");
-				stockIterator.remove();
-			    } else {
-                                try {
-                                    portfolio.addOrder(new Order(putToSell, putToSell.lastBid(), "SELL", 1, "GFD"));
-                                } catch(InsufficientFundsException ife) {
-                                    LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", putToSell.getTicker(), putToSell.lastBid(), ife);
-                                } catch(SecurityNotFoundException snfe) {
-                                    LOGGER.warn("Missing securities needed to cover attempted order", snfe);
-                                }
-                            }
-			    break;
-
-			default : LOGGER.error("Something is wrong. Should not be in default switch of TradingSession.trade()"); 
-			    LOGGER.error("*** END PROGRAM ***");
-			    System.exit(1);
-			    break;
 			}
 		    }
-		} catch(IOException ioe) {
-		    LOGGER.info("IO exception attempting to get information on ticker {}", stock.getTicker());
-		    LOGGER.debug("Caught (IOException ioe)", ioe); 
 		}
+	    } catch(IOException ioe) {
+		LOGGER.info("IO exception attempting to get information on ticker {}", stock.getTicker());
+		LOGGER.debug("Caught (IOException ioe)", ioe); 
 	    }
 	}
     }
@@ -345,72 +271,62 @@ public class TradingSession {
 	}
     }
 	
-    private static int priceActionable(Portfolio portfolio, Stock stock) {
+    private static PriceBasedAction priceActionable(Portfolio portfolio, Stock stock) {
         /* Decide if a security's current price triggers a predetermined event */
 	LOGGER.debug("Entering TradingSession.priceActionable(Portfolio {}, Stock {})", portfolio.getName(), stock.getTicker());
-	LOGGER.debug("Comparing current price {} against Bollinger Bands {}", stock.getPrice(), stock.describeBollingerBands());
+	LOGGER.debug("Comparing current price ${} against Bollinger Bands {}", stock.getPrice(), stock.describeBollingerBands());
 	if(stock.getPrice() >= stock.getBollingerBand(2)) {
-	    LOGGER.info("Stock {} at {} is above 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(2));
+	    LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(2));
 	    if(portfolio.numberOfOpenStockLongs(stock) > portfolio.numberOfOpenCallShorts(stock) ) {
-		return 2;
-	    } else {
-                LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
+		return new PriceBasedAction(true, "CALL", 2);
 	    }
-	    return 0;
+	    LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
+	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
-		
 	if(stock.getPrice() >= stock.getBollingerBand(1)) {
-            LOGGER.info("Stock {} at {} is above 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(1));
+            LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(1));
 	    if(portfolio.numberOfOpenStockLongs(stock) > portfolio.numberOfOpenCallShorts(stock) ) {
-		return 1;
-	    } else {
-		LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
+		return new PriceBasedAction(true, "CALL", 1);
 	    }
-	    return 0;
+	    LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
+            return DO_NOTHING_PRICE_BASED_ACTION;
 	}
-		
 	if(stock.getPrice() <= stock.getBollingerBand(5)) {
-            LOGGER.info("Stock {} at {} is below 3rd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(5));
+            LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(5));
 	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
 		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return 0;
+		return DO_NOTHING_PRICE_BASED_ACTION;
 	    }
 	    if(portfolio.numberOfOpenPutLongs(stock) <= 2 ) {
-		return 5;
-	    } else {
-                LOGGER.info("Open short put positions exceeds 2. Taking no action.");
+		return new PriceBasedAction(true, "PUT", 6);
 	    }
-	    return 0;
+	    LOGGER.info("Open short put positions exceeds 2. Taking no action.");
+	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
-		
 	if(stock.getPrice() <= stock.getBollingerBand(4)) {
-	    LOGGER.info("Stock {} at {} is below 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(4));
+	    LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(4));
 	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
 		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return 0;
+		return DO_NOTHING_PRICE_BASED_ACTION;
 	    }
 	    if(portfolio.numberOfOpenPutLongs(stock) <= 1 ) {
-		return 4;
-	    } else {
-                LOGGER.info("Open short put positions exceeds 1. Taking no action.");
+		return new PriceBasedAction(true, "PUT", 2);
 	    }
-	    return 0;
+	    LOGGER.info("Open short put positions exceeds 1. Taking no action.");
+            return DO_NOTHING_PRICE_BASED_ACTION;
 	}
-		
 	if(stock.getPrice() <= stock.getBollingerBand(3)) {
-	    LOGGER.info("Stock {} at {} is below 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(3));
+	    LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(3));
 	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
 		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return 0;
+		return DO_NOTHING_PRICE_BASED_ACTION;
 	    }			
 	    if(portfolio.numberOfOpenPutShorts(stock) == 0 ) {
-		return 3;
-	    } else {
-                LOGGER.info("Open short put positions exceeds 0. Taking no action.");
+		return new PriceBasedAction(true, "PUT", 1);
 	    }
-	    return 0;
+	    LOGGER.info("Open short put positions exceeds 0. Taking no action.");
 	}
-	return 0;
+	return DO_NOTHING_PRICE_BASED_ACTION;
     }
 
     private void reconcileExpiringOptions() {
