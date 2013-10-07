@@ -174,6 +174,9 @@ class Order {
     void setExpiry(DateTime expiry) {
 	this.expiry = expiry;
     }
+    void setExpiry(long expiryMillis) {
+	this.expiry = new DateTime(expiryMillis);
+    }
     DateTime getExpiry() {
 	return expiry;
     }

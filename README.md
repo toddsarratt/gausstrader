@@ -12,5 +12,5 @@ a PostgreSQL database.
 * [Gradle](http://www.gradle.org) build tool
 * [Git](http://git-scm.com/) version control
 * [Joda-Time](http://joda-time.sourceforge.net/) date and time API
-* [Logback]([http://logback.qos.ch/) / [slf4j](http://www.slf4j.org/) with [Groovy](http://groovy.codehaus.org/) configuration
-* [TestNG]([http://testng.org/doc/index.html) unit testing
+* [Logback](http://logback.qos.ch/) / [slf4j](http://www.slf4j.org/) with [Groovy](http://groovy.codehaus.org/) configuration
+* [TestNG](http://testng.org/doc/index.html) unit testing

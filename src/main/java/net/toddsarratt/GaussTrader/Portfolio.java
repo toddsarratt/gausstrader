@@ -155,6 +155,7 @@ public class Portfolio {
         orderFromDb.setSecType(dbResult.getString("sec_type"));
         orderFromDb.setTif(dbResult.getString("tif"));
         orderFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
+	orderFromDb.setExpiry(dbResult.getLong("epoch_expiry"));
 	orderFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
         return orderFromDb;
     }
