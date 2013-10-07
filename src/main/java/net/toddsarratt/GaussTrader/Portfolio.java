@@ -17,9 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Portfolio {
-    private String name;
+    private String name = Long.toString(System.currentTimeMillis());
     private double netAssetValue = 0.00;
-    private double freeCash = 0.00;
+    private double freeCash = GaussTrader.STARTING_CASH;
     private double reservedCash = 0.00;
     private double totalCash = 0.00;
     private int entryCount = 0;
@@ -45,7 +45,6 @@ public class Portfolio {
 		getDbPortfolio();
 	    } else {
 		LOGGER.info("Could not find portfolio \"{}\" in database", name);
-		freeCash = GaussTrader.STARTING_CASH;
 		LOGGER.info("Creating portfolio \"{}\" with {} free cash", name, freeCash);
 	    }
 	} catch(SQLException sqle) {
