@@ -44,6 +44,7 @@ dependencies {
     compile 'joda-time:joda-time:+'
     compile 'postgresql:postgresql:+'
     compile 'ch.qos.logback:logback-classic:+'
+    testCompile 'org.testng:testng:+'
 }
 
 jar {
@@ -59,4 +60,11 @@ task listJars << {
     description = 'Lists dependency jars'
     group = 'build'
     configurations.compile.each { File file -> println file.name }
+}
+
+test {
+    useTestNG()
+    testLogging {
+    	events 'started', 'passed'
+    }
 }
