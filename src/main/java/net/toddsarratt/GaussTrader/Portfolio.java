@@ -260,18 +260,17 @@ public class Portfolio {
     }
     public void addNewOrder(Order orderToAdd) throws InsufficientFundsException, SecurityNotFoundException {
 	LOGGER.debug("Entering Portfolio.addNewOrder(Order {})", orderToAdd);
-	double requiredCash = 0.00;
-	requiredCash = orderToAdd.getClaimAgainstCash();
-	LOGGER.debug("requiredCash = orderToAdd.getClaimAgainstCash() = ${}", requiredCash);
-	if(freeCash < requiredCash) {
-	    LOGGER.debug("freeCash {} < requiredCash {}", freeCash, requiredCash);
-	    throw new InsufficientFundsException(orderToAdd.getTicker(), requiredCash, freeCash);
+	double orderRequiredCash = orderToAdd.getClaimAgainstCash();
+	LOGGER.debug("orderRequiredCash = orderToAdd.getClaimAgainstCash() = ${}", orderRequiredCash);
+	if(freeCash < orderRequiredCash) {
+	    LOGGER.debug("freeCash {} < orderRequiredCash {}", freeCash, orderRequiredCash);
+	    throw new InsufficientFundsException(orderToAdd.getTicker(), orderRequiredCash, freeCash);
 	}
-	LOGGER.debug("reservedCash ${} += requiredCash ${} == ${}", reservedCash, requiredCash, (reservedCash + requiredCash));
-	reservedCash += requiredCash;
-	LOGGER.debug("freeCash ${} -= requiredCash ${} == ${}", freeCash, requiredCash, (freeCash - requiredCash));
-	freeCash -= requiredCash;
-	LOGGER.info("requiredCash == ${}, freeCash == ${}, reservedCash == ${}", requiredCash, freeCash, reservedCash);
+	LOGGER.debug("reservedCash ${} += orderRequiredCash ${} == ${}", reservedCash, orderRequiredCash, (reservedCash + orderRequiredCash));
+	reservedCash += orderRequiredCash;
+	LOGGER.debug("freeCash ${} -= orderRequiredCash ${} == ${}", freeCash, orderRequiredCash, (freeCash - orderRequiredCash));
+	freeCash -= orderRequiredCash;
+	LOGGER.info("orderRequiredCash == ${}, freeCash == ${}, reservedCash == ${}", orderRequiredCash, freeCash, reservedCash);
 	portfolioOrders.add(orderToAdd);
 	entryCount++;
 	LOGGER.info("Added order id {} to portfolio {}", orderToAdd.getOrderId(), name);

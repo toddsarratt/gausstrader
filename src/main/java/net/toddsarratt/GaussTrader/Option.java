@@ -227,12 +227,12 @@ public class Option extends Security {
 	expiryMutableDateTime.setDayOfMonth(getExpirySaturday(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear()));
 
 	if(optionType.equals("CALL")) {
-	    LOGGER.info("Finding call to sell");
+	    LOGGER.debug("Finding call to sell");
 	    strikePrice = (int)limitStrikePrice + 0.50;
-	    LOGGER.info("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
+	    LOGGER.debug("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
 	    if(strikePrice < limitStrikePrice) {
 		strikePrice += 0.50;
-                LOGGER.info("Adjusted strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
+                LOGGER.debug("Adjusted strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
 	    }
 	    /* While looking for an option don't go further than 10% out from current underlying security price */
 	    while( (strikePrice - limitStrikePrice) / limitStrikePrice < 0.1 ) {
@@ -251,12 +251,12 @@ public class Option extends Security {
 	    }
 	    LOGGER.warn("Couldn't find a CALL in the correct strike range");
 	} else if(optionType.equals("PUT")) {
-	    LOGGER.info("Finding put to sell");
+	    LOGGER.debug("Finding put to sell");
 	    strikePrice = (int)limitStrikePrice + 0.50;
-	    LOGGER.info("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+	    LOGGER.debug("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 	    if(strikePrice > limitStrikePrice) {
 		strikePrice -= 0.50;
-		LOGGER.info("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+		LOGGER.debug("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 	    }
             /* While looking for an option don't go further than 10% out from current underlying security price */
 	    while( (strikePrice - limitStrikePrice) / limitStrikePrice > -0.1 ) {

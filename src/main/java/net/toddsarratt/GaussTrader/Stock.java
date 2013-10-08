@@ -39,14 +39,14 @@ public class Stock extends Security {
 	double dividendPayment;
 	}
     */
-    private String ticker;
-    private double price;
-    private String secType;
-    private long lastPriceUpdateEpoch = 0;
+    private String ticker = "AAPL";
+    private double price = 0.00;
+    private String secType = "STOCK";
+    private long lastPriceUpdateEpoch = 0l;
     private double fiftyDma = 0.00;
     private double twoHundredDma = 0.00;
     private long lastAvgUpdateEpoch = 0;
-    private LinkedHashMap<Long, Double> historicalPriceMap;
+    private LinkedHashMap<Long, Double> historicalPriceMap = new LinkedHashMap<>(PRICE_TRACKING_MAP);
     private Collection<Double> historicalPriceArray;
     //	public LinkedList<Dividend> dividendsPaid = null;
     private static DataSource dataSource = null;
@@ -58,6 +58,10 @@ public class Stock extends Security {
     private static final Logger LOGGER = LoggerFactory.getLogger(Stock.class);
     private static final Map<Long, Double> PRICE_TRACKING_MAP = new HashMap<>();
     private static final DateTime EARLIEST_PRICE_DATE = earliestHistoricalPriceNeeded();
+
+    Stock(String ticker) {
+	this.ticker = ticker;
+    }
 	
     Stock(String ticker, DataSource dataSource) throws SecurityNotFoundException, MalformedURLException, IOException {
 	LOGGER.debug("Entering constructor Stock(String {}, DataSource {})", ticker, dataSource.toString());
@@ -68,11 +72,12 @@ public class Stock extends Security {
 	    throw new SecurityNotFoundException("ticker");
 	}
 	populateStockInfo();
-	populateHistoricalPrices();
+	populateHistoricalPricesDB();
+	addPriceMapToDB(populateHistoricalPricesYahoo());
 	calculateBollingerBands();
     }
 
-    private void populateStockInfo() {
+    void populateStockInfo() {
 	LOGGER.debug("Entering Stock.populateStockInfo()");
 	String[] quoteString;
 	try {
@@ -88,14 +93,9 @@ public class Stock extends Security {
 	}
     }
 	
-    private void populateHistoricalPrices() {
+    void populateHistoricalPricesDB() {
 	/* Populate stock price history from DB */
-	LOGGER.debug("Entering Stock.populateHistoricalPrices()");
-        LinkedHashMap<Long, Double> retrievedYahooPriceMap;
-        MissingPriceDateRange priceRangeToDownload;
-
-        LOGGER.debug("Creating new historicalPriceMap from PRICE_TRACKING_MAP");
-	historicalPriceMap = new LinkedHashMap<>(PRICE_TRACKING_MAP);
+	LOGGER.debug("Entering Stock.populateHistoricalPricesDB()");
 	LinkedHashMap<Long, Double> priceMapFromDB = DBHistoricalPrices.getDBPrices(ticker, dataSource, EARLIEST_PRICE_DATE);
 	if(!priceMapFromDB.isEmpty()) {
 	    for(Long epochInDb : priceMapFromDB.keySet()) {
@@ -107,8 +107,17 @@ public class Stock extends Security {
 		}
 	    }
 	}
+    }
+    HashMap<Long, Double> populateHistoricalPricesYahoo() {
 	/* historicalPriceMap was built from PRICE_TRACKING_MAP which contains all necessary epochs as keys and -1.0 for every value, 
-	   which must be replaced from the local database first and supplemented by Yahoo! */
+	 * which should be replaced first from the local database first and then supplemented by Yahoo!
+	 * This method returns a map of blahblahblah
+	 */
+        LOGGER.debug("Entering Stock.populateHistoricalPricesYahoo()");
+        MissingPriceDateRange priceRangeToDownload;
+        LinkedHashMap<Long, Double> retrievedYahooPriceMap;
+	HashMap<Long, Double> pricesMissingFromDB = new HashMap<>();
+
 	if(historicalPriceMap.containsValue(-1.0)) {
 	    LOGGER.debug("Calculating date range for missing stock prices.");
 	    priceRangeToDownload = getMissingPriceDateRange();
@@ -119,7 +128,7 @@ public class Stock extends Security {
 			if(historicalPriceMap.get(epochToCheck) < 0.00) {
 			    if(retrievedYahooPriceMap.containsKey(epochToCheck)) {
 				historicalPriceMap.put(epochToCheck, retrievedYahooPriceMap.get(epochToCheck));
-				DBHistoricalPrices.addStockPrice(ticker, epochToCheck, retrievedYahooPriceMap.get(epochToCheck), dataSource);
+				pricesMissingFromDB.put(epochToCheck, retrievedYahooPriceMap.get(epochToCheck));
 			    } else {
 				LOGGER.warn("historicalPriceMap requires price for epoch {} but data missing from both DB and yahoo!", epochToCheck);
 			    }
@@ -135,8 +144,15 @@ public class Stock extends Security {
 			    priceRangeToDownload.earliest.toString(), priceRangeToDownload.latest.toString());
 	    }
 	}
+	return pricesMissingFromDB;
     }
 
+    void addPriceMapToDB(Map<Long, Double> pricesMissingFromDB) {
+	LOGGER.debug("Entering Stock.addPriceMapToDB({})", pricesMissingFromDB.toString());
+	for(Long priceEpoch : pricesMissingFromDB.keySet()) {
+	    DBHistoricalPrices.addStockPrice(ticker, priceEpoch, pricesMissingFromDB.get(priceEpoch), dataSource);
+	}
+    }
     private static DateTime earliestHistoricalPriceNeeded() {
 	/* 
 	 * Count backwards starting from yesterday the number of days the market was open
@@ -157,7 +173,7 @@ public class Stock extends Security {
 	    PRICE_TRACKING_MAP.put(earliestDatePriceNeeded.getMillis(), -1.0);
 	    LOGGER.debug("PRICE_TRACKING_MAP.put({}, {}) == {}", earliestDatePriceNeeded.getMillis(), -1.0, earliestDatePriceNeeded.toString());
 	}
-	LOGGER.info("Returning earliest date required for adjusted close {} ({})", earliestDatePriceNeeded.getMillis(), earliestDatePriceNeeded.toString());
+	LOGGER.debug("Returning earliest date required for adjusted close {} ({})", earliestDatePriceNeeded.getMillis(), earliestDatePriceNeeded.toString());
 	LOGGER.debug("PRICE_TRACKING_MAP == {}", PRICE_TRACKING_MAP.toString());
 	return new DateTime(earliestDatePriceNeeded);
     }
@@ -221,12 +237,12 @@ public class Stock extends Security {
 	    mpdr.latest = new DateTime(DateTimeZone.forID("America/New_York"));
 	    mpdr.earliest = new DateTime(EARLIEST_PRICE_DATE, DateTimeZone.forID("America/New_York"));
 	}
-        LOGGER.info("Returning latest date {} ({})", mpdr.latest.getMillis(), mpdr.latest.toString());
-	LOGGER.info("Returning earliest date {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
+        LOGGER.debug("Returning latest date {} ({})", mpdr.latest.getMillis(), mpdr.latest.toString());
+	LOGGER.debug("Returning earliest date {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
 	return mpdr;
     }
 	
-    private void calculateBollingerBands() {
+    void calculateBollingerBands() {
 	LOGGER.debug("Entering Stock.calculateBollingerBands()");
 	int period = GaussTrader.bollBandPeriod;
 		
@@ -303,19 +319,12 @@ public class Stock extends Security {
 
 	/* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" */
 
-	LOGGER.info(yahooBufferedReader.readLine().toString().replace("Date," , "Date         ").replaceAll("," , "    "));
+	LOGGER.debug(yahooBufferedReader.readLine().toString().replace("Date," , "Date         ").replaceAll("," , "    "));
 	while( (inputLine = yahooBufferedReader.readLine()) != null) {
 	    String[] yahooLine = inputLine.replaceAll("[\"+%]","").split("[,]");
-	    LOGGER.info(Arrays.toString(yahooLine));
-	    /*
-	    yahooHistMutableDateTime = new MutableDateTime(yahooLine[0], DateTimeZone.forID("America/New_York"));
-	    yahooHistMutableDateTime.setMillisOfDay( (16 * 60 + 20) * 60 * 1000);
-	    yahooHistEpoch = yahooHistMutableDateTime.getMillis();
-	    yahooHistAdjClose = Double.parseDouble(yahooLine[6]);
-	    */
+	    LOGGER.debug(Arrays.toString(yahooLine));
 	    HistoricalPrice yahooHistPrice = new HistoricalPrice(yahooLine[0], yahooLine[6]); 
 	    yahooPriceReturns.put(yahooHistPrice.getDateEpoch(), yahooHistPrice.getAdjClose());
-	    /*	    DBHistoricalPrices.addStockPrice(ticker, yahooHistPrice, dataSource);  */
 	}
 	return yahooPriceReturns;
     }	
@@ -332,7 +341,7 @@ public class Stock extends Security {
 	final URL YAHOO_URL = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
 	BufferedReader br = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
 	String[] yahooResults = br.readLine().toString().replaceAll("[\"+%]","").split("[,]");
-	LOGGER.info("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
+	LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
 	return yahooResults;		
     }
 	
@@ -420,33 +429,5 @@ public class Stock extends Security {
     @Override
     public String toString() {
 	return ticker;
-    }
-    public static void main(String[] args) {
-	/* 
-	 * String candidateTicker = "AAPL";
-	 * try {
-	 *   Stock tryMe = new Stock(candidateTicker);
-	 *   LOGGER.info("Last tick = " + tryMe.lastTick());
-	 *   LOGGER.info("Last bid = " + tryMe.lastBid());
-	 *   LOGGER.info("Last ask = " + tryMe.lastAsk());
-	 *   LOGGER.info(GaussTrader.bollBandPeriod + " day simple moving average = " + tryMe.bollingerBand[0]);
-	 *   LOGGER.info("Upper bollinger band at " + GaussTrader.bollingerSD1 + "dev = " + tryMe.bollingerBand[1]);
-	 *   LOGGER.info("Upper bollinger band at " + GaussTrader.bollingerSD2 + "dev = " + tryMe.bollingerBand[2]);
-	 *   LOGGER.info("Lower bollinger band at " + GaussTrader.bollingerSD1 + "dev = " + tryMe.bollingerBand[3]);
-	 *   LOGGER.info("Lower bollinger band at " + GaussTrader.bollingerSD2 + "dev = " + tryMe.bollingerBand[4]);
-	 *   LOGGER.info("Lower bollinger band at " + GaussTrader.bollingerSD3 + "dev = " + tryMe.bollingerBand[5]);
-	 * } catch(SecurityNotFoundException snfe) {
-	 *   LOGGER.info("Security " + candidateTicker + " does not exist in Yahoo! database.");
-	 *   LOGGER.debug("Caught (SecurityNotFoundException snfe)", snfe);
-	 * } catch(MalformedURLException mue) {
-	 *   LOGGER.error("Malformed URL Exception.");
-	 *   LOGGER.debug("Caught (MalformedURLException mue", mue);
-	 *   System.exit(1);
-	 * } catch(IOException ioe) {
-	 *   LOGGER.error("Cannot connect to Yahoo!");
-	 *   LOGGER.debug("Caught (IOException ioe)", ioe);
-	 *   System.exit(1);
-	 *}
-	 */
     }
 }

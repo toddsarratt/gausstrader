@@ -65,6 +65,6 @@ task listJars << {
 test {
     useTestNG()
     testLogging {
-    	events 'started', 'passed'
+    	events 'passed'
     }
 }

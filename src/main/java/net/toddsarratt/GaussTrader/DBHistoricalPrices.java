@@ -42,13 +42,13 @@ public abstract class DBHistoricalPrices {
 	    sqlStatement = dbConnection.prepareStatement("SELECT * FROM prices WHERE ticker = ? AND close_epoch >= ?");
 	    sqlStatement.setString(1, ticker);
 	    sqlStatement.setLong(2, earliestCloseDate.getMillis());
-	    LOGGER.info("SELECT * FROM prices WHERE ticker = {} AND close_epoch >= {}", ticker, earliestCloseDate.getMillis());
+	    LOGGER.debug("SELECT * FROM prices WHERE ticker = {} AND close_epoch >= {}", ticker, earliestCloseDate.getMillis());
 	    historicalPriceResultSet = sqlStatement.executeQuery();
             while(historicalPriceResultSet.next() && (dbPricesFound < pricesNeeded) ) {
 		closeEpoch = historicalPriceResultSet.getLong("close_epoch");
 		adjClose = historicalPriceResultSet.getDouble("adj_close");
 		dateTimeForLogging = new DateTime(closeEpoch, DateTimeZone.forID("America/New_York"));
-                LOGGER.info("Adding {} ({}), {}", closeEpoch, dateTimeForLogging.toString(), adjClose);
+                LOGGER.debug("Adding {} ({}), {}", closeEpoch, dateTimeForLogging.toString(), adjClose);
                 queriedPrices.put(closeEpoch, adjClose);
                 dbPricesFound++;
 	    }

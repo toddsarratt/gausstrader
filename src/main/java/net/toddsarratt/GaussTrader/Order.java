@@ -22,19 +22,19 @@ import org.slf4j.LoggerFactory;
 
 class Order {
 	
-    private long orderId;
-    private boolean open;
-    private String ticker;
-    private DateTime expiry = null;
-    private String underlyingTicker = null;
-    private double strikePrice;
-    private double limitPrice;
-    private double claimAgainstCash;
-    private String action;
-    private int totalQuantity;
-    private String secType;
-    private String tif;
-    private long epochOpened;
+    private long orderId = System.currentTimeMillis();
+    private boolean open = true;
+    private String ticker = "AAPL";
+    private DateTime expiry = new DateTime();
+    private String underlyingTicker = "AAPL";
+    private double strikePrice = 0.00;
+    private double limitPrice = 0.00;
+    private double claimAgainstCash = 0.00;
+    private String action = "SELL";
+    private int totalQuantity = 1;
+    private String secType = "PUT";
+    private String tif = "GFD";
+    private long epochOpened = System.currentTimeMillis();
     private long epochClosed;
     private String closeReason;
     private double fillPrice;
