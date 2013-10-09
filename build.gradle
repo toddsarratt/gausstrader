@@ -19,7 +19,7 @@ def getVersionName = { ->
 version = getVersionName()
 mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
 
-task updateLaunchScript << {
+task updateLaunchScript (dependsOn: jar) << {
      description = 'Update the launch script that gets called from cron'
      group = 'build'
      ext {
