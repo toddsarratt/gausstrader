@@ -50,7 +50,7 @@ public class Stock extends Security {
     private Collection<Double> historicalPriceArray;
     Boolean tickerValid = null;
     //	public LinkedList<Dividend> dividendsPaid = null;
-    private static DataSource dataSource = null;
+    private static DataSource dataSource = GaussTrader.getDataSource();
     private double[] bollingerBand = new double[6];
     private static final int PRICES_NEEDED = GaussTrader.bollBandPeriod;
     private static final DateTimeFormatter HIST_DATE_FORMATTER = DateTimeFormat.forPattern("yyyy-MM-dd");
@@ -60,15 +60,12 @@ public class Stock extends Security {
     private static final Map<Long, Double> PRICE_TRACKING_MAP = new HashMap<>();
     private static final DateTime EARLIEST_PRICE_DATE = earliestHistoricalPriceNeeded();
 
-    Stock(String ticker) {
-	this.ticker = ticker;
-    }
+    Stock() {}
 	
-    Stock(String ticker, DataSource dataSource) throws MalformedURLException, IOException {
+    Stock(String ticker) throws MalformedURLException, IOException {
 	LOGGER.debug("Entering constructor Stock(String {}, DataSource {})", ticker, dataSource.toString());
 	secType = "STOCK";
 	this.ticker = ticker;
-	this.dataSource = dataSource;
 	populateStockInfo();
 	populateHistoricalPricesDB();
 	addPriceMapToDB(populateHistoricalPricesYahoo());
@@ -387,28 +384,28 @@ public class Stock extends Security {
 	return -1;
     }
 
-    String getTicker() {
+    public String getTicker() {
 	return ticker;
     }
-    double getPrice() {
+    void setTicker(String ticker) {
+	this.ticker = ticker;
+    }
+    public double getPrice() {
 	return price;
     }
-    String secType() {
-	return secType;
-    }
-    double getBollingerBand(int index) {
+    public double getBollingerBand(int index) {
 	return bollingerBand[index];
     }	
-    double getFiftyDma() {
+    public double getFiftyDma() {
 	return fiftyDma;
     }
-    double getTwoHundredDma() {
+    public double getTwoHundredDma() {
 	return twoHundredDma;
     }
-    String getSecType() {
+    public String getSecType() {
 	return "STOCK";
     }
-    long getLastPriceUpdateEpoch() {
+    public long getLastPriceUpdateEpoch() {
 	return lastPriceUpdateEpoch;
     }
     public boolean tickerValid() throws IOException {

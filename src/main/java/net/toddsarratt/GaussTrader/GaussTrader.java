@@ -62,7 +62,7 @@ public class GaussTrader {
 	for(String candidateTicker : tickerList) {
 	    try {
 		LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
-		stockToAdd = new Stock(candidateTicker, dataSource);
+		stockToAdd = new Stock(candidateTicker);
 		if(!stockToAdd.tickerValid()) {
 		    LOGGER.warn("Ticker {} invalid", candidateTicker);
 		} else if(stockToAdd.getBollingerBand(0) <= 0.00) {
