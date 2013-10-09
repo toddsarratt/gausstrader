@@ -11,7 +11,6 @@ public class TestYahoo {
 	    assertTrue(testResponse[0].equals("XOM"));
 	    assertTrue(Double.parseDouble(testResponse[1]) > 0.00);
 	} catch(IOException ioe) {
-	    System.out.println("Cannot connect to yahoo!");
 	    ioe.printStackTrace();
 	}
     }

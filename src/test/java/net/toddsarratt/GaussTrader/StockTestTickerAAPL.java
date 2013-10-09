@@ -32,10 +32,8 @@ public class StockTestTickerAAPL {
 	    assertTrue(testStock.tickerValid());
 
 	} catch(MalformedURLException mue) {
-            System.out.println("Malformed URL Exception.");
 	    mue.printStackTrace();
 	} catch(IOException ioe) {
-            System.out.println("Cannot connect to Yahoo!");
 	    ioe.printStackTrace();
 	}
     }
