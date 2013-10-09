@@ -183,7 +183,7 @@ public class TradingSession {
 		if( (currentPrice == -1) ) {
 		    LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
 		} else {
-		    PriceBasedAction actionToTake = priceActionable(portfolio, stock);
+		    PriceBasedAction actionToTake = priceActionable(stock);
 		    if(actionToTake.doSomething) {
 			Option optionToSell = Option.getOption(stock.getTicker(), actionToTake.optionType, actionToTake.monthsOut, currentPrice);
 			if(optionToSell == null) {
@@ -271,33 +271,50 @@ public class TradingSession {
 	}
     }
 	
-    private static PriceBasedAction priceActionable(Portfolio portfolio, Stock stock) {
+    private PriceBasedAction priceActionable(Stock stock) {
         /* Decide if a security's current price triggers a predetermined event */
-	LOGGER.debug("Entering TradingSession.priceActionable(Portfolio {}, Stock {})", portfolio.getName(), stock.getTicker());
+	LOGGER.debug("Entering TradingSession.priceActionable(Stock {})", stock.getTicker());
+        double currentStockPrice = stock.getPrice();
+	double twentyDma = stock.getBollingerBand(0);
 	LOGGER.debug("Comparing current price ${} against Bollinger Bands {}", stock.getPrice(), stock.describeBollingerBands());
+	if(currentStockPrice > twentyDma) {
+	    return findCallAction(stock);
+	}
+        if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
+            LOGGER.info("50DMA < 200DMA. No further checks.");
+            return DO_NOTHING_PRICE_BASED_ACTION;
+        }
+	if(currentStockPrice < twentyDma) {
+            return findPutAction(stock);
+        }
+	return DO_NOTHING_PRICE_BASED_ACTION;
+    }
+
+    private int countUncoveredLongStockPositions(Stock stock) {
+	return (portfolio.numberOfOpenStockLongs(stock) - portfolio.numberOfOpenCallShorts(stock));
+    }
+
+    private PriceBasedAction findCallAction(Stock stock) {
+	LOGGER.debug("Entering TradingSession.findCallAction(Stock {})", stock.getTicker());
+	if(countUncoveredLongStockPositions(stock) < 1) {
+            LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
+	    return DO_NOTHING_PRICE_BASED_ACTION;
+	}
 	if(stock.getPrice() >= stock.getBollingerBand(2)) {
 	    LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(2));
-	    if(portfolio.numberOfOpenStockLongs(stock) > portfolio.numberOfOpenCallShorts(stock) ) {
-		return new PriceBasedAction(true, "CALL", 2);
-	    }
-	    LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
-	    return DO_NOTHING_PRICE_BASED_ACTION;
+	    return new PriceBasedAction(true, "CALL", 2);
 	}
 	if(stock.getPrice() >= stock.getBollingerBand(1)) {
             LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(1));
-	    if(portfolio.numberOfOpenStockLongs(stock) > portfolio.numberOfOpenCallShorts(stock) ) {
-		return new PriceBasedAction(true, "CALL", 1);
-	    }
-	    LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
-            return DO_NOTHING_PRICE_BASED_ACTION;
+	    return new PriceBasedAction(true, "CALL", 1);
 	}
+	return DO_NOTHING_PRICE_BASED_ACTION;
+    }
+
+    private PriceBasedAction findPutAction(Stock stock) {
 	if(stock.getPrice() <= stock.getBollingerBand(5)) {
             LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(5));
-	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
-		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return DO_NOTHING_PRICE_BASED_ACTION;
-	    }
-	    if(portfolio.numberOfOpenPutLongs(stock) <= 2 ) {
+	    if(portfolio.numberOfOpenPutShorts(stock) <= 2 ) {
 		return new PriceBasedAction(true, "PUT", 6);
 	    }
 	    LOGGER.info("Open short put positions exceeds 2. Taking no action.");
@@ -305,11 +322,7 @@ public class TradingSession {
 	}
 	if(stock.getPrice() <= stock.getBollingerBand(4)) {
 	    LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(4));
-	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
-		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return DO_NOTHING_PRICE_BASED_ACTION;
-	    }
-	    if(portfolio.numberOfOpenPutLongs(stock) <= 1 ) {
+	    if(portfolio.numberOfOpenPutShorts(stock) <= 1 ) {
 		return new PriceBasedAction(true, "PUT", 2);
 	    }
 	    LOGGER.info("Open short put positions exceeds 1. Taking no action.");
@@ -317,10 +330,6 @@ public class TradingSession {
 	}
 	if(stock.getPrice() <= stock.getBollingerBand(3)) {
 	    LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(3));
-	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
-		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return DO_NOTHING_PRICE_BASED_ACTION;
-	    }			
 	    if(portfolio.numberOfOpenPutShorts(stock) == 0 ) {
 		return new PriceBasedAction(true, "PUT", 1);
 	    }
@@ -389,20 +398,22 @@ public class TradingSession {
     private void writeClosingPricesToDb() {
         LOGGER.debug("Entering TradingSession.writeClosingPricesToDb()");
         double closingPrice = 0.00;
-	/* The last price returned from Yahoo! must be later than market close. Removing yahoo quote delay from previous market close calculation in TradingSession.marketIsOpenToday() */
+	/*
+	 * The last price returned from Yahoo! must be later than market close. 
+	 * Removing yahoo quote delay from previous market close calculation in TradingSession.marketIsOpenToday() 
+	 */
 	long earliestAcceptableLastPriceUpdateEpoch = GaussTrader.delayedQuotes ? (marketCloseEpoch - (20 * 60 * 1000)) : marketCloseEpoch;
 	/* Default all closing epochs to 420pm of the closing day, to keep consistant, and because epoch is the key value, not the date (epoch is much more granular)*/
 	long closingEpoch = new DateTime(DateTimeZone.forID("America/New_York")).withTime(16, 20, 0, 0).getMillis();
 	for(Stock stock : stockList) {
-	    LOGGER.debug("Getting closing price for {}", stock.getTicker());
 	    closingPrice = stock.lastTick();
-	    LOGGER.debug("stock.lastTick() returns {}", closingPrice);
 	    if(closingPrice == -1.0) {
 		LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
 		return;
 	    }
 	    if(stock.getLastPriceUpdateEpoch() < earliestAcceptableLastPriceUpdateEpoch) {
-		LOGGER.warn("stock.getLastPriceUpdateEpoch() {} < earliestAcceptableLastPriceUpdateEpoch {}", stock.getLastPriceUpdateEpoch(), earliestAcceptableLastPriceUpdateEpoch);
+		LOGGER.warn("stock.getLastPriceUpdateEpoch() {} < earliestAcceptableLastPriceUpdateEpoch {}", 
+			    stock.getLastPriceUpdateEpoch(), earliestAcceptableLastPriceUpdateEpoch);
 		return;
 	    }
 	    DBHistoricalPrices.addStockPrice(stock.getTicker(), closingEpoch, closingPrice, GaussTrader.getDataSource());

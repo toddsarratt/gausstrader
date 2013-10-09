@@ -111,6 +111,15 @@ public class Position {
     void setSecType(String secType) {
         this.secType = secType;
     }
+    public boolean isCall() {
+        return secType.equals("CALL");
+    }
+    public boolean isPut() {
+        return secType.equals("PUT");
+    }
+    public boolean isStock() {
+        return secType.equals("STOCK");
+    }
     public DateTime getExpiry() {
 	return expiry;
     }

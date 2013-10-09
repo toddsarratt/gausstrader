@@ -226,11 +226,21 @@ public class Portfolio {
 	int openShortCount = 0;
 		
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isShort() && (portfolioPosition.getSecType().equals("CALL")) ) {
+	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && 
+		portfolioPosition.isOpen() && 
+		portfolioPosition.isShort() && 
+		portfolioPosition.isCall() ) {
 		openShortCount++;
 	    }
 	}
+        for(Order portfolioOrder : portfolioOrders) {
+            if( (security.getTicker().equals(portfolioOrder.getUnderlyingTicker())) && 
+		portfolioOrder.isOpen() &&
+                portfolioOrder.isShort() && 
+		portfolioOrder.isCall() ) {
+                openShortCount++;
+            }
+        }
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenStockLongs(Security {})", openShortCount, security.getTicker());
 	return openShortCount; 
     }
@@ -247,15 +257,27 @@ public class Portfolio {
 	return openLongCount; 
     }
     public int numberOfOpenPutShorts(Security security) {
+	String securityTicker = security.getTicker();
+	LOGGER.debug("Entering Portfolio.numberOfOpenPutShorts(Security {})", securityTicker);
 	int openShortCount = 0;
 		
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isShort() && (portfolioPosition.getSecType().equals("PUT")) ) {
+	    if( (securityTicker.equals(portfolioPosition.getUnderlyingTicker())) && 
+		portfolioPosition.isOpen() && 
+		portfolioPosition.isShort() && 
+		portfolioPosition.isPut() ) {
 		openShortCount++;
 	    }
 	}
-        LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenStockLongs(Security {})", openShortCount, security.getTicker());
+	for(Order portfolioOrder : portfolioOrders) {
+            if( (securityTicker.equals(portfolioOrder.getUnderlyingTicker())) && 
+		portfolioOrder.isOpen() &&
+		portfolioOrder.isShort() && 
+		portfolioOrder.isPut() ) {
+                openShortCount++;
+            }
+        }
+        LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenPutShorts(Security {})", openShortCount, security.getTicker());
 	return openShortCount; 
     }
     public void addNewOrder(Order orderToAdd) throws InsufficientFundsException, SecurityNotFoundException {
@@ -665,10 +687,5 @@ public class Portfolio {
             LOGGER.debug("Caught (SQLException sqle)", sqle);
         }
 
-    }
-    public static void main(String[] args) {
-	LOGGER.info("Generating new portfolio");
-	//		Portfolio p = new Portfolio("Test");
-	Portfolio p = new Portfolio();
     }
 }

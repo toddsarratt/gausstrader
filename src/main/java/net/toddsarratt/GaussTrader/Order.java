@@ -122,6 +122,21 @@ class Order {
     public boolean isOption() {
 	return (secType.equals("PUT") || secType.equals("CALL"));
     }
+    public boolean isCall() {
+	return secType.equals("CALL");
+    }
+    public boolean isPut() {
+        return secType.equals("PUT");
+    }
+    public boolean isStock() {
+        return secType.equals("STOCK");
+    }
+    public boolean isLong() {
+	return action.equals("SELL");
+    }
+    public boolean isShort() {
+	return !isLong();
+    }
     /* Write changes in order to database */
     public void fill(double fillPrice) {
 	LOGGER.debug("Entering Order.fill(double {})", fillPrice);
@@ -212,8 +227,5 @@ class Order {
     @Override
     public String toString() {
 	return (orderId + " : Qty " + totalQuantity + " " + ticker + " @ $" + limitPrice);
-    }
-    public static void main(String[] args) {
-	// TODO Auto-generated method stub
     }
 }
