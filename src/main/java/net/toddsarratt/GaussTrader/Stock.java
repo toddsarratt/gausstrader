@@ -48,6 +48,7 @@ public class Stock extends Security {
     private long lastAvgUpdateEpoch = 0;
     private LinkedHashMap<Long, Double> historicalPriceMap = new LinkedHashMap<>(PRICE_TRACKING_MAP);
     private Collection<Double> historicalPriceArray;
+    Boolean tickerValid = null;
     //	public LinkedList<Dividend> dividendsPaid = null;
     private static DataSource dataSource = null;
     private double[] bollingerBand = new double[6];
@@ -63,14 +64,11 @@ public class Stock extends Security {
 	this.ticker = ticker;
     }
 	
-    Stock(String ticker, DataSource dataSource) throws SecurityNotFoundException, MalformedURLException, IOException {
+    Stock(String ticker, DataSource dataSource) throws MalformedURLException, IOException {
 	LOGGER.debug("Entering constructor Stock(String {}, DataSource {})", ticker, dataSource.toString());
 	secType = "STOCK";
 	this.ticker = ticker;
 	this.dataSource = dataSource;
-	if(!tickerValid(ticker)) {
-	    throw new SecurityNotFoundException("ticker");
-	}
 	populateStockInfo();
 	populateHistoricalPricesDB();
 	addPriceMapToDB(populateHistoricalPricesYahoo());
@@ -148,7 +146,7 @@ public class Stock extends Security {
     }
 
     void addPriceMapToDB(Map<Long, Double> pricesMissingFromDB) {
-	LOGGER.debug("Entering Stock.addPriceMapToDB({})", pricesMissingFromDB.toString());
+	LOGGER.debug("Entering Stock.addPriceMapToDB(Map<Long, Double> {})", pricesMissingFromDB.toString());
 	for(Long priceEpoch : pricesMissingFromDB.keySet()) {
 	    DBHistoricalPrices.addStockPrice(ticker, priceEpoch, pricesMissingFromDB.get(priceEpoch), dataSource);
 	}
@@ -345,11 +343,6 @@ public class Stock extends Security {
 	return yahooResults;		
     }
 	
-    public static boolean tickerValid(String testTicker) throws IOException {
-	LOGGER.debug("Entering Stock.tickerValid(String {})", testTicker);
-	return(askYahoo(testTicker, "e1")[0].equals("N/A"));
-    }
-	
     double lastTick() {
 	LOGGER.debug("Entering Stock.lastTick()");
 	try {
@@ -418,6 +411,13 @@ public class Stock extends Security {
     long getLastPriceUpdateEpoch() {
 	return lastPriceUpdateEpoch;
     }
+    public boolean tickerValid() throws IOException {
+	if(tickerValid == null) {
+	    return (tickerValid = askYahoo(ticker, "e1")[0].equals("N/A"));
+	}
+	return tickerValid;
+    }
+
     String describeBollingerBands() {
 	return "SMA " + bollingerBand[0] +
 	    " Upper 1st " + bollingerBand[1] +

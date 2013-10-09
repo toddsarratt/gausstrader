@@ -284,6 +284,8 @@ public class Portfolio {
     public void addNewPosition(Position position) {
 	LOGGER.debug("Entering Portfolio.addNewPosition(Position {})", position.getPositionId());
 	portfolioPositions.add(position);
+        freeCash -= position.getClaimAgainstCash();
+        reservedCash += position.getClaimAgainstCash();
         try {
             insertDbPosition(position);
         } catch(SQLException sqle) {
@@ -330,16 +332,11 @@ public class Portfolio {
     }
     public void fillOrder(Order orderToFill, double fillPrice) {
 	LOGGER.debug("Entering Portfolio.fillOrder(Order {}, double {})", orderToFill.getOrderId(), fillPrice);
-	boolean orderIsLong = orderToFill.getAction().equals("BUY");
-	boolean orderIsStock = orderToFill.getSecType().equals("STOCK");
-	LOGGER.debug("orderIsLong = {}, orderIsStock = {}", orderIsLong, orderIsStock);
-	double costBasis = fillPrice * orderToFill.getTotalQuantity() * (orderIsStock ? 1.0 : 100.0) * (orderIsLong ? 1.0 : -1.0);
-	LOGGER.debug("costBasis {} = fillPrice {} * orderToFill.getTotalQuantity() {} * (orderIsStock ? 1.0 : 100.0) {} * (orderIsLong ? 1.0 : -1.0) {}",
-		     costBasis, fillPrice, orderToFill.getTotalQuantity(), (orderIsStock ? 1.0 : 100.0),  (orderIsLong ? 1.0 : -1.0));
-	addNewPosition(new Position(orderToFill, fillPrice));
-	LOGGER.debug("Decrementing freeCash ${} by costBasis ${}", freeCash, costBasis);
-	freeCash -= costBasis;
-	if(orderIsStock) {
+	Position positionTakenByOrder = new Position(orderToFill, fillPrice);
+	addNewPosition(positionTakenByOrder);
+	freeCash += orderToFill.getClaimAgainstCash();
+	reservedCash -= orderToFill.getClaimAgainstCash();
+	if(orderToFill.getSecType().equals("STOCK")) {
 	    LOGGER.debug("freeCash = ${}", freeCash);
 	    /* TODO : Finish this stub */
 	}
@@ -579,7 +576,7 @@ public class Portfolio {
     }
     private void closeDbOrder(Order portfolioOrder) throws SQLException {
 	/* Nothing changes in an order unless it is filled (i.e. closed) */
-	LOGGER.debug("Entering Portfolio.updateDbOrder(Order {})", portfolioOrder.getOrderId());
+	LOGGER.debug("Entering Portfolio.closeDbOrder(Order {})", portfolioOrder.getOrderId());
 	if(!portfolioOrder.isOpen()) {
 	    String sqlString = new String("UPDATE orders SET open = false, epoch_closed = ?, close_reason = ?, fill_price = ? WHERE order_id = ?");
 	    PreparedStatement updateOrderSqlStatement = null;

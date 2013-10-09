@@ -34,16 +34,6 @@ public class GaussTrader {
     private static PGSimpleDataSource dataSource = new PGSimpleDataSource();	
     private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
 
-    public static void printGTUsage() {
-	LOGGER.info("GaussTrader by Todd Sarratt");
-	LOGGER.info("Usage : GaussTrader <PortfolioName> <StandardDevs> <StandardDevIncrements> <ticker1> ... <tickern>");
-	LOGGER.info("No arguments uses default values .");
-    }
-	
-    public static boolean argsOk(String[] clArgs) {
-	return( (clArgs.length == 0) || (clArgs.length > 4) );
-    }
-
     /* Returns current epoch time + least significant nano seconds to generate unique order and position ids */	
     static long getNewId() {
 	return ( (System.currentTimeMillis() << 20) & 0x7FFFFFFFFFF00000l) | (System.nanoTime() & 0x00000000000FFFFFl);
@@ -53,61 +43,64 @@ public class GaussTrader {
 	return (DataSource)dataSource;
     }
 
+    private static void prepareDatabaseConnection() {
+	/* Set up DB connection. Pass DataSource to methods that need DB access via DataSource.getConnection() */
+	LOGGER.debug("Entering GaussTrader.prepareDatabaseConnection()");
+	LOGGER.debug("dataSource.setServerName({})", DB_IP);
+	dataSource.setServerName(DB_IP);
+	LOGGER.debug("dataSource.setDatabaseName({})", DB_NAME);
+	dataSource.setDatabaseName(DB_NAME);
+	LOGGER.debug("dataSource.setUser({})", DB_USER);
+	dataSource.setUser(DB_USER);
+	LOGGER.debug("dataSource.setPassword({})", DB_PASSWORD);
+	dataSource.setPassword(DB_PASSWORD);
+    }
+
+    private static void addTickerlistToTradeableList(ArrayList<String> tickerList, ArrayList<Stock> tradeableStockList) {
+	LOGGER.debug("Entering GaussTrader.addTickerlistToTradeableList(ArrayList<String> {}, ArrayList<Stock> {})", tickerList.toString(), tradeableStockList.toString());
+        Stock stockToAdd;
+	for(String candidateTicker : tickerList) {
+	    try {
+		LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
+		stockToAdd = new Stock(candidateTicker, dataSource);
+		if(!stockToAdd.tickerValid()) {
+		    LOGGER.warn("Ticker {} invalid", candidateTicker);
+		} else if(stockToAdd.getBollingerBand(0) <= 0.00) {
+		    LOGGER.warn("Failed to calculate valid Bollinger Bands for {}", candidateTicker);
+		} else {
+		    tradeableStockList.add(stockToAdd);
+		}
+	    } catch(MalformedURLException mue) {
+		LOGGER.error("MalformedURLException *** END PROGRAM ***", mue);
+		System.exit(1);
+	    } catch(IOException ioe) {
+		LOGGER.error("Cannot connect to Yahoo!");
+		LOGGER.error("IOException ioe *** END PROGRAM ***", ioe);
+		System.exit(1);
+	    } catch(NumberFormatException nfe) {
+		LOGGER.warn("Bad data from Yahoo! for ticker {}", candidateTicker);
+		LOGGER.debug("Caught (NumberFormatException nfe)", nfe);
+	    }
+	}
+    }
+
     public static void main(String[] args) {
-	Stock stockToAdd;
 	try {
 	    LOGGER.info("*** START PROGRAM ***");
 	    LOGGER.info("Starting GaussTrader at {}", new DateTime());
 	    ArrayList<String> tickerList = new ArrayList<>();
 	    ArrayList<Stock> tradeableStockList = new ArrayList<>();
-
-	    if(!argsOk(args)) {
-		printGTUsage();
-		System.exit(1);
-	    }		
-	    // TODO : Replace code below with fetch of ticker list from command line
-	    // Currently using DJIA
-	    LOGGER.info("Adding manually entered list of stocks");
+	    /* Add DJIA to list of stocks to track */
 	    String[] tickerArray = {"MMM", "NKE", "AXP", "T", "GS", "BA", "CAT", "CVX", "CSCO", "KO", "DD", "XOM", "GE", "V", "HD", "INTC", 
 				    "IBM", "JNJ", "JPM", "MCD", "MRK", "MSFT", "PFE", "PG", "TRV", "UNH", "UTX", "VZ", "WMT", "DIS"};
 	    tickerList.addAll(Arrays.asList(tickerArray));
 	    /* Adding AAPL for Bill */
 	    tickerList.add("AAPL");
 	    LOGGER.debug("tickerList.size() = {}", tickerList.size());
-	    /* Set up DB connection. Pass DataSource to methods that need DB access via DataSource.getConnection() */
-	    LOGGER.debug("dataSource.setServerName({})", DB_IP);
-	    dataSource.setServerName(DB_IP);
-	    LOGGER.debug("dataSource.setDatabaseName({})", DB_NAME);
-	    dataSource.setDatabaseName(DB_NAME);
-	    LOGGER.debug("dataSource.setUser({})", DB_USER);
-	    dataSource.setUser(DB_USER);
-	    LOGGER.debug("dataSource.setPassword({})", DB_PASSWORD);
-	    dataSource.setPassword(DB_PASSWORD);
-			
-	    for(String candidateTicker : tickerList) {
-		try {
-		    LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
-		    stockToAdd = new Stock(candidateTicker, dataSource);
-		    if(stockToAdd.getBollingerBand(0) > 0.00) {
-			tradeableStockList.add(stockToAdd);
-		    } else {
-			LOGGER.warn("Failed to calculate valid Bollinger Bands for {}", candidateTicker);
-		    }
-		} catch(SecurityNotFoundException snfe) {
-		    LOGGER.warn("Security {} does not exist in Yahoo! database.", candidateTicker);
-		    LOGGER.debug("Caught (SecurityNotFoundException snfe)", snfe);
-		} catch(MalformedURLException mue) {
-		    LOGGER.error("MalformedURLException *** END PROGRAM ***", mue);
-		    System.exit(1);
-		} catch(IOException ioe) {
-		    LOGGER.error("Cannot connect to Yahoo!");
-		    LOGGER.error("IOException ioe *** END PROGRAM ***", ioe);
-		    System.exit(1);
-		} catch(NumberFormatException nfe) {
-		    LOGGER.warn("Bad data from Yahoo! for ticker {}", candidateTicker);
-		    LOGGER.debug("Caught (NumberFormatException nfe)", nfe);
-		}
-	    }
+
+	    prepareDatabaseConnection();
+	    addTickerlistToTradeableList(tickerList, tradeableStockList);
+
 	    LOGGER.info("Creating new TradingSession() with new Portfolio({})", portfolioName);
 	    TradingSession todaysSession = new TradingSession(new Portfolio(portfolioName, dataSource), tradeableStockList);
 	    todaysSession.runTradingDay();
