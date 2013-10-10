@@ -224,6 +224,16 @@ class Order {
 	    claimAgainstCash = strikePrice * 100.0 + costBasis;
 	}
     }
+    public boolean canBeFilled(double lastTick) {
+	if(isLong() && (lastTick <= limitPrice)) {
+	    return true;
+	}
+	if(isShort() && (lastTick >= limitPrice)) {
+	    return true;
+	}
+	return false;
+    }
+
     @Override
     public String toString() {
 	return (orderId + " : Qty " + totalQuantity + " " + ticker + " @ $" + limitPrice);

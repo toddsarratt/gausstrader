@@ -210,52 +210,28 @@ public class TradingSession {
 
     private void checkOpenOrders() {
         LOGGER.debug("Entering TradingSession.checkOpenOrders()");
-	String openOrderSecType;
+	double lastTick;
 	for(Order openOrder : portfolio.getListOfOpenOrders()) {
-	    openOrderSecType = openOrder.getSecType();
 	    LOGGER.debug("Checking current open orderId {} for ticker {}", openOrder.getOrderId(), openOrder.getTicker());
 	    try {
-		if(openOrderSecType.equals("CALL") || openOrderSecType.equals("PUT")) {
-		    double lastTick = Option.lastTick(openOrder.getTicker());
-		    LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
-		    if(openOrder.getAction().equals("SELL")) {
-			LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"SELL\" order", lastTick, openOrder.getLimitPrice());
-			if(lastTick >= openOrder.getLimitPrice()) {
-			    LOGGER.debug("Calling Portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
-			    portfolio.fillOrder(openOrder, lastTick);
-			}
-		    } else if(openOrder.getAction().equals("BUY")) {
-                        LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"BUY\" order", lastTick, openOrder.getLimitPrice());
-			if(lastTick <= openOrder.getLimitPrice()) {
-                            LOGGER.debug("Calling Portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
-			    portfolio.fillOrder(openOrder, lastTick);
-			} 
-		    } else {
-			LOGGER.warn("orderId {} is of action type {}, must be \"BUY\" or \"SELL\"", openOrder.getOrderId(), openOrder.getAction());
-		    }
-		} else {              
-		    /* openOrder.getSecType().equals("STOCK") */
-		    LOGGER.debug("Assuming openOrder.getSecType().equals(\"STOCK\")");
-		    double lastTick = Stock.lastTick(openOrder.getTicker());
-                    LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
-		    if(openOrder.getAction().equals("SELL")) {
-                        LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"SELL\" order", lastTick, openOrder.getLimitPrice());
-			if(lastTick >= openOrder.getLimitPrice()) {
-			    portfolio.fillOrder(openOrder, lastTick);
-			}
-		    } else if(openOrder.getAction().equals("BUY")) {
-                        LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"BUY\" order", lastTick, openOrder.getLimitPrice());
-			if(lastTick <= openOrder.getLimitPrice()) {
-			    portfolio.fillOrder(openOrder, lastTick);
-			}
-		    }
+		/* This code sucks. Should be able to replace if / else with Security.lastTick(ticker) */
+		if(openOrder.isOption()) {
+		    lastTick = Option.lastTick(openOrder.getTicker());
+		} else {
+		    /* openOrder.isStock() */
+		    lastTick = Stock.lastTick(openOrder.getTicker());
+		}
+		LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
+		if(openOrder.canBeFilled(lastTick)) {
+		    portfolio.fillOrder(openOrder, lastTick);
 		}
 	    } catch(IOException ioe) {
-		LOGGER.warn("Unable to connect to Yahoo! to retrieve the stock price for " + openOrder.getTicker());
+		LOGGER.warn("Unable to connect to Yahoo! to retrieve the stock price for {}", openOrder.getTicker());
 		LOGGER.debug("Caught (IOException ioe)", ioe);
 	    }
 	}
     }
+
     private void pauseBetweenCycles() {
 	LOGGER.debug("Entering TradingSession.pauseBetweenCycles()");
 	long sleepTimeMs;
@@ -290,13 +266,9 @@ public class TradingSession {
 	return DO_NOTHING_PRICE_BASED_ACTION;
     }
 
-    private int countUncoveredLongStockPositions(Stock stock) {
-	return (portfolio.numberOfOpenStockLongs(stock) - portfolio.numberOfOpenCallShorts(stock));
-    }
-
     private PriceBasedAction findCallAction(Stock stock) {
 	LOGGER.debug("Entering TradingSession.findCallAction(Stock {})", stock.getTicker());
-	if(countUncoveredLongStockPositions(stock) < 1) {
+	if(portfolio.countUncoveredLongStockPositions(stock) < 1) {
             LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
 	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
@@ -312,24 +284,26 @@ public class TradingSession {
     }
 
     private PriceBasedAction findPutAction(Stock stock) {
-	if(stock.getPrice() <= stock.getBollingerBand(5)) {
-            LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(5));
+	LOGGER.debug("Entering TradingSession.findPutAction(Stock {})", stock.getTicker());
+	double currentStockPrice = stock.getPrice();
+	if(currentStockPrice <= stock.getBollingerBand(5)) {
+            LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(5));
 	    if(portfolio.numberOfOpenPutShorts(stock) <= 2 ) {
 		return new PriceBasedAction(true, "PUT", 6);
 	    }
 	    LOGGER.info("Open short put positions exceeds 2. Taking no action.");
 	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
-	if(stock.getPrice() <= stock.getBollingerBand(4)) {
-	    LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(4));
+	if(currentStockPrice <= stock.getBollingerBand(4)) {
+	    LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(4));
 	    if(portfolio.numberOfOpenPutShorts(stock) <= 1 ) {
 		return new PriceBasedAction(true, "PUT", 2);
 	    }
 	    LOGGER.info("Open short put positions exceeds 1. Taking no action.");
             return DO_NOTHING_PRICE_BASED_ACTION;
 	}
-	if(stock.getPrice() <= stock.getBollingerBand(3)) {
-	    LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(3));
+	if(currentStockPrice <= stock.getBollingerBand(3)) {
+	    LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(3));
 	    if(portfolio.numberOfOpenPutShorts(stock) == 0 ) {
 		return new PriceBasedAction(true, "PUT", 1);
 	    }
