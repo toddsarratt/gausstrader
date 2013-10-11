@@ -192,7 +192,7 @@ public class TradingSession {
 			    stockIterator.remove();
 			} else {
 			    try {
-				portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.monthsOut, "GFD"));
+				portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", 1, "GFD"));
 			    } catch(InsufficientFundsException ife) {
 				LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
 			    } catch(SecurityNotFoundException snfe) {
@@ -315,7 +315,7 @@ public class TradingSession {
     private void reconcileExpiringOptions() {
 	/* If within two days of expiry exercise ITM options */
 	LOGGER.debug("Entering TradingSession.reconcileExpiringOptions()");
-	MutableDateTime thisSaturday = new MutableDateTime();
+	MutableDateTime thisSaturday = new MutableDateTime(DateTimeZone.forID("America/New_York"));
 	thisSaturday.setDayOfWeek(DateTimeConstants.SATURDAY);
 	int thisSaturdayJulian = thisSaturday.getDayOfYear();
 	int thisSaturdayYear = thisSaturday.getYear();
@@ -336,10 +336,10 @@ public class TradingSession {
 		     */
 		    LOGGER.debug("Option expires tomorrow, checking moneyness");
 		    try {
-			if( (openOptionPosition.getSecType().equals("PUT")) && 
+			if( openOptionPosition.isPut() && 
 			    (Stock.lastTick(openOptionPosition.getUnderlyingTicker()) <= openOptionPosition.getStrikePrice()) ) {
 			    portfolio.exerciseOption(openOptionPosition);
-			} else if( (openOptionPosition.getSecType().equals("CALL")) && 
+			} else if( openOptionPosition.isCall() && 
 				   (Stock.lastTick(openOptionPosition.getUnderlyingTicker()) >= openOptionPosition.getStrikePrice()) ) {
 			    portfolio.exerciseOption(openOptionPosition);
 			}
