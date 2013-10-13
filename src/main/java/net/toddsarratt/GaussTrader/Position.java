@@ -6,19 +6,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Position {
-    private long positionId;
+    private long positionId = System.currentTimeMillis();
     private boolean open = true;
-    private String ticker;
-    private String secType;
-    private DateTime expiry = null;
-    private String underlyingTicker = null;
+    private String ticker = "APPL";
+    private String secType = "PUT";
+    private DateTime expiry = new DateTime();
+    private String underlyingTicker = "AAPL";
     private double strikePrice = 0.00;
-    private long epochOpened;
-    private Boolean longPosition;
-    private int numberTransacted;
-    private double priceAtOpen;
-    private double costBasis;
-    private double claimAgainstCash;
+    private long epochOpened = System.currentTimeMillis();
+    private Boolean longPosition = false;
+    private int numberTransacted = 1;
+    private double priceAtOpen = 0.00;
+    private double costBasis = 0.00;
+    private double claimAgainstCash = 0.00;
     private double lastTick = 0.00;
     private double netAssetValue = 0.00;
     private long epochClosed;
@@ -38,20 +38,17 @@ public class Position {
         open = true;
         ticker = orderToFill.getTicker();
         secType = orderToFill.getSecType();
-	if(secType.equals("CALL") || secType.equals("PUT")) {
+	if(isOption()) {
 	    expiry = orderToFill.getExpiry();
 	    underlyingTicker = orderToFill.getUnderlyingTicker();
 	    strikePrice = orderToFill.getStrikePrice();
 	}
         epochOpened = System.currentTimeMillis();
-        longPosition = orderToFill.getAction().equals("BUY");
+        longPosition = orderToFill.isLong();
         numberTransacted = orderToFill.getTotalQuantity();
         this.priceAtOpen = priceAtOpen;
-        costBasis = priceAtOpen * numberTransacted * (secType.equals("STOCK") ? 1 : 100) * (longPosition ? 1 : -1);
-	if( (secType.equals("CALL") && longPosition) || 
-	    (secType.equals("PUT") && !longPosition) ) {
-	    claimAgainstCash = orderToFill.getStrikePrice() * numberTransacted * 100;
-	}
+        costBasis = priceAtOpen * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
+	calculateClaimAgainstCash();
 	LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
 	lastTick = priceAtOpen;
 	netAssetValue = costBasis;
@@ -88,7 +85,7 @@ public class Position {
 	open = false;
 	epochClosed = System.currentTimeMillis();
 	priceAtClose = closePrice;
-	profit = (priceAtClose * numberTransacted * (secType.equals("STOCK") ? 1 : 100) * (longPosition ? 1 : -1)) - costBasis;
+	profit = (priceAtClose * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1)) - costBasis;
     }
     public long getPositionId() {
         return positionId;
@@ -110,6 +107,18 @@ public class Position {
     }
     void setSecType(String secType) {
         this.secType = secType;
+    }
+    public boolean isCall() {
+        return secType.equals("CALL");
+    }
+    public boolean isPut() {
+        return secType.equals("PUT");
+    }
+    public boolean isStock() {
+        return secType.equals("STOCK");
+    }
+    public boolean isOption() {
+        return (isCall() || isPut());
     }
     public DateTime getExpiry() {
 	return expiry;
@@ -164,12 +173,12 @@ public class Position {
     }
     public double getLastTick() {
         try {
-            if(secType.equals("STOCK")) {
+            if(isStock()) {
                 lastTick = Stock.lastTick(ticker);
             } else {
                 lastTick = Option.lastTick(ticker);
             }
-            netAssetValue = lastTick * numberTransacted * (secType.equals("STOCK") ? 1 : 100) * (longPosition ? 1 : -1);
+            netAssetValue = lastTick * numberTransacted * (isStock() ? 1 : 100) * (longPosition ? 1 : -1);
         } catch(IOException ioe) {
             LOGGER.warn("Caught IOException trying to get lastTick({}). Returning last known tick (We are no longer real-time).", ticker);
             LOGGER.debug("Caught (IOException ioe) ", ioe);
@@ -216,17 +225,27 @@ public class Position {
     public double getClaimAgainstCash() {
 	return claimAgainstCash;
     }
-    public void setClaimAgainstCash(double requiredCash) {
+    void setClaimAgainstCash(double requiredCash) {
 	claimAgainstCash = requiredCash;
+    }
+    /* Position.claimAgainstCash() is a bit disingenuous. Selling an option or shorting a stock
+     * could result in an infinite liability. Only calculating for selling a put which has
+     * a fixed obligation.
+     */
+    double calculateClaimAgainstCash() {
+        if(isPut() && isShort()) {
+            return (claimAgainstCash = strikePrice * numberTransacted * 100);
+        }
+	return (claimAgainstCash = 0.00);
     }
     public double calculateNetAssetValue() {
 	try {
-	    if(secType.equals("STOCK")) {
+	    if(isStock()) {
 		lastTick = Stock.lastTick(ticker);
 	    } else {
 		lastTick = Option.lastTick(ticker);
 	    }
-	    netAssetValue = lastTick * numberTransacted * (secType.equals("STOCK") ? 1 : 100) * (longPosition ? 1 : -1);
+	    netAssetValue = lastTick * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
 	} catch(IOException ioe) {
 	    LOGGER.warn("Caught IOException trying to get lastTick({}). Returning last known netAssetValue (We are no longer real-time).", ticker);
 	    LOGGER.debug("Caught (IOException ioe)", ioe);

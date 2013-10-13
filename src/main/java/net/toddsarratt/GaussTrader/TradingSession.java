@@ -183,7 +183,7 @@ public class TradingSession {
 		if( (currentPrice == -1) ) {
 		    LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
 		} else {
-		    PriceBasedAction actionToTake = priceActionable(portfolio, stock);
+		    PriceBasedAction actionToTake = priceActionable(stock);
 		    if(actionToTake.doSomething) {
 			Option optionToSell = Option.getOption(stock.getTicker(), actionToTake.optionType, actionToTake.monthsOut, currentPrice);
 			if(optionToSell == null) {
@@ -192,7 +192,7 @@ public class TradingSession {
 			    stockIterator.remove();
 			} else {
 			    try {
-				portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.monthsOut, "GFD"));
+				portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", 1, "GFD"));
 			    } catch(InsufficientFundsException ife) {
 				LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
 			    } catch(SecurityNotFoundException snfe) {
@@ -210,52 +210,29 @@ public class TradingSession {
 
     private void checkOpenOrders() {
         LOGGER.debug("Entering TradingSession.checkOpenOrders()");
-	String openOrderSecType;
+	double lastTick;
 	for(Order openOrder : portfolio.getListOfOpenOrders()) {
-	    openOrderSecType = openOrder.getSecType();
 	    LOGGER.debug("Checking current open orderId {} for ticker {}", openOrder.getOrderId(), openOrder.getTicker());
 	    try {
-		if(openOrderSecType.equals("CALL") || openOrderSecType.equals("PUT")) {
-		    double lastTick = Option.lastTick(openOrder.getTicker());
-		    LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
-		    if(openOrder.getAction().equals("SELL")) {
-			LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"SELL\" order", lastTick, openOrder.getLimitPrice());
-			if(lastTick >= openOrder.getLimitPrice()) {
-			    LOGGER.debug("Calling Portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
-			    portfolio.fillOrder(openOrder, lastTick);
-			}
-		    } else if(openOrder.getAction().equals("BUY")) {
-                        LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"BUY\" order", lastTick, openOrder.getLimitPrice());
-			if(lastTick <= openOrder.getLimitPrice()) {
-                            LOGGER.debug("Calling Portfolio.fillOrder() for orderId {}", openOrder.getOrderId());
-			    portfolio.fillOrder(openOrder, lastTick);
-			} 
-		    } else {
-			LOGGER.warn("orderId {} is of action type {}, must be \"BUY\" or \"SELL\"", openOrder.getOrderId(), openOrder.getAction());
-		    }
-		} else {              
-		    /* openOrder.getSecType().equals("STOCK") */
-		    LOGGER.debug("Assuming openOrder.getSecType().equals(\"STOCK\")");
-		    double lastTick = Stock.lastTick(openOrder.getTicker());
-                    LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
-		    if(openOrder.getAction().equals("SELL")) {
-                        LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"SELL\" order", lastTick, openOrder.getLimitPrice());
-			if(lastTick >= openOrder.getLimitPrice()) {
-			    portfolio.fillOrder(openOrder, lastTick);
-			}
-		    } else if(openOrder.getAction().equals("BUY")) {
-                        LOGGER.debug("Comparing lastTick {} to openOrder.getLimitPrice() {} for \"BUY\" order", lastTick, openOrder.getLimitPrice());
-			if(lastTick <= openOrder.getLimitPrice()) {
-			    portfolio.fillOrder(openOrder, lastTick);
-			}
-		    }
+		/* This code sucks. Should be able to replace if / else with Security.lastTick(ticker) */
+		if(openOrder.isOption()) {
+		    lastTick = Option.lastTick(openOrder.getTicker());
+		} else {
+		    /* openOrder.isStock() */
+		    lastTick = Stock.lastTick(openOrder.getTicker());
+		}
+		LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
+		if(openOrder.canBeFilled(lastTick)) {
+		    LOGGER.debug("openOrder.canBeFilled({}) returned true for ticker {}", lastTick, openOrder.getTicker());
+		    portfolio.fillOrder(openOrder, lastTick);
 		}
 	    } catch(IOException ioe) {
-		LOGGER.warn("Unable to connect to Yahoo! to retrieve the stock price for " + openOrder.getTicker());
+		LOGGER.warn("Unable to connect to Yahoo! to retrieve the stock price for {}", openOrder.getTicker());
 		LOGGER.debug("Caught (IOException ioe)", ioe);
 	    }
 	}
     }
+
     private void pauseBetweenCycles() {
 	LOGGER.debug("Entering TradingSession.pauseBetweenCycles()");
 	long sleepTimeMs;
@@ -271,56 +248,63 @@ public class TradingSession {
 	}
     }
 	
-    private static PriceBasedAction priceActionable(Portfolio portfolio, Stock stock) {
+    private PriceBasedAction priceActionable(Stock stock) {
         /* Decide if a security's current price triggers a predetermined event */
-	LOGGER.debug("Entering TradingSession.priceActionable(Portfolio {}, Stock {})", portfolio.getName(), stock.getTicker());
-	LOGGER.debug("Comparing current price ${} against Bollinger Bands {}", stock.getPrice(), stock.describeBollingerBands());
+	LOGGER.debug("Entering TradingSession.priceActionable(Stock {})", stock.getTicker());
+        double currentStockPrice = stock.getPrice();
+	LOGGER.debug("Comparing current price ${} against Bollinger Bands {}", currentStockPrice, stock.describeBollingerBands());
+	if(currentStockPrice >= stock.getBollingerBand(1)) {
+	    return findCallAction(stock);
+	}
+        if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
+            LOGGER.info("50DMA < 200DMA. No further checks.");
+            return DO_NOTHING_PRICE_BASED_ACTION;
+        }
+	if(currentStockPrice <= stock.getBollingerBand(3)) {
+            return findPutAction(stock);
+        }
+	LOGGER.info("Stock {} at ${} is within Bollinger Bands", stock.getTicker(), currentStockPrice);
+	return DO_NOTHING_PRICE_BASED_ACTION;
+    }
+
+    private PriceBasedAction findCallAction(Stock stock) {
+	LOGGER.debug("Entering TradingSession.findCallAction(Stock {})", stock.getTicker());
+	if(portfolio.countUncoveredLongStockPositions(stock) < 1) {
+            LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
+	    return DO_NOTHING_PRICE_BASED_ACTION;
+	}
 	if(stock.getPrice() >= stock.getBollingerBand(2)) {
 	    LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(2));
-	    if(portfolio.numberOfOpenStockLongs(stock) > portfolio.numberOfOpenCallShorts(stock) ) {
-		return new PriceBasedAction(true, "CALL", 2);
-	    }
-	    LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
-	    return DO_NOTHING_PRICE_BASED_ACTION;
+	    return new PriceBasedAction(true, "CALL", 2);
 	}
 	if(stock.getPrice() >= stock.getBollingerBand(1)) {
             LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(1));
-	    if(portfolio.numberOfOpenStockLongs(stock) > portfolio.numberOfOpenCallShorts(stock) ) {
-		return new PriceBasedAction(true, "CALL", 1);
-	    }
-	    LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
-            return DO_NOTHING_PRICE_BASED_ACTION;
+	    return new PriceBasedAction(true, "CALL", 1);
 	}
-	if(stock.getPrice() <= stock.getBollingerBand(5)) {
-            LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(5));
-	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
-		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return DO_NOTHING_PRICE_BASED_ACTION;
-	    }
-	    if(portfolio.numberOfOpenPutLongs(stock) <= 2 ) {
+	return DO_NOTHING_PRICE_BASED_ACTION;
+    }
+
+    private PriceBasedAction findPutAction(Stock stock) {
+	LOGGER.debug("Entering TradingSession.findPutAction(Stock {})", stock.getTicker());
+	double currentStockPrice = stock.getPrice();
+	if(currentStockPrice <= stock.getBollingerBand(5)) {
+            LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(5));
+	    if(portfolio.numberOfOpenPutShorts(stock) <= 2 ) {
 		return new PriceBasedAction(true, "PUT", 6);
 	    }
 	    LOGGER.info("Open short put positions exceeds 2. Taking no action.");
 	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
-	if(stock.getPrice() <= stock.getBollingerBand(4)) {
-	    LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(4));
-	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
-		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return DO_NOTHING_PRICE_BASED_ACTION;
-	    }
-	    if(portfolio.numberOfOpenPutLongs(stock) <= 1 ) {
+	if(currentStockPrice <= stock.getBollingerBand(4)) {
+	    LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(4));
+	    if(portfolio.numberOfOpenPutShorts(stock) <= 1 ) {
 		return new PriceBasedAction(true, "PUT", 2);
 	    }
 	    LOGGER.info("Open short put positions exceeds 1. Taking no action.");
             return DO_NOTHING_PRICE_BASED_ACTION;
 	}
-	if(stock.getPrice() <= stock.getBollingerBand(3)) {
-	    LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(3));
-	    if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
-		LOGGER.info("50DMA < 200DMA. Taking no action.");
-		return DO_NOTHING_PRICE_BASED_ACTION;
-	    }			
+	if(currentStockPrice <= stock.getBollingerBand(3)) {
+	    LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(3));
 	    if(portfolio.numberOfOpenPutShorts(stock) == 0 ) {
 		return new PriceBasedAction(true, "PUT", 1);
 	    }
@@ -332,7 +316,7 @@ public class TradingSession {
     private void reconcileExpiringOptions() {
 	/* If within two days of expiry exercise ITM options */
 	LOGGER.debug("Entering TradingSession.reconcileExpiringOptions()");
-	MutableDateTime thisSaturday = new MutableDateTime();
+	MutableDateTime thisSaturday = new MutableDateTime(DateTimeZone.forID("America/New_York"));
 	thisSaturday.setDayOfWeek(DateTimeConstants.SATURDAY);
 	int thisSaturdayJulian = thisSaturday.getDayOfYear();
 	int thisSaturdayYear = thisSaturday.getYear();
@@ -353,10 +337,10 @@ public class TradingSession {
 		     */
 		    LOGGER.debug("Option expires tomorrow, checking moneyness");
 		    try {
-			if( (openOptionPosition.getSecType().equals("PUT")) && 
+			if( openOptionPosition.isPut() && 
 			    (Stock.lastTick(openOptionPosition.getUnderlyingTicker()) <= openOptionPosition.getStrikePrice()) ) {
 			    portfolio.exerciseOption(openOptionPosition);
-			} else if( (openOptionPosition.getSecType().equals("CALL")) && 
+			} else if( openOptionPosition.isCall() && 
 				   (Stock.lastTick(openOptionPosition.getUnderlyingTicker()) >= openOptionPosition.getStrikePrice()) ) {
 			    portfolio.exerciseOption(openOptionPosition);
 			}
@@ -389,23 +373,25 @@ public class TradingSession {
     private void writeClosingPricesToDb() {
         LOGGER.debug("Entering TradingSession.writeClosingPricesToDb()");
         double closingPrice = 0.00;
-	/* The last price returned from Yahoo! must be later than market close. Removing yahoo quote delay from previous market close calculation in TradingSession.marketIsOpenToday() */
+	/*
+	 * The last price returned from Yahoo! must be later than market close. 
+	 * Removing yahoo quote delay from previous market close calculation in TradingSession.marketIsOpenToday() 
+	 */
 	long earliestAcceptableLastPriceUpdateEpoch = GaussTrader.delayedQuotes ? (marketCloseEpoch - (20 * 60 * 1000)) : marketCloseEpoch;
 	/* Default all closing epochs to 420pm of the closing day, to keep consistant, and because epoch is the key value, not the date (epoch is much more granular)*/
 	long closingEpoch = new DateTime(DateTimeZone.forID("America/New_York")).withTime(16, 20, 0, 0).getMillis();
 	for(Stock stock : stockList) {
-	    LOGGER.debug("Getting closing price for {}", stock.getTicker());
 	    closingPrice = stock.lastTick();
-	    LOGGER.debug("stock.lastTick() returns {}", closingPrice);
 	    if(closingPrice == -1.0) {
 		LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
 		return;
 	    }
 	    if(stock.getLastPriceUpdateEpoch() < earliestAcceptableLastPriceUpdateEpoch) {
-		LOGGER.warn("stock.getLastPriceUpdateEpoch() {} < earliestAcceptableLastPriceUpdateEpoch {}", stock.getLastPriceUpdateEpoch(), earliestAcceptableLastPriceUpdateEpoch);
+		LOGGER.warn("stock.getLastPriceUpdateEpoch() {} < earliestAcceptableLastPriceUpdateEpoch {}", 
+			    stock.getLastPriceUpdateEpoch(), earliestAcceptableLastPriceUpdateEpoch);
 		return;
 	    }
-	    DBHistoricalPrices.addStockPrice(stock.getTicker(), closingEpoch, closingPrice, GaussTrader.getDataSource());
+	    DBHistoricalPrices.addStockPrice(stock.getTicker(), closingEpoch, closingPrice);
 	}
     }
 

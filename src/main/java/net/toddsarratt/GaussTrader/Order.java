@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 
 /* Class to record each order 
  * Fields :
- * orderId : generated from System time
+ * orderId : Use GaussTrader.getNewId() to populate
  * open : boolean, open or closed order
  * ticker : security being traded
  * limitPrice : Limit orders only
@@ -22,19 +22,19 @@ import org.slf4j.LoggerFactory;
 
 class Order {
 	
-    private long orderId;
-    private boolean open;
-    private String ticker;
-    private DateTime expiry = null;
-    private String underlyingTicker = null;
-    private double strikePrice;
-    private double limitPrice;
-    private double claimAgainstCash;
-    private String action;
-    private int totalQuantity;
-    private String secType;
-    private String tif;
-    private long epochOpened;
+    private long orderId = System.currentTimeMillis();
+    private boolean open = true;
+    private String ticker = "AAPL";
+    private DateTime expiry = new DateTime();
+    private String underlyingTicker = "AAPL";
+    private double strikePrice = 0.00;
+    private double limitPrice = 0.00;
+    private String action = "SELL";
+    private int totalQuantity = 1;
+    private String secType = "PUT";
+    private double claimAgainstCash = 0.00;
+    private String tif = "GFD";
+    private long epochOpened = System.currentTimeMillis();
     private long epochClosed;
     private String closeReason;
     private double fillPrice;
@@ -120,7 +120,22 @@ class Order {
         this.tif = tif;
     }
     public boolean isOption() {
-	return (secType.equals("PUT") || secType.equals("CALL"));
+	return isPut() || isCall();
+    }
+    public boolean isCall() {
+	return secType.equals("CALL");
+    }
+    public boolean isPut() {
+        return secType.equals("PUT");
+    }
+    public boolean isStock() {
+        return secType.equals("STOCK");
+    }
+    public boolean isLong() {
+	return action.equals("BUY");
+    }
+    public boolean isShort() {
+	return !isLong();
     }
     /* Write changes in order to database */
     public void fill(double fillPrice) {
@@ -200,20 +215,27 @@ class Order {
     }
     void calculateClaimAgainstCash() {
 	LOGGER.debug("Entering Order.calculateClaimAgainstCash()");
-        double costBasis = limitPrice * totalQuantity * (secType.equals("STOCK") ? 1.0 : 100.0) * (action.equals("BUY") ? 1.0 : -1.0);
+        double costBasis = limitPrice * totalQuantity * (isStock() ? 1.0 : 100.0) * (isLong() ? 1.0 : -1.0);
         LOGGER.debug("costBasis = ${}", costBasis);
 	claimAgainstCash = 0.00;
-	if(action.equals("BUY")) {
+	if(isLong()) {
 	    claimAgainstCash = costBasis;
-	} else if(secType.equals("PUT")) {
+	} else if(isPut()) {
 	    claimAgainstCash = strikePrice * 100.0 + costBasis;
 	}
     }
+    public boolean canBeFilled(double lastTick) {
+	if(isLong() && (lastTick <= limitPrice)) {
+	    return true;
+	}
+	if(isShort() && (lastTick >= limitPrice)) {
+	    return true;
+	}
+	return false;
+    }
+
     @Override
     public String toString() {
 	return (orderId + " : Qty " + totalQuantity + " " + ticker + " @ $" + limitPrice);
-    }
-    public static void main(String[] args) {
-	// TODO Auto-generated method stub
     }
 }

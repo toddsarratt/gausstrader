@@ -38,48 +38,36 @@ public class Option extends Security {
     Option(String optionTickerArg) {
 	// Receive an option ticker such as : XOM130720P00070000
 	LOGGER.debug("Entering constructor Option(String {})", optionTickerArg);		
-	this.ticker = optionTickerArg;
+	ticker = optionTickerArg;
 		
 	Pattern p = Pattern.compile("^\\D+");
 	Matcher m = p.matcher(optionTickerArg);
 	if(m.find()) {
-	    this.underlyingTicker = m.group(0);
+	    underlyingTicker = m.group(0);
 	}
 	p = Pattern.compile("\\d{6}");
 	m = p.matcher(optionTickerArg);
 	if(m.find()) {
-	    //	    SimpleDateFormat sdf = new SimpleDateFormat("yyMMdd");
 	    DateTimeFormatter expiryFormat = DateTimeFormat.forPattern("yyMMdd");
-	    //	    try {
-	    //		this.expiration = sdf.parse(m.group(0));
 	    expiry = expiryFormat.parseDateTime(m.group(0));
-	    //	    } catch (ParseException e) {
-	    //		LOGGER.info("Failed to parse date for option " + optionTickerArg);
-	    //		e.printStackTrace();
-	    //	    }
 	}
-		
 	p = Pattern.compile("\\d[CP]\\d");
 	m = p.matcher(optionTickerArg);
 	if(m.find()) {
 	    char[] optionTypeMatchArray = m.group(0).toCharArray();
 	    char optionType = optionTypeMatchArray[1];
-	    if(optionType == 'C') {
-		secType = "CALL";
-	    } else if(optionType == 'P') {
-		secType = "PUT";
-	    } else {
-		LOGGER.info("Invalid parsing of option symbol. Expecting C or P (put or call), retrieved : {}", optionType);
+	    secType = (optionType == 'C') ? "CALL" : (optionType == 'P') ? "PUT" : null;
+	    if(secType == null) {
+		LOGGER.warn("Invalid parsing of option symbol. Expecting C or P (put or call), retrieved : {}", optionType);
 	    }
 	}
-		
 	p = Pattern.compile("\\d{8}");
 	m = p.matcher(optionTickerArg);
 	if(m.find()) {
-	    this.strike = Double.parseDouble(m.group(0)) / 1000.0;
+	    strike = Double.parseDouble(m.group(0)) / 1000.0;
 	}
 	LOGGER.info("Created {} option {} for underlying {} expiry {} for strike ${}", 
-		    secType, this.ticker, this.underlyingTicker, expiry.toString("MMMM dd YYYY"), this.strike);
+		    secType, ticker, underlyingTicker, expiry.toString("MMMM dd YYYY"), strike);
     }
 	
     public static boolean optionTickerValid(String optionTicker) throws IOException {		
@@ -185,26 +173,16 @@ public class Option extends Security {
     }
 	
     public static int getExpirySaturday(int month, int year) {
-	/*
-	 * Calendar cal = Calendar.getInstance();
-	 * cal.set(year, month, 1);
-	 * cal.add(Calendar.DAY_OF_MONTH, (21 - (cal.get(Calendar.DAY_OF_WEEK )) % 7) );
-	 * return cal.get(Calendar.DAY_OF_MONTH);
-	 */
 	MutableDateTime expiryCalc = new MutableDateTime(year, month, 1, 0, 0, 0, 0, DateTimeZone.forID("America/New_York"));
 	expiryCalc.addDays(20 - (expiryCalc.getDayOfWeek() % 7) );
 	return expiryCalc.getDayOfMonth();
     }
-    /* Build option ticket. Example : Exxon Mobil 90 Strike Aug 13 expiry call = XOM130817C00090000 */
+    /* Build option ticker. Example : Exxon Mobil 90 Strike Aug 13 expiry call = XOM130817C00090000 */
     public static String optionTicker(String stockTicker, BaseDateTime expiry, char indicator, double strikeDouble) {
 	LOGGER.debug("Entering optionTicker(String {}, BaseDateTime {}, char {}, double {})", stockTicker, expiry.toString(), indicator, strikeDouble);
 	StringBuilder tickerBuilder = new StringBuilder(stockTicker);
 	/* Option strike format is xxxxx.yyy * 10^3 Example : Strike $82.50 = 00082500 */
 	int strikeInt = (int)(strikeDouble * 1000);
-	/* Two lines below replaced with single line following comments
-	 * DateTimeFormatter expiryDtf = DateTimeFormat.forPattern("yyMMdd");
-	 * tickerBuilder.append(expiryDtf.print(expiry));
-	 */
 	tickerBuilder.append(expiry.toString("yyMMdd"));
 	LOGGER.debug("Assembling option ticker with {} (expiry : {})", expiry.toString("yyMMdd"), expiry.toString("MMMM dd YYYY"));
 	tickerBuilder.append(indicator);
@@ -227,12 +205,12 @@ public class Option extends Security {
 	expiryMutableDateTime.setDayOfMonth(getExpirySaturday(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear()));
 
 	if(optionType.equals("CALL")) {
-	    LOGGER.info("Finding call to sell");
+	    LOGGER.debug("Finding call to sell");
 	    strikePrice = (int)limitStrikePrice + 0.50;
-	    LOGGER.info("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
+	    LOGGER.debug("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
 	    if(strikePrice < limitStrikePrice) {
 		strikePrice += 0.50;
-                LOGGER.info("Adjusted strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
+                LOGGER.debug("Adjusted strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
 	    }
 	    /* While looking for an option don't go further than 10% out from current underlying security price */
 	    while( (strikePrice - limitStrikePrice) / limitStrikePrice < 0.1 ) {
@@ -251,12 +229,12 @@ public class Option extends Security {
 	    }
 	    LOGGER.warn("Couldn't find a CALL in the correct strike range");
 	} else if(optionType.equals("PUT")) {
-	    LOGGER.info("Finding put to sell");
+	    LOGGER.debug("Finding put to sell");
 	    strikePrice = (int)limitStrikePrice + 0.50;
-	    LOGGER.info("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+	    LOGGER.debug("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 	    if(strikePrice > limitStrikePrice) {
 		strikePrice -= 0.50;
-		LOGGER.info("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+		LOGGER.debug("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 	    }
             /* While looking for an option don't go further than 10% out from current underlying security price */
 	    while( (strikePrice - limitStrikePrice) / limitStrikePrice > -0.1 ) {
@@ -297,22 +275,5 @@ public class Option extends Security {
     }
     String getUnderlyingTicker() {
 	return underlyingTicker;
-    }
-    public static void main(String[] args) {
-	MutableDateTime rightNow = new MutableDateTime();
-	LOGGER.info(optionTicker("XOM", rightNow, 'C', 82.50));
-	LOGGER.info("Expiration Friday for month 0 (January) for year 2013 should be 19, we calculate : " + getExpirySaturday(0, 2013));
-	LOGGER.info("Expiration Friday for month 1 (February) for year 2013 should be 16, we calculate : " + getExpirySaturday(1, 2013));
-	LOGGER.info("Expiration Friday for month 2 (March) for year 2013 should be 15, we calculate : " + getExpirySaturday(2, 2013));
-	LOGGER.info("Expiration Friday for month 3 (April) for year 2013 should be 20, we calculate : " + getExpirySaturday(3, 2013));
-	try {
-	    Option testIbmCall = new Option("IBM130222C00200000");
-	    LOGGER.info("Last bid for IBM130222C00200000 " + testIbmCall.lastBid());
-	    Option testXomPut = new Option("XOM130720P00070000");
-	    LOGGER.info("Last bid for XOM130720P00070000 " + testXomPut.lastBid());
-	} catch(IOException ioe) {
-	    LOGGER.info("Cannot connect to Yahoo!");
-	    LOGGER.info("Caught (IOException ioe)", ioe);
-	}
     }
 }

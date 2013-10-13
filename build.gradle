@@ -19,9 +19,8 @@ def getVersionName = { ->
 version = getVersionName()
 mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
 
-task updateLaunchScript << {
+task updateLaunchScript (dependsOn: jar) << {
      description = 'Update the launch script that gets called from cron'
-     group = 'build'
      ext {
          launchScriptDir = file('build/libs')
          launchScriptFile = file('build/libs/runGaussTrader.sh')
@@ -65,6 +64,12 @@ task listJars << {
 test {
     useTestNG()
     testLogging {
-    	events 'started', 'passed'
+    	events 'passed'
     }
+    include 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
+    exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'
+    exclude 'net/toddsarratt/GaussTrader/OptionTickerAndExpiryGeneration**'
+    exclude 'net/toddsarratt/GaussTrader/StockTestTickerAAPL**'
+    exclude 'net/toddsarratt/GaussTrader/TestYahoo**'
+    exclude 'net/toddsarratt/GaussTrader/TestNewOrderGettersAndSetters**'
 }
