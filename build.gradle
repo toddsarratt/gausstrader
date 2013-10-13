@@ -21,7 +21,6 @@ mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
 
 task updateLaunchScript (dependsOn: jar) << {
      description = 'Update the launch script that gets called from cron'
-     group = 'build'
      ext {
          launchScriptDir = file('build/libs')
          launchScriptFile = file('build/libs/runGaussTrader.sh')
@@ -67,4 +66,10 @@ test {
     testLogging {
     	events 'passed'
     }
+    include 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
+    exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'
+    exclude 'net/toddsarratt/GaussTrader/OptionTickerAndExpiryGeneration**'
+    exclude 'net/toddsarratt/GaussTrader/StockTestTickerAAPL**'
+    exclude 'net/toddsarratt/GaussTrader/TestYahoo**'
+    exclude 'net/toddsarratt/GaussTrader/TestNewOrderGettersAndSetters**'
 }

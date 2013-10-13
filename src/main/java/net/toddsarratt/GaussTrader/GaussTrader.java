@@ -34,6 +34,19 @@ public class GaussTrader {
     private static PGSimpleDataSource dataSource = new PGSimpleDataSource();	
     private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
 
+    static {
+        /* Set up DB connection. Package classes that need DB access can call GaussTrader.getDataSource() */
+        LOGGER.debug("Entering GaussTrader.prepareDatabaseConnection()");
+        LOGGER.debug("dataSource.setServerName({})", DB_IP);
+        dataSource.setServerName(DB_IP);
+        LOGGER.debug("dataSource.setDatabaseName({})", DB_NAME);
+        dataSource.setDatabaseName(DB_NAME);
+        LOGGER.debug("dataSource.setUser({})", DB_USER);
+        dataSource.setUser(DB_USER);
+        LOGGER.debug("dataSource.setPassword({})", DB_PASSWORD);
+        dataSource.setPassword(DB_PASSWORD);
+    }
+
     /* Returns current epoch time + least significant nano seconds to generate unique order and position ids */	
     static long getNewId() {
 	return ( (System.currentTimeMillis() << 20) & 0x7FFFFFFFFFF00000l) | (System.nanoTime() & 0x00000000000FFFFFl);
@@ -41,19 +54,6 @@ public class GaussTrader {
 
     static DataSource getDataSource() {
 	return (DataSource)dataSource;
-    }
-
-    private static void prepareDatabaseConnection() {
-	/* Set up DB connection. Pass DataSource to methods that need DB access via DataSource.getConnection() */
-	LOGGER.debug("Entering GaussTrader.prepareDatabaseConnection()");
-	LOGGER.debug("dataSource.setServerName({})", DB_IP);
-	dataSource.setServerName(DB_IP);
-	LOGGER.debug("dataSource.setDatabaseName({})", DB_NAME);
-	dataSource.setDatabaseName(DB_NAME);
-	LOGGER.debug("dataSource.setUser({})", DB_USER);
-	dataSource.setUser(DB_USER);
-	LOGGER.debug("dataSource.setPassword({})", DB_PASSWORD);
-	dataSource.setPassword(DB_PASSWORD);
     }
 
     private static void addTickerlistToTradeableList(ArrayList<String> tickerList, ArrayList<Stock> tradeableStockList) {
@@ -98,11 +98,10 @@ public class GaussTrader {
 	    tickerList.add("AAPL");
 	    LOGGER.debug("tickerList.size() = {}", tickerList.size());
 
-	    prepareDatabaseConnection();
 	    addTickerlistToTradeableList(tickerList, tradeableStockList);
 
 	    LOGGER.info("Creating new TradingSession() with new Portfolio({})", portfolioName);
-	    TradingSession todaysSession = new TradingSession(new Portfolio(portfolioName, dataSource), tradeableStockList);
+	    TradingSession todaysSession = new TradingSession(new Portfolio(portfolioName), tradeableStockList);
 	    todaysSession.runTradingDay();
 	    LOGGER.info("*** END PROGRAM ***");
 	} catch(Exception e) {

@@ -223,6 +223,7 @@ public class TradingSession {
 		}
 		LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
 		if(openOrder.canBeFilled(lastTick)) {
+		    LOGGER.debug("openOrder.canBeFilled({}) returned true for ticker {}", lastTick, openOrder.getTicker());
 		    portfolio.fillOrder(openOrder, lastTick);
 		}
 	    } catch(IOException ioe) {
@@ -251,18 +252,18 @@ public class TradingSession {
         /* Decide if a security's current price triggers a predetermined event */
 	LOGGER.debug("Entering TradingSession.priceActionable(Stock {})", stock.getTicker());
         double currentStockPrice = stock.getPrice();
-	double twentyDma = stock.getBollingerBand(0);
-	LOGGER.debug("Comparing current price ${} against Bollinger Bands {}", stock.getPrice(), stock.describeBollingerBands());
-	if(currentStockPrice > twentyDma) {
+	LOGGER.debug("Comparing current price ${} against Bollinger Bands {}", currentStockPrice, stock.describeBollingerBands());
+	if(currentStockPrice >= stock.getBollingerBand(1)) {
 	    return findCallAction(stock);
 	}
         if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
             LOGGER.info("50DMA < 200DMA. No further checks.");
             return DO_NOTHING_PRICE_BASED_ACTION;
         }
-	if(currentStockPrice < twentyDma) {
+	if(currentStockPrice <= stock.getBollingerBand(3)) {
             return findPutAction(stock);
         }
+	LOGGER.info("Stock {} at ${} is within Bollinger Bands", stock.getTicker(), currentStockPrice);
 	return DO_NOTHING_PRICE_BASED_ACTION;
     }
 
@@ -390,7 +391,7 @@ public class TradingSession {
 			    stock.getLastPriceUpdateEpoch(), earliestAcceptableLastPriceUpdateEpoch);
 		return;
 	    }
-	    DBHistoricalPrices.addStockPrice(stock.getTicker(), closingEpoch, closingPrice, GaussTrader.getDataSource());
+	    DBHistoricalPrices.addStockPrice(stock.getTicker(), closingEpoch, closingPrice);
 	}
     }
 

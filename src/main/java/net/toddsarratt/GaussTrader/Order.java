@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 
 /* Class to record each order 
  * Fields :
- * orderId : generated from System time
+ * orderId : Use GaussTrader.getNewId() to populate
  * open : boolean, open or closed order
  * ticker : security being traded
  * limitPrice : Limit orders only
@@ -29,10 +29,10 @@ class Order {
     private String underlyingTicker = "AAPL";
     private double strikePrice = 0.00;
     private double limitPrice = 0.00;
-    private double claimAgainstCash = 0.00;
     private String action = "SELL";
     private int totalQuantity = 1;
     private String secType = "PUT";
+    private double claimAgainstCash = 0.00;
     private String tif = "GFD";
     private long epochOpened = System.currentTimeMillis();
     private long epochClosed;
@@ -120,7 +120,7 @@ class Order {
         this.tif = tif;
     }
     public boolean isOption() {
-	return (secType.equals("PUT") || secType.equals("CALL"));
+	return isPut() || isCall();
     }
     public boolean isCall() {
 	return secType.equals("CALL");
@@ -132,7 +132,7 @@ class Order {
         return secType.equals("STOCK");
     }
     public boolean isLong() {
-	return action.equals("SELL");
+	return action.equals("BUY");
     }
     public boolean isShort() {
 	return !isLong();
@@ -215,12 +215,12 @@ class Order {
     }
     void calculateClaimAgainstCash() {
 	LOGGER.debug("Entering Order.calculateClaimAgainstCash()");
-        double costBasis = limitPrice * totalQuantity * (secType.equals("STOCK") ? 1.0 : 100.0) * (action.equals("BUY") ? 1.0 : -1.0);
+        double costBasis = limitPrice * totalQuantity * (isStock() ? 1.0 : 100.0) * (isLong() ? 1.0 : -1.0);
         LOGGER.debug("costBasis = ${}", costBasis);
 	claimAgainstCash = 0.00;
-	if(action.equals("BUY")) {
+	if(isLong()) {
 	    claimAgainstCash = costBasis;
-	} else if(secType.equals("PUT")) {
+	} else if(isPut()) {
 	    claimAgainstCash = strikePrice * 100.0 + costBasis;
 	}
     }

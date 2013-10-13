@@ -63,7 +63,7 @@ public class Stock extends Security {
     Stock() {}
 	
     Stock(String ticker) throws MalformedURLException, IOException {
-	LOGGER.debug("Entering constructor Stock(String {}, DataSource {})", ticker, dataSource.toString());
+	LOGGER.debug("Entering constructor Stock(String {})", ticker);
 	secType = "STOCK";
 	this.ticker = ticker;
 	populateStockInfo();
@@ -91,7 +91,7 @@ public class Stock extends Security {
     void populateHistoricalPricesDB() {
 	/* Populate stock price history from DB */
 	LOGGER.debug("Entering Stock.populateHistoricalPricesDB()");
-	LinkedHashMap<Long, Double> priceMapFromDB = DBHistoricalPrices.getDBPrices(ticker, dataSource, EARLIEST_PRICE_DATE);
+	LinkedHashMap<Long, Double> priceMapFromDB = DBHistoricalPrices.getDBPrices(ticker, EARLIEST_PRICE_DATE);
 	if(!priceMapFromDB.isEmpty()) {
 	    for(Long epochInDb : priceMapFromDB.keySet()) {
 		if(historicalPriceMap.containsKey(epochInDb)) {
@@ -145,7 +145,7 @@ public class Stock extends Security {
     void addPriceMapToDB(Map<Long, Double> pricesMissingFromDB) {
 	LOGGER.debug("Entering Stock.addPriceMapToDB(Map<Long, Double> {})", pricesMissingFromDB.toString());
 	for(Long priceEpoch : pricesMissingFromDB.keySet()) {
-	    DBHistoricalPrices.addStockPrice(ticker, priceEpoch, pricesMissingFromDB.get(priceEpoch), dataSource);
+	    DBHistoricalPrices.addStockPrice(ticker, priceEpoch, pricesMissingFromDB.get(priceEpoch));
 	}
     }
     private static DateTime earliestHistoricalPriceNeeded() {
