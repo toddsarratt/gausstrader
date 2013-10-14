@@ -257,7 +257,7 @@ public class TradingSession {
 	    return findCallAction(stock);
 	}
         if(stock.getFiftyDma() < stock.getTwoHundredDma()) {
-            LOGGER.info("50DMA < 200DMA. No further checks.");
+            LOGGER.info("Stock {} 50DMA < 200DMA. No further checks.", stock.getTicker());
             return DO_NOTHING_PRICE_BASED_ACTION;
         }
 	if(currentStockPrice <= stock.getBollingerBand(3)) {
