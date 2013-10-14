@@ -46,6 +46,8 @@ public abstract class DBHistoricalPrices {
 	double adjClose = 0.0;
 	DateTime dateTimeForLogging;
 	try {
+            LOGGER.debug("Getting connection to {}", GaussTrader.DB_NAME);
+	    dbConnection = dataSource.getConnection();
 	    sqlStatement = dbConnection.prepareStatement("SELECT * FROM prices WHERE ticker = ? AND close_epoch >= ?");
 	    sqlStatement.setString(1, ticker);
 	    sqlStatement.setLong(2, earliestCloseDate.getMillis());
@@ -62,22 +64,13 @@ public abstract class DBHistoricalPrices {
         } catch(SQLException sqle) {
             LOGGER.info("Unable to get connection to {}", GaussTrader.DB_NAME);
             LOGGER.debug("Caught (SQLException sqle)", sqle);
-        } finally {
-	    try {
-		if(dbConnection != null) {
-		    dbConnection.close();
-		}
-	    } catch (SQLException sqle) {
-		LOGGER.info("SQLException trying to close {}", GaussTrader.DB_NAME);
-		LOGGER.debug("Caught (SQLException sqle)", sqle);
-	    } finally {
-		LOGGER.debug("Found {} prices in db", dbPricesFound);
-		LOGGER.debug("Returning from database LinkedHashMap of size {}", queriedPrices.size());
-		if(dbPricesFound != queriedPrices.size()) {
-		    LOGGER.warn("Mismatch between prices found {} and number returned {}, possible duplication?", dbPricesFound, queriedPrices.size());
-		}
-		return queriedPrices;
+	} finally {
+	    LOGGER.debug("Found {} prices in db", dbPricesFound);
+	    LOGGER.debug("Returning from database LinkedHashMap of size {}", queriedPrices.size());
+	    if(dbPricesFound != queriedPrices.size()) {
+		LOGGER.warn("Mismatch between prices found {} and number returned {}, possible duplication?", dbPricesFound, queriedPrices.size());
 	    }
+	    return queriedPrices;
 	}
     }
 
@@ -88,6 +81,7 @@ public abstract class DBHistoricalPrices {
 	try {
             LOGGER.debug("Getting connection to {}", GaussTrader.DB_NAME);
             LOGGER.debug("Inserting historical stock price data for ticker {} into the database.", ticker);
+            dbConnection = dataSource.getConnection();
             sqlStatement = dbConnection.prepareStatement("INSERT INTO prices (ticker, adj_close, close_epoch) VALUES (?, ?, ?)");
             sqlStatement.setString(1, ticker);
 	    sqlStatement.setDouble(2, adjClose);

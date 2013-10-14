@@ -138,6 +138,8 @@ public class Stock extends Security {
 			    "priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant() ({} after {})",
 			    priceRangeToDownload.earliest.toString(), priceRangeToDownload.latest.toString());
 	    }
+	} else {
+	    LOGGER.debug("historicalPriceMap.containsValue(-1.0) is false, all needed prices have been retrieved from the database. Not calling Yahoo!");
 	}
 	return pricesMissingFromDB;
     }
