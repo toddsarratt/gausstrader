@@ -152,6 +152,9 @@ public class Portfolio {
 	orderFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
         return orderFromDb;
     }
+    void setName(String name) {
+	this.name = name;
+    }
     public String getName() {
 	return name;
     }
@@ -642,9 +645,8 @@ public class Portfolio {
         try {
             closeDbOrder(expiredOrder);
         } catch(SQLException sqle) {
-            LOGGER.warn("Unable to update filled order {} in DB", expiredOrder.getOrderId());
+            LOGGER.warn("Unable to update expired order {} in DB", expiredOrder.getOrderId());
             LOGGER.debug("Caught (SQLException sqle)", sqle);
         }
-
     }
 }
