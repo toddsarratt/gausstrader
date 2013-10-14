@@ -41,7 +41,7 @@ public class CashFlowTestForNewOrder {
         assertEquals(testPortfolio.calculateTotalCash(), 1_000_105.00);
         assertEquals(testPortfolio.numberOfOpenPutShorts(testStock), 1);
     }
-    @Test (enabled = false, dependsOnMethods = { "testAddNewOrder" }) public void testExpireOrderCashAdjust() throws Exception {
+    @Test (dependsOnMethods = { "testAddNewOrder" }) public void testExpireOrderCashAdjust() throws Exception {
 	Portfolio expireOrderPortfolio = new Portfolio();
 
 	Order sellPutOrderToExpire = new Order();
