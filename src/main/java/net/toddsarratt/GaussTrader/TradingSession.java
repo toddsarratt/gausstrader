@@ -343,6 +343,8 @@ public class TradingSession {
 			} else if( openOptionPosition.isCall() && 
 				   (Stock.lastTick(openOptionPosition.getUnderlyingTicker()) >= openOptionPosition.getStrikePrice()) ) {
 			    portfolio.exerciseOption(openOptionPosition);
+			} else {
+			    portfolio.expireOptionPosition(openOptionPosition);
 			}
 		    } catch(IOException ioe) {
 			LOGGER.info("Caught IOException attempting to get information on open option position ticker {}", openOptionPosition.getTicker());

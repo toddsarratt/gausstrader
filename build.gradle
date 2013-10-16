@@ -66,7 +66,8 @@ test {
     testLogging {
     	events 'passed'
     }
-    include 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
+    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
+    exclude 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
     exclude 'net/toddsarratt/GaussTrader/DBHistoricalPricesConnectionTest**'
     exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'
     exclude 'net/toddsarratt/GaussTrader/OptionTickerAndExpiryGeneration**'
