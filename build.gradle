@@ -19,26 +19,6 @@ def getVersionName = { ->
 version = getVersionName()
 mainClassName = "net.toddsarratt.GaussTrader.GaussTrader"
 
-task updateLaunchScript (dependsOn: jar) {
-    onlyIf {
-        dependsOnTaskDidWork()
-    }
-    doFirst {
-        description = 'Update the launch script that gets called from cron'
-        ext {
-     	    launchScriptDir = file('build/libs')
-            launchScriptFile = file('build/libs/runGaussTrader.sh')
-     	}
-     	launchScriptFile.write('#! /bin/sh\n')
-     	launchScriptFile.append('JAR_DIR=')
-	launchScriptFile.append(launchScriptDir.absolutePath)
-	launchScriptFile.append('/\n\n')
-     	launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
-     	launchScriptFile.append(version)
-     	launchScriptFile.append('.jar > /dev/null\n')
-    }
-}
-
 repositories {
     mavenCentral()
 }
@@ -58,6 +38,26 @@ jar {
 
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     tasks.updateLaunchScript.execute()
+}
+
+task updateLaunchScript (dependsOn: jar) << {
+    onlyIf {
+        dependsOnTaskDidWork()
+    }
+    doFirst {
+        description = 'Update the launch script that gets called from cron'
+        ext {
+            launchScriptDir = file('build/libs')
+            launchScriptFile = file('build/libs/runGaussTrader.sh')
+        }
+        launchScriptFile.write('#! /bin/sh\n')
+        launchScriptFile.append('JAR_DIR=')
+        launchScriptFile.append(launchScriptDir.absolutePath)
+        launchScriptFile.append('/\n\n')
+        launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
+        launchScriptFile.append(version)
+        launchScriptFile.append('.jar > /dev/null\n')
+    }
 }
 
 task listJars << {
