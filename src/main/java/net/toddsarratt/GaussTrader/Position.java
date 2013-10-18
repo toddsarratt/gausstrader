@@ -47,7 +47,7 @@ public class Position {
         longPosition = orderToFill.isLong();
         numberTransacted = orderToFill.getTotalQuantity();
         this.priceAtOpen = priceAtOpen;
-        costBasis = priceAtOpen * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
+	calculateCostBasis();
 	calculateClaimAgainstCash();
 	LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
 	lastTick = priceAtOpen;
@@ -62,6 +62,7 @@ public class Position {
 	LOGGER.debug("Entering Position.exerciseOptionPosition(Position exercisingOptionPosition)");
 	Position newStockPosition = new Position();
 	String ticker = exercisingOptionPosition.getTicker();
+	double lastTick = 0.00;
 	newStockPosition.setTicker(ticker);
 	newStockPosition.setSecType("STOCK");
 	newStockPosition.setLongPosition(true);
@@ -69,14 +70,14 @@ public class Position {
 	newStockPosition.setPriceAtOpen(exercisingOptionPosition.getStrikePrice());
 	newStockPosition.setCostBasis(newStockPosition.getPriceAtOpen() * newStockPosition.getNumberTransacted());
 	try {
-	    newStockPosition.setLastTick(Stock.lastTick(ticker));
+	    newStockPosition.setLastTick(lastTick = Stock.lastTick(ticker));
 	} catch (IOException ioe) {
 	    LOGGER.info("Could not connect to yahoo! to get lastTick() for {} when exercising option position {}", ticker, exercisingOptionPosition.getPositionId());
 	    LOGGER.info("lastTick and netAssetValue are incorrect for current open position {}", newStockPosition.getPositionId());
 	    LOGGER.debug("Caught (IOException ioe)", ioe);
-	    newStockPosition.setLastTick(newStockPosition.getPriceAtOpen());
+	    newStockPosition.setLastTick(lastTick = newStockPosition.getPriceAtOpen());
 	} finally {
-	    newStockPosition.setNetAssetValue(newStockPosition.getNumberTransacted() * newStockPosition.getLastTick());
+	    newStockPosition.setNetAssetValue(newStockPosition.getNumberTransacted() * lastTick);
 	    return newStockPosition;
 	}
     }
@@ -170,6 +171,9 @@ public class Position {
     }
     void setCostBasis(double costBasis) {
         this.costBasis = costBasis;
+    }
+    void calculateCostBasis() {
+        costBasis = priceAtOpen * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
     }
     public double getLastTick() {
         try {

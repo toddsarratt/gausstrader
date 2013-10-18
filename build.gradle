@@ -65,8 +65,10 @@ test {
     useTestNG()
     testLogging {
     	events 'passed'
+	showStandardStreams = true
     }
-    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
+    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
+    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
     exclude 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
     exclude 'net/toddsarratt/GaussTrader/DBHistoricalPricesConnectionTest**'
     exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'

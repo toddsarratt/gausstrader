@@ -193,9 +193,10 @@ public class Portfolio {
 		portfolioPosition.isOpen() && 
 		portfolioPosition.isLong() && 
 		(portfolioPosition.isStock()) ) {
-		openLongCount++;
+		openLongCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
+	openLongCount /= 100;
 	LOGGER.debug("Returning openLongCount = {} from Portfolio.numberOfOpenStockLongs(Security {})", openLongCount, security.getTicker());
 	return openLongCount; 
     }
@@ -204,10 +205,11 @@ public class Portfolio {
 		
 	for(Position portfolioPosition : portfolioPositions) {
 	    if( (security.getTicker().equals(portfolioPosition.getTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isShort() && (portfolioPosition.getSecType().equals("STOCK")) ) {
-		openShortCount++;
+		portfolioPosition.isShort() && portfolioPosition.isStock() ) {
+		openShortCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
+	openShortCount /= 100;
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenStockShorts(Security {})", openShortCount, security.getTicker());
 	return openShortCount; 
     }
@@ -216,7 +218,7 @@ public class Portfolio {
 		
 	for(Position portfolioPosition : portfolioPositions) {
 	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isLong() && (portfolioPosition.getSecType().equals("CALL")) ) {
+		portfolioPosition.isLong() && portfolioPosition.isCall() ) {
 		openLongCount++;
 	    }
 	}
@@ -231,7 +233,7 @@ public class Portfolio {
 		portfolioPosition.isOpen() && 
 		portfolioPosition.isShort() && 
 		portfolioPosition.isCall() ) {
-		openShortCount++;
+		openShortCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
         for(Order portfolioOrder : portfolioOrders) {
@@ -239,7 +241,7 @@ public class Portfolio {
 		portfolioOrder.isOpen() &&
                 portfolioOrder.isShort() && 
 		portfolioOrder.isCall() ) {
-                openShortCount++;
+                openShortCount += portfolioOrder.getTotalQuantity();
             }
         }
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenCallShorts(Security {})", openShortCount, security.getTicker());
@@ -250,8 +252,8 @@ public class Portfolio {
 		
 	for(Position portfolioPosition : portfolioPositions) {
 	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isLong() && (portfolioPosition.getSecType().equals("PUT")) ) {
-		openLongCount++;
+		portfolioPosition.isLong() && (portfolioPosition.isPut()) ) {
+		openLongCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
         LOGGER.debug("Returning openLongCount = {} from Portfolio.numberOfOpenPutLongs(Security {})", openLongCount, security.getTicker());
@@ -266,7 +268,7 @@ public class Portfolio {
 		portfolioPosition.isOpen() && 
 		portfolioPosition.isShort() && 
 		portfolioPosition.isPut() ) {
-		openShortCount++;
+		openShortCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
 	for(Order portfolioOrder : portfolioOrders) {
@@ -274,7 +276,7 @@ public class Portfolio {
 		portfolioOrder.isOpen() &&
 		portfolioOrder.isShort() && 
 		portfolioOrder.isPut() ) {
-                openShortCount++;
+                openShortCount += portfolioOrder.getTotalQuantity();
             }
         }
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenPutShorts(Security {})", openShortCount, security.getTicker());
@@ -343,9 +345,7 @@ public class Portfolio {
 	LOGGER.debug("Entering Portfolio.getListOfOpenOptionPositions()");
         List<Position> openOptionPositionList = new ArrayList<>();
         for(Position portfolioPosition : portfolioPositions) {
-            if(portfolioPosition.isOpen() && 
-	       ( (portfolioPosition.getSecType().equals("CALL")) || 
-		 (portfolioPosition.getSecType().equals("PUT")) ) ) {
+            if(portfolioPosition.isOpen() && (portfolioPosition.isCall() || portfolioPosition.isPut()) ) {
                 openOptionPositionList.add(portfolioPosition);
             }
         }
@@ -414,17 +414,32 @@ public class Portfolio {
         }
     }
     private void exerciseShortCall(Position optionPositionToExercise) {
+	LOGGER.debug("Entering Portfolio.exerciseShortCall(Position {})", optionPositionToExercise.getPositionId());
+	LOGGER.debug("optionPositionToExercise.getNumberTransacted() = {}", optionPositionToExercise.getNumberTransacted());
 	for(int contractsToHonor = 1; contractsToHonor <= optionPositionToExercise.getNumberTransacted(); contractsToHonor++) {
+	    LOGGER.debug("contractsToHonor = {}", contractsToHonor);
 	    Position calledAwayStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
 	    if(calledAwayStockPosition != null) {
+		LOGGER.debug("calledAwayStockPosition != null");
 		calledAwayStockPosition.close(optionPositionToExercise.getStrikePrice());
-		freeCash += optionPositionToExercise.getStrikePrice() * calledAwayStockPosition.getNumberTransacted() * 100.0;
+		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * calledAwayStockPosition.getNumberTransacted() {}",
+			     freeCash, optionPositionToExercise.getStrikePrice(), calledAwayStockPosition.getNumberTransacted()); 
+		freeCash += optionPositionToExercise.getStrikePrice() * calledAwayStockPosition.getNumberTransacted();
+		LOGGER.debug("freeCash == {}", freeCash);
 	    } else {
 		/* Buy the stock at market price and deliver it */
+		LOGGER.debug("calledAwayStockPosition == null");
 		Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-		freeCash -= buyStockToDeliverPosition.getPriceAtOpen() * buyStockToDeliverPosition.getNumberTransacted();
+		LOGGER.debug("Buying 100 shares at market price");
+		LOGGER.debug("freeCash {} -= buyStockToDeliverPosition.getLastTick() {} * buyStockToDeliverPosition.getNumberTransacted() {}",
+			     freeCash, buyStockToDeliverPosition.getLastTick(), buyStockToDeliverPosition.getNumberTransacted());
+		freeCash -= buyStockToDeliverPosition.getLastTick() * buyStockToDeliverPosition.getNumberTransacted();
+		LOGGER.debug("freeCash == {}", freeCash);
+		LOGGER.debug("Selling 100 shares at strike price (delivering to call holder)");
 		buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
-                freeCash += optionPositionToExercise.getStrikePrice() * calledAwayStockPosition.getNumberTransacted() * 100.0;
+		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100.00", freeCash, optionPositionToExercise.getStrikePrice());
+                freeCash += optionPositionToExercise.getStrikePrice() * 100.00;
+		LOGGER.debug("freeCash == {}", freeCash);
 	    }
 	}
     }
@@ -476,7 +491,7 @@ public class Portfolio {
 	double lowestCostBasis = Double.MAX_VALUE;
 	Position positionToDeliver = null;
 	for(Position openPosition : getListOfOpenPositions()) {
-	    if(openPosition.getTicker().equals(tickerToDeliver) && (openPosition.getCostBasis() < lowestCostBasis)) {
+	    if(openPosition.isStock() && openPosition.getTicker().equals(tickerToDeliver) && (openPosition.getCostBasis() < lowestCostBasis)) {
 		lowestCostBasis = openPosition.getCostBasis();
 		positionToDeliver = openPosition;
 	    }
