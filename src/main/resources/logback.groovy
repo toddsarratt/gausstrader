@@ -11,7 +11,7 @@ def PROJECT_HOME = "/home/tsarratt/codeDir/GaussTrader"
 appender("FILE", RollingFileAppender) {
   file = "${PROJECT_HOME}/logs/GaussTrader.log"
   rollingPolicy(TimeBasedRollingPolicy) {
-    fileNamePattern = "${PROJECT_HOME}/logs/GaussTrader.%d.log"
+    fileNamePattern = "${PROJECT_HOME}/logs/GaussTrader.log.%d"
     maxHistory = 30
   }
   encoder(PatternLayoutEncoder) {
