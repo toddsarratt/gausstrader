@@ -414,32 +414,32 @@ public class Portfolio {
         }
     }
     private void exerciseShortCall(Position optionPositionToExercise) {
-	LOGGER.debug("Entering Portfolio.exerciseShortCall(Position {})", optionPositionToExercise.getPositionId());
-	LOGGER.debug("optionPositionToExercise.getNumberTransacted() = {}", optionPositionToExercise.getNumberTransacted());
+	//	LOGGER.debug("Entering Portfolio.exerciseShortCall(Position {})", optionPositionToExercise.getPositionId());
+	//	LOGGER.debug("optionPositionToExercise.getNumberTransacted() = {}", optionPositionToExercise.getNumberTransacted());
 	for(int contractsToHonor = 1; contractsToHonor <= optionPositionToExercise.getNumberTransacted(); contractsToHonor++) {
-	    LOGGER.debug("contractsToHonor = {}", contractsToHonor);
+	    //	    LOGGER.debug("contractsToHonor = {}", contractsToHonor);
 	    Position calledAwayStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
 	    if(calledAwayStockPosition != null) {
-		LOGGER.debug("calledAwayStockPosition != null");
+		//		LOGGER.debug("calledAwayStockPosition != null");
 		calledAwayStockPosition.close(optionPositionToExercise.getStrikePrice());
-		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * calledAwayStockPosition.getNumberTransacted() {}",
-			     freeCash, optionPositionToExercise.getStrikePrice(), calledAwayStockPosition.getNumberTransacted()); 
+		//		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * calledAwayStockPosition.getNumberTransacted() {}",
+		//		freeCash, optionPositionToExercise.getStrikePrice(), calledAwayStockPosition.getNumberTransacted()); 
 		freeCash += optionPositionToExercise.getStrikePrice() * calledAwayStockPosition.getNumberTransacted();
-		LOGGER.debug("freeCash == {}", freeCash);
+		//		LOGGER.debug("freeCash == {}", freeCash);
 	    } else {
 		/* Buy the stock at market price and deliver it */
-		LOGGER.debug("calledAwayStockPosition == null");
+		//		LOGGER.debug("calledAwayStockPosition == null");
 		Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-		LOGGER.debug("Buying 100 shares at market price");
-		LOGGER.debug("freeCash {} -= buyStockToDeliverPosition.getLastTick() {} * buyStockToDeliverPosition.getNumberTransacted() {}",
-			     freeCash, buyStockToDeliverPosition.getLastTick(), buyStockToDeliverPosition.getNumberTransacted());
+		//		LOGGER.debug("Buying 100 shares at market price");
+		//		LOGGER.debug("freeCash {} -= buyStockToDeliverPosition.getLastTick() {} * buyStockToDeliverPosition.getNumberTransacted() {}",
+		//			     freeCash, buyStockToDeliverPosition.getLastTick(), buyStockToDeliverPosition.getNumberTransacted());
 		freeCash -= buyStockToDeliverPosition.getLastTick() * buyStockToDeliverPosition.getNumberTransacted();
-		LOGGER.debug("freeCash == {}", freeCash);
-		LOGGER.debug("Selling 100 shares at strike price (delivering to call holder)");
+		//		LOGGER.debug("freeCash == {}", freeCash);
+		//		LOGGER.debug("Selling 100 shares at strike price (delivering to call holder)");
 		buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
-		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100.00", freeCash, optionPositionToExercise.getStrikePrice());
+		//		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100.00", freeCash, optionPositionToExercise.getStrikePrice());
                 freeCash += optionPositionToExercise.getStrikePrice() * 100.00;
-		LOGGER.debug("freeCash == {}", freeCash);
+		//		LOGGER.debug("freeCash == {}", freeCash);
 	    }
 	}
     }
