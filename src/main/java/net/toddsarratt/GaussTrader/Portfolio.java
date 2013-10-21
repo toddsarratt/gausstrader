@@ -249,13 +249,23 @@ public class Portfolio {
     }
     public int numberOfOpenPutLongs(Security security) { 
 	int openLongCount = 0;
-		
+
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isLong() && (portfolioPosition.isPut()) ) {
-		openLongCount += portfolioPosition.getNumberTransacted();
-	    }
-	}
+            if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) &&
+                portfolioPosition.isOpen() &&
+                portfolioPosition.isLong() &&
+                portfolioPosition.isPut() ) {
+                openLongCount += portfolioPosition.getNumberTransacted();
+            }
+        }
+        for(Order portfolioOrder : portfolioOrders) {
+            if( (security.getTicker().equals(portfolioOrder.getUnderlyingTicker())) &&
+                portfolioOrder.isOpen() &&
+                portfolioOrder.isLong() &&
+                portfolioOrder.isPut() ) {
+                openLongCount += portfolioOrder.getTotalQuantity();
+            }
+        }
         LOGGER.debug("Returning openLongCount = {} from Portfolio.numberOfOpenPutLongs(Security {})", openLongCount, security.getTicker());
 	return openLongCount; 
     }
@@ -308,6 +318,7 @@ public class Portfolio {
     public void addNewPosition(Position position) {
 	LOGGER.debug("Entering Portfolio.addNewPosition(Position {})", position.getPositionId());
 	portfolioPositions.add(position);
+	freeCash -= position.getCostBasis();
         freeCash -= position.getClaimAgainstCash();
         reservedCash += position.getClaimAgainstCash();
         try {

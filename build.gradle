@@ -37,15 +37,16 @@ jar {
     manifest.attributes 'Main-Class': 'net.toddsarratt.GaussTrader.GaussTrader'
 
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-    tasks.updateLaunchScript.execute()
+
+    onlyIf {
+        getDidWork()
+    }
+//    tasks.updateLaunchScript.execute()
+//    tasks.listJars.execute()
 }
 
 task updateLaunchScript (dependsOn: jar) << {
-    onlyIf {
-        dependsOnTaskDidWork()
-    }
     doFirst {
-        description = 'Update the launch script that gets called from cron'
         ext {
             launchScriptDir = file('build/libs')
             launchScriptFile = file('build/libs/runGaussTrader.sh')
@@ -60,6 +61,13 @@ task updateLaunchScript (dependsOn: jar) << {
     }
 }
 
+configure(updateLaunchScript) {
+    group = 'Build'
+    description = 'Update the launch script that gets called from cron'
+}
+
+updateLaunchScript.onlyIf { dependsOnTaskDidWork() }
+
 task listJars << {
     description = 'Lists dependency jars'
     group = 'build'
@@ -72,8 +80,9 @@ test {
     	events 'passed'
 	showStandardStreams = true
     }
+    include 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
     exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
-    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
+    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
     exclude 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
     exclude 'net/toddsarratt/GaussTrader/DBHistoricalPricesConnectionTest**'
     exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'
