@@ -37,12 +37,6 @@ jar {
     manifest.attributes 'Main-Class': 'net.toddsarratt.GaussTrader.GaussTrader'
 
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-
-    onlyIf {
-        getDidWork()
-    }
-//    tasks.updateLaunchScript.execute()
-//    tasks.listJars.execute()
 }
 
 task updateLaunchScript (dependsOn: jar) << {
