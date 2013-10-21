@@ -152,6 +152,9 @@ public class Portfolio {
 	orderFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
         return orderFromDb;
     }
+    void setName(String name) {
+	this.name = name;
+    }
     public String getName() {
 	return name;
     }
@@ -190,9 +193,10 @@ public class Portfolio {
 		portfolioPosition.isOpen() && 
 		portfolioPosition.isLong() && 
 		(portfolioPosition.isStock()) ) {
-		openLongCount++;
+		openLongCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
+	openLongCount /= 100;
 	LOGGER.debug("Returning openLongCount = {} from Portfolio.numberOfOpenStockLongs(Security {})", openLongCount, security.getTicker());
 	return openLongCount; 
     }
@@ -201,10 +205,11 @@ public class Portfolio {
 		
 	for(Position portfolioPosition : portfolioPositions) {
 	    if( (security.getTicker().equals(portfolioPosition.getTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isShort() && (portfolioPosition.getSecType().equals("STOCK")) ) {
-		openShortCount++;
+		portfolioPosition.isShort() && portfolioPosition.isStock() ) {
+		openShortCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
+	openShortCount /= 100;
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenStockShorts(Security {})", openShortCount, security.getTicker());
 	return openShortCount; 
     }
@@ -213,7 +218,7 @@ public class Portfolio {
 		
 	for(Position portfolioPosition : portfolioPositions) {
 	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isLong() && (portfolioPosition.getSecType().equals("CALL")) ) {
+		portfolioPosition.isLong() && portfolioPosition.isCall() ) {
 		openLongCount++;
 	    }
 	}
@@ -228,7 +233,7 @@ public class Portfolio {
 		portfolioPosition.isOpen() && 
 		portfolioPosition.isShort() && 
 		portfolioPosition.isCall() ) {
-		openShortCount++;
+		openShortCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
         for(Order portfolioOrder : portfolioOrders) {
@@ -236,7 +241,7 @@ public class Portfolio {
 		portfolioOrder.isOpen() &&
                 portfolioOrder.isShort() && 
 		portfolioOrder.isCall() ) {
-                openShortCount++;
+                openShortCount += portfolioOrder.getTotalQuantity();
             }
         }
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenCallShorts(Security {})", openShortCount, security.getTicker());
@@ -244,13 +249,23 @@ public class Portfolio {
     }
     public int numberOfOpenPutLongs(Security security) { 
 	int openLongCount = 0;
-		
+
 	for(Position portfolioPosition : portfolioPositions) {
-	    if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() && 
-		portfolioPosition.isLong() && (portfolioPosition.getSecType().equals("PUT")) ) {
-		openLongCount++;
-	    }
-	}
+            if( (security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) &&
+                portfolioPosition.isOpen() &&
+                portfolioPosition.isLong() &&
+                portfolioPosition.isPut() ) {
+                openLongCount += portfolioPosition.getNumberTransacted();
+            }
+        }
+        for(Order portfolioOrder : portfolioOrders) {
+            if( (security.getTicker().equals(portfolioOrder.getUnderlyingTicker())) &&
+                portfolioOrder.isOpen() &&
+                portfolioOrder.isLong() &&
+                portfolioOrder.isPut() ) {
+                openLongCount += portfolioOrder.getTotalQuantity();
+            }
+        }
         LOGGER.debug("Returning openLongCount = {} from Portfolio.numberOfOpenPutLongs(Security {})", openLongCount, security.getTicker());
 	return openLongCount; 
     }
@@ -263,7 +278,7 @@ public class Portfolio {
 		portfolioPosition.isOpen() && 
 		portfolioPosition.isShort() && 
 		portfolioPosition.isPut() ) {
-		openShortCount++;
+		openShortCount += portfolioPosition.getNumberTransacted();
 	    }
 	}
 	for(Order portfolioOrder : portfolioOrders) {
@@ -271,7 +286,7 @@ public class Portfolio {
 		portfolioOrder.isOpen() &&
 		portfolioOrder.isShort() && 
 		portfolioOrder.isPut() ) {
-                openShortCount++;
+                openShortCount += portfolioOrder.getTotalQuantity();
             }
         }
         LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenPutShorts(Security {})", openShortCount, security.getTicker());
@@ -303,6 +318,7 @@ public class Portfolio {
     public void addNewPosition(Position position) {
 	LOGGER.debug("Entering Portfolio.addNewPosition(Position {})", position.getPositionId());
 	portfolioPositions.add(position);
+	freeCash -= position.getCostBasis();
         freeCash -= position.getClaimAgainstCash();
         reservedCash += position.getClaimAgainstCash();
         try {
@@ -340,9 +356,7 @@ public class Portfolio {
 	LOGGER.debug("Entering Portfolio.getListOfOpenOptionPositions()");
         List<Position> openOptionPositionList = new ArrayList<>();
         for(Position portfolioPosition : portfolioPositions) {
-            if(portfolioPosition.isOpen() && 
-	       ( (portfolioPosition.getSecType().equals("CALL")) || 
-		 (portfolioPosition.getSecType().equals("PUT")) ) ) {
+            if(portfolioPosition.isOpen() && (portfolioPosition.isCall() || portfolioPosition.isPut()) ) {
                 openOptionPositionList.add(portfolioPosition);
             }
         }
@@ -367,48 +381,128 @@ public class Portfolio {
 	    insertDbPosition(positionTakenByOrder);
             closeDbOrder(orderToFill);
         } catch(SQLException sqle) {
-            LOGGER.warn("Error writing to database filling order {} with position", orderToFill.getOrderId(), positionTakenByOrder.getPositionId());
+            LOGGER.warn("Error writing to database filling order {} with position {}", orderToFill.getOrderId(), positionTakenByOrder.getPositionId());
             LOGGER.debug("Caught (SQLException sqle)", sqle);
         }
     }
     void exerciseOption(Position optionPositionToExercise) {
-	/* If short put
-	 * buy the stock at the strike price
-	 * if short call
-	 * find a position in the stock to sell at strike price
-	 * if long an option
-	 * stub out as TODO later as current algo only sells options
+	/* If short put buy the stock at the strike price
+	 * if short call find a position in the stock to sell at strike price or buy the stock and then deliver
+	 * If long put find position to put, or take the cash
+	 * If long call buy stock at strike price, or take the cash
 	 */
 	LOGGER.debug("Entering Portfolio.exerciseOption(Position {})", optionPositionToExercise.getPositionId());
-	if(!optionPositionToExercise.isLong()) {
-	    if(optionPositionToExercise.getSecType().equals("PUT")) {
-		Position optionToStockPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-		portfolioPositions.add(optionToStockPosition);
-		optionPositionToExercise.close(0.00);
-		reservedCash -= optionToStockPosition.getStrikePrice() * optionToStockPosition.getNumberTransacted() * 100.0;
+	if(optionPositionToExercise.isShort()) {
+	    if(optionPositionToExercise.isPut()) {
+		exerciseShortPut(optionPositionToExercise);
 	    } else {
-		/* optionPositionToExercise.getSecType.equals("CALL") */
-		Position calledAwayStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
-		if(calledAwayStockPosition != null) {
-		    calledAwayStockPosition.close(optionPositionToExercise.getStrikePrice());
-		    freeCash += optionPositionToExercise.getStrikePrice() * calledAwayStockPosition.getNumberTransacted() * 100.0;
-		} else {
-                    /* Buy the stock at market price and deliver it */
-		    Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-		    buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
-		}
+		exerciseShortCall(optionPositionToExercise);
 	    }
 	} else {
-	    /* Call a stock away from or put a stock to someone */
+	    if(optionPositionToExercise.isPut()) {
+                exerciseLongPut(optionPositionToExercise);
+            } else {
+                exerciseLongCall(optionPositionToExercise);
+            }
+        }
+        optionPositionToExercise.close(0.00);
+        try {
+	    closeDbPosition(optionPositionToExercise);
+        } catch(SQLException sqle) {
+            LOGGER.warn("Error writing to database position {}", optionPositionToExercise.getPositionId());
+            LOGGER.debug("Caught (SQLException sqle)", sqle);
+        }
+        reservedCash -= optionPositionToExercise.getClaimAgainstCash();
+    }
+    private void exerciseShortPut(Position optionPositionToExercise) {
+	Position optionToStockPosition = Position.exerciseOptionPosition(optionPositionToExercise);
+	portfolioPositions.add(optionToStockPosition);
+        try {
+	    insertDbPosition(optionToStockPosition);
+        } catch(SQLException sqle) {
+            LOGGER.warn("Error writing to database position {}", optionToStockPosition.getPositionId());
+            LOGGER.debug("Caught (SQLException sqle)", sqle);
+        }
+    }
+    private void exerciseShortCall(Position optionPositionToExercise) {
+	//	LOGGER.debug("Entering Portfolio.exerciseShortCall(Position {})", optionPositionToExercise.getPositionId());
+	//	LOGGER.debug("optionPositionToExercise.getNumberTransacted() = {}", optionPositionToExercise.getNumberTransacted());
+	for(int contractsToHonor = 1; contractsToHonor <= optionPositionToExercise.getNumberTransacted(); contractsToHonor++) {
+	    //	    LOGGER.debug("contractsToHonor = {}", contractsToHonor);
+	    Position calledAwayStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
+	    if(calledAwayStockPosition != null) {
+		//		LOGGER.debug("calledAwayStockPosition != null");
+		calledAwayStockPosition.close(optionPositionToExercise.getStrikePrice());
+		//		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * calledAwayStockPosition.getNumberTransacted() {}",
+		//		freeCash, optionPositionToExercise.getStrikePrice(), calledAwayStockPosition.getNumberTransacted()); 
+		freeCash += optionPositionToExercise.getStrikePrice() * calledAwayStockPosition.getNumberTransacted();
+		//		LOGGER.debug("freeCash == {}", freeCash);
+	    } else {
+		/* Buy the stock at market price and deliver it */
+		//		LOGGER.debug("calledAwayStockPosition == null");
+		Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
+		//		LOGGER.debug("Buying 100 shares at market price");
+		//		LOGGER.debug("freeCash {} -= buyStockToDeliverPosition.getLastTick() {} * buyStockToDeliverPosition.getNumberTransacted() {}",
+		//			     freeCash, buyStockToDeliverPosition.getLastTick(), buyStockToDeliverPosition.getNumberTransacted());
+		freeCash -= buyStockToDeliverPosition.getLastTick() * buyStockToDeliverPosition.getNumberTransacted();
+		//		LOGGER.debug("freeCash == {}", freeCash);
+		//		LOGGER.debug("Selling 100 shares at strike price (delivering to call holder)");
+		buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
+		//		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100.00", freeCash, optionPositionToExercise.getStrikePrice());
+                freeCash += optionPositionToExercise.getStrikePrice() * 100.00;
+		//		LOGGER.debug("freeCash == {}", freeCash);
+	    }
 	}
     }
-
+    private void exerciseLongPut(Position optionPositionToExercise) {
+        for(int contractsToHonor = 1; contractsToHonor <= optionPositionToExercise.getNumberTransacted(); contractsToHonor++) {
+            Position puttingToStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
+            if(puttingToStockPosition != null) {
+                puttingToStockPosition.close(optionPositionToExercise.getStrikePrice());
+		try {
+		    closeDbPosition(puttingToStockPosition);
+		} catch(SQLException sqle) {
+		    LOGGER.warn("Unable to update closed position {} in DB", puttingToStockPosition.getPositionId());
+		    LOGGER.debug("Caught (SQLException sqle)", sqle);
+		}
+                freeCash += optionPositionToExercise.getStrikePrice() * optionPositionToExercise.getNumberTransacted() * 100.0;
+            } else {
+                /* Buy the stock at market price and deliver it */
+                Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
+		freeCash -= buyStockToDeliverPosition.getCostBasis();
+                buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
+		freeCash += buyStockToDeliverPosition.getPriceAtOpen() * buyStockToDeliverPosition.getNumberTransacted();
+            }
+        }
+    }
+    private void exerciseLongCall(Position optionPositionToExercise) {
+        Position optionToStockPosition = Position.exerciseOptionPosition(optionPositionToExercise);
+        portfolioPositions.add(optionToStockPosition);
+	freeCash -= optionToStockPosition.getCostBasis();
+        try {
+	    insertDbPosition(optionToStockPosition);
+        } catch(SQLException sqle) {
+            LOGGER.warn("Error writing to database position {} ", optionToStockPosition.getPositionId());
+            LOGGER.debug("Caught (SQLException sqle)", sqle);
+        }
+    }
+    void expireOptionPosition(Position optionPositionToExercise) {
+	freeCash += optionPositionToExercise.getClaimAgainstCash();
+	reservedCash -= optionPositionToExercise.getClaimAgainstCash();
+        optionPositionToExercise.close(0.00);
+        try {
+            closeDbPosition(optionPositionToExercise);
+        } catch(SQLException sqle) {
+            LOGGER.warn("Unable to update closed position {} in DB", optionPositionToExercise.getPositionId());
+            LOGGER.debug("Caught (SQLException sqle)", sqle);
+        }
+    }
     Position findStockPositionToDeliver(String tickerToDeliver) {
 	LOGGER.debug("Entering Portfolio.findStockPositionToDeliver(String {})", tickerToDeliver);
 	double lowestCostBasis = Double.MAX_VALUE;
 	Position positionToDeliver = null;
 	for(Position openPosition : getListOfOpenPositions()) {
-	    if(openPosition.getTicker().equals(tickerToDeliver) && (openPosition.getCostBasis() < lowestCostBasis)) {
+	    if(openPosition.isStock() && openPosition.getTicker().equals(tickerToDeliver) && (openPosition.getCostBasis() < lowestCostBasis)) {
 		lowestCostBasis = openPosition.getCostBasis();
 		positionToDeliver = openPosition;
 	    }
@@ -552,20 +646,23 @@ public class Portfolio {
 	if( (insertedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
 	    LOGGER.warn("Inserted {} rows. Should have inserted 1 row", insertedRowCount);
 	}
-	if(!portfolioPosition.isOpen()) {
-	    sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
-	    newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
-	    newPositionSqlStatement.setLong(1, portfolioPosition.getEpochClosed());
-	    newPositionSqlStatement.setDouble(2, portfolioPosition.getPriceAtClose());
-	    newPositionSqlStatement.setDouble(3, portfolioPosition.getProfit());
-	    newPositionSqlStatement.setLong(4, portfolioPosition.getPositionId());
-	    LOGGER.debug("Executing UPDATE positions SET epoch_closed = {}, price_at_close = {}, profit = {}, open = 'false' WHERE position_id = {}",
-			 portfolioPosition.getEpochClosed(), portfolioPosition.getPriceAtClose(), portfolioPosition.getProfit(), portfolioPosition.getPositionId());
-	    if( (updatedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
-		LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
-	    }
+    }
+    private void closeDbPosition(Position positionToClose) throws SQLException {
+	int updatedRowCount = 0;
+	String sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
+        PreparedStatement newPositionSqlStatement = null;
+	newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
+	newPositionSqlStatement.setLong(1, positionToClose.getEpochClosed());
+	newPositionSqlStatement.setDouble(2, positionToClose.getPriceAtClose());
+	newPositionSqlStatement.setDouble(3, positionToClose.getProfit());
+	newPositionSqlStatement.setLong(4, positionToClose.getPositionId());
+	LOGGER.debug("Executing UPDATE positions SET epoch_closed = {}, price_at_close = {}, profit = {}, open = 'false' WHERE position_id = {}",
+		     positionToClose.getEpochClosed(), positionToClose.getPriceAtClose(), positionToClose.getProfit(), positionToClose.getPositionId());
+	if( (updatedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
+	    LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
 	}
     }
+
     private void closeDbOrder(Order portfolioOrder) throws SQLException {
 	/* Nothing changes in an order unless it is filled (i.e. closed) */
 	LOGGER.debug("Entering Portfolio.closeDbOrder(Order {})", portfolioOrder.getOrderId());
@@ -642,9 +739,8 @@ public class Portfolio {
         try {
             closeDbOrder(expiredOrder);
         } catch(SQLException sqle) {
-            LOGGER.warn("Unable to update filled order {} in DB", expiredOrder.getOrderId());
+            LOGGER.warn("Unable to update expired order {} in DB", expiredOrder.getOrderId());
             LOGGER.debug("Caught (SQLException sqle)", sqle);
         }
-
     }
 }

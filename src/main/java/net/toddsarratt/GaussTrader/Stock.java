@@ -359,6 +359,7 @@ public class Stock extends Security {
     }
 
     public static double lastTick(String ticker) throws IOException {
+	LOGGER.debug("Entering Stock.lastTick(String {})", ticker);
 	String[] tickString = askYahoo(ticker, "sl1d1t1");
 	if(ticker.equals(tickString[0])) {
 	    return Double.parseDouble(tickString[1]);
