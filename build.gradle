@@ -58,9 +58,8 @@ task updateLaunchScript (dependsOn: jar) << {
 configure(updateLaunchScript) {
     group = 'Build'
     description = 'Update the launch script that gets called from cron'
+    onlyIf { dependsOnTaskDidWork() }
 }
-
-updateLaunchScript.onlyIf { dependsOnTaskDidWork() }
 
 task listJars << {
     description = 'Lists dependency jars'
@@ -75,8 +74,8 @@ test {
 	showStandardStreams = true
     }
     include 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
-    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
-    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
+    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
+    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
     exclude 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
     exclude 'net/toddsarratt/GaussTrader/DBHistoricalPricesConnectionTest**'
     exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'
