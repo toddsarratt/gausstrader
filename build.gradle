@@ -73,9 +73,10 @@ test {
     	events 'passed'
 	showStandardStreams = true
     }
-    include 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
-    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
-    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
+    include 'net/toddsarratt/GaussTrader/OptionExpiryTest**'
+    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
+    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
+    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
     exclude 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
     exclude 'net/toddsarratt/GaussTrader/DBHistoricalPricesConnectionTest**'
     exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'

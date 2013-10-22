@@ -3,10 +3,12 @@ package net.toddsarratt.GaussTrader;
 import java.io.IOException;
 import java.net.URL;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.joda.time.base.BaseDateTime;
+import org.joda.time.DateMidnight;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateTimeConstants;
@@ -173,9 +175,29 @@ public class Option extends Security {
     }
 	
     public static int getExpirySaturday(int month, int year) {
-	MutableDateTime expiryCalc = new MutableDateTime(year, month, 1, 0, 0, 0, 0, DateTimeZone.forID("America/New_York"));
-	expiryCalc.addDays(20 - (expiryCalc.getDayOfWeek() % 7) );
-	return expiryCalc.getDayOfMonth();
+	/* 
+	 * From http://en.wikipedia.org/wiki/Expiration_(options)
+	 * ... for U.S. exchange-listed equity stock option contracts, the expiration date is always the Saturday that follows the 
+	 * third Friday of the month, unless that Friday is a market holiday, in which case the expiration is on Thursday right before that Friday. 
+	 * TODO : Refactor to return Thursday if criteria met, deprecate this method and call new method calculateFutureExpiry(...)
+	 * All monthly options expire on a Saturday through the 2015 calendar year
+	 */
+	DateMidnight secondOfexpiryMonth = new DateMidnight(year, month, 2, DateTimeZone.forID("America/New_York"));
+	int expiryFriday = 21 - (secondOfexpiryMonth.getDayOfWeek() % 7);
+	return expiryFriday + 1;
+    }
+
+    public static int calculateFutureExpiry(int month, int year) {
+	/* 
+	 * TODO : Complete this method
+	 * .addDays(isTodayInListOfHolidays() ? -1 : 1;
+	 * Until then call getExpirySaturday()
+	 * This method allows forward compatibility following the deprecation of getExpirySaturday
+	 */
+	MutableDateTime expiryDate = new MutableDateTime(year, month, 2, 16, 20, 0, 0, DateTimeZone.forID("America/New_York"));
+        expiryDate.setDayOfMonth(21 - (expiryDate.getDayOfWeek() % 7));
+	expiryDate.addDays(Arrays.asList(TradingSession.JULIAN_HOLIDAYS).contains(expiryDate.getDayOfYear()) ? -1 : 1);
+	return expiryDate.getDayOfMonth();
     }
     /* Build option ticker. Example : Exxon Mobil 90 Strike Aug 13 expiry call = XOM130817C00090000 */
     public static String optionTicker(String stockTicker, BaseDateTime expiry, char indicator, double strikeDouble) {
