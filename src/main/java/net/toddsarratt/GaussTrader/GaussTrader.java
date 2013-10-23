@@ -100,7 +100,7 @@ public class GaussTrader {
 
 	    addTickerlistToTradeableList(tickerList, tradeableStockList);
 
-	    LOGGER.info("Creating new TradingSession() with new Portfolio({})", portfolioName);
+	    LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolioName);
 	    TradingSession todaysSession = new TradingSession(new Portfolio(portfolioName), tradeableStockList);
 	    todaysSession.runTradingDay();
 	    LOGGER.info("*** END PROGRAM ***");

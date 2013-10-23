@@ -297,7 +297,7 @@ public class TradingSession {
     private PriceBasedAction findCallAction(Stock stock) {
 	LOGGER.debug("Entering TradingSession.findCallAction(Stock {})", stock.getTicker());
 	if(portfolio.countUncoveredLongStockPositions(stock) < 1) {
-            LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
+            LOGGER.info("Open long {} positions is equal or less than current short calls positions. Taking no action.", stock.getTicker());
 	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
 	if(stock.getPrice() >= stock.getBollingerBand(2)) {
@@ -319,7 +319,7 @@ public class TradingSession {
 	    if(portfolio.numberOfOpenPutShorts(stock) <= 2 ) {
 		return new PriceBasedAction(true, "PUT", 6);
 	    }
-	    LOGGER.info("Open short put positions exceeds 2. Taking no action.");
+	    LOGGER.info("Open short put {} positions exceeds 2. Taking no action.", stock.getTicker());
 	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
 	if(currentStockPrice <= stock.getBollingerBand(4)) {
@@ -327,7 +327,7 @@ public class TradingSession {
 	    if(portfolio.numberOfOpenPutShorts(stock) <= 1 ) {
 		return new PriceBasedAction(true, "PUT", 2);
 	    }
-	    LOGGER.info("Open short put positions exceeds 1. Taking no action.");
+	    LOGGER.info("Open short put {} positions exceeds 1. Taking no action.", stock.getTicker());
             return DO_NOTHING_PRICE_BASED_ACTION;
 	}
 	if(currentStockPrice <= stock.getBollingerBand(3)) {
@@ -335,7 +335,7 @@ public class TradingSession {
 	    if(portfolio.numberOfOpenPutShorts(stock) == 0 ) {
 		return new PriceBasedAction(true, "PUT", 1);
 	    }
-	    LOGGER.info("Open short put positions exceeds 0. Taking no action.");
+	    LOGGER.info("Open short put {} positions exceeds 0. Taking no action.", stock.getTicker());
 	}
 	return DO_NOTHING_PRICE_BASED_ACTION;
     }
@@ -343,6 +343,7 @@ public class TradingSession {
     private void reconcileExpiringOptions() {
 	/* If within two days of expiry exercise ITM options */
 	LOGGER.debug("Entering TradingSession.reconcileExpiringOptions()");
+	LOGGER.info("Checking for expiring options");
 	MutableDateTime thisSaturday = new MutableDateTime(DateTimeZone.forID("America/New_York"));
 	thisSaturday.setDayOfWeek(DateTimeConstants.SATURDAY);
 	int thisSaturdayJulian = thisSaturday.getDayOfYear();
@@ -387,6 +388,7 @@ public class TradingSession {
     private void closeGoodForDayOrders() {
 	/* Only call this method if the trading day had ended */
 	LOGGER.debug("Entering TradingSession.closeGoodForDayOrders()");
+	LOGGER.info("Closing GFD orders");
 	for(Order checkExpiredOrder : portfolio.getListOfOpenOrders()) {
 	    if(checkExpiredOrder.getTif().equals("GFD")) {
 		portfolio.expireOrder(checkExpiredOrder);
@@ -396,11 +398,13 @@ public class TradingSession {
 
     private void writePortfolioToDb() {
 	LOGGER.debug("Entering TradingSession.writePortfolioToDb()");
+	LOGGER.info("Writing portfolio information to DB");
 	portfolio.endOfDayDbUpdate();
     }
 
     private void writeClosingPricesToDb() {
         LOGGER.debug("Entering TradingSession.writeClosingPricesToDb()");
+	LOGGER.info("Writing closing prices to DB");
         double closingPrice = 0.00;
 	/*
 	 * The last price returned from Yahoo! must be later than market close. 

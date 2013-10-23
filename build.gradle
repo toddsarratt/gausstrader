@@ -38,36 +38,22 @@ jar {
     manifest.attributes 'Main-Class': 'net.toddsarratt.GaussTrader.GaussTrader'
 
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-}
 
-task updateLaunchScript << {
-    doFirst {
-        ext {
-            launchScriptDir = file('build/libs')
-            launchScriptFile = file('build/libs/runGaussTrader.sh')
-        }
-        launchScriptFile.write('#! /bin/sh\n')
-        launchScriptFile.append('JAR_DIR=')
-        launchScriptFile.append(launchScriptDir.absolutePath)
-        launchScriptFile.append('/\n\n')
-        launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
-        launchScriptFile.append(version)
-        launchScriptFile.append('.jar > /dev/null\n')
+    ext {
+        launchScriptDir = file('build/libs')
+        launchScriptFile = file('build/libs/runGaussTrader.sh')
     }
-}
-
-configure(updateLaunchScript) {
-    group = 'Build'
-    description = 'Update the launch script that gets called from cron'
+    launchScriptFile.write('#! /bin/sh\n')
+    launchScriptFile.append('JAR_DIR=')
+    launchScriptFile.append(launchScriptDir.absolutePath)
+    launchScriptFile.append('/\n\n')
+    launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
+    launchScriptFile.append(version)
+    launchScriptFile.append('.jar > /dev/null\n')
 }
 
 task listJars << {
     configurations.compile.each { File file -> println file.name }
-}
-
-configure(listJars) {
-    group = 'Build'
-    description = 'Lists dependency jars'
 }
 
 test {
