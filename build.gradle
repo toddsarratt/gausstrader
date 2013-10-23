@@ -28,6 +28,7 @@ dependencies {
     compile 'joda-time:joda-time:+'
     compile 'postgresql:postgresql:+'
     compile 'ch.qos.logback:logback-classic:+'
+    compile 'com.google.guava:guava:+'
     testCompile 'org.testng:testng:+'
 }
 
@@ -73,6 +74,7 @@ test {
     	events 'passed'
 	showStandardStreams = true
     }
+    include 'net/toddsarratt/GaussTrader/HolidayTest**'
     include 'net/toddsarratt/GaussTrader/OptionExpiryTest**'
     exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
     exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'

@@ -4,11 +4,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
+import com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.MutableDateTime;
 import org.joda.time.Period;
+import org.joda.time.ReadableDateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormat;
@@ -33,14 +36,25 @@ public class TradingSession {
     private Portfolio portfolio = null;
     private static boolean marketOpen = false;
     /* Hard coded closed and early closure trading days : http://www.nyx.com/en/holidays-and-hours/nyse?sa_campaign=/internal_ads/homepage/08262008holidays */
-    static final Integer[] JULIAN_HOLIDAYS = {1, 21, 49, 88, 147, 185, 245, 332, 359};
-    static final Integer[] JULIAN_1PM_CLOSE = {184, 333, 358};
+    static final Integer[] JULIAN_HOLIDAYS_2013 = {1, 21, 49, 88, 147, 185, 245, 332, 359};
+    static final Integer[] JULIAN_HOLIDAYS_2014 = {1, 20, 48, 108, 146, 185, 244, 331, 359};
+    private static final ImmutableMap<Integer, List<Integer>> HOLIDAY_MAP = 
+	ImmutableMap.<Integer, List<Integer>>builder()
+	.put(2013, Arrays.asList(JULIAN_HOLIDAYS_2013))
+	.put(2014, Arrays.asList(JULIAN_HOLIDAYS_2014))
+	.build();
+    static final Integer[] JULIAN_1PM_CLOSE_2013 = {184, 333, 358};
+    static final Integer[] JULIAN_1PM_CLOSE_2014 = {184, 332, 358};
+    private static final ImmutableMap<Integer, List<Integer>> EARLY_CLOSE_MAP =
+        ImmutableMap.<Integer, List<Integer>>builder()
+        .put(2013, Arrays.asList(JULIAN_1PM_CLOSE_2013))
+        .put(2014, Arrays.asList(JULIAN_1PM_CLOSE_2013))
+        .build();
     private static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
     private static long marketOpenEpoch;
     private static long marketCloseEpoch;
     /* Time variables */
     private static DateTime todaysDateTime = new DateTime(DateTimeZone.forID("America/New_York"));
-    private static int julianToday;
     private static int dayToday;
     private static int hourToday;
     private static int minuteToday;
@@ -70,26 +84,36 @@ public class TradingSession {
         }
         LOGGER.info("End of trading day.");
     }
-
+    static boolean isMarketHoliday(int julianDay, int year) {
+	return HOLIDAY_MAP.get(year).contains(julianDay);
+    }
+    static boolean isMarketHoliday(ReadableDateTime date) {
+	return isMarketHoliday(date.getDayOfYear(), date.getYear());
+    }
+    static boolean isEarlyClose(int julianDay, int year) {
+	return EARLY_CLOSE_MAP.get(year).contains(julianDay);
+    }
+    static boolean isEarlyClose(ReadableDateTime date) {
+        return isEarlyClose(date.getDayOfYear(), date.getYear());
+    }
     private static boolean marketIsOpenToday() {
 	LOGGER.debug("Entering TradingSession.marketIsOpenToday()");
-        julianToday = todaysDateTime.getDayOfYear();
-	LOGGER.debug("julianToday = {}", julianToday);
-	LOGGER.debug("Comparing to list of holidays {}", Arrays.asList(JULIAN_HOLIDAYS));
-        if(Arrays.asList(JULIAN_HOLIDAYS).contains(julianToday)) {
-	    LOGGER.debug("Arrays.asList(JULIAN_HOLIDAYS).contains(julianToday) == true. Market is on holiday.");
+	LOGGER.debug("julianToday = {}", todaysDateTime.getDayOfYear());
+	LOGGER.debug("Comparing to list of holidays {}", HOLIDAY_MAP.entrySet());
+        if(isMarketHoliday(todaysDateTime)) {
+	    LOGGER.debug("Market is on holiday.");
             return false;
         }
         dayToday = todaysDateTime.getDayOfWeek();
 	LOGGER.debug("dayToday = todaysDateTime.getDayOfWeek() = {} ({})", dayToday, todaysDateTime.dayOfWeek().getAsText());
         if( (dayToday == DateTimeConstants.SATURDAY) || (dayToday == DateTimeConstants.SUNDAY) ) {
-	    LOGGER.warn("Today is a weekend day. Market is closed.");
+	    LOGGER.warn("It's the weekend. Market is closed.");
             return false;
         }
         marketOpenEpoch = todaysDateTime.withTime(9, 30, 0, 0).getMillis();
 	LOGGER.debug("marketOpenEpoch = {} ({})", marketOpenEpoch, new DateTime(marketOpenEpoch));
-	LOGGER.debug("Checking to see if today's julian date {} matches early close list {}", julianToday, JULIAN_1PM_CLOSE);
-        if(Arrays.asList(JULIAN_1PM_CLOSE).contains(julianToday)) {
+	LOGGER.debug("Checking to see if today's julian date {} matches early close list {}", todaysDateTime.getDayOfYear(), EARLY_CLOSE_MAP.entrySet());
+	    if(isEarlyClose(todaysDateTime)) {
 	    LOGGER.info("Today the market closes at 1pm New York time");
             marketCloseEpoch = todaysDateTime.withTime(13, 0, 0, 0).getMillis();
 	    LOGGER.debug("marketCloseEpoch = {}", marketCloseEpoch, new DateTime(marketCloseEpoch));
