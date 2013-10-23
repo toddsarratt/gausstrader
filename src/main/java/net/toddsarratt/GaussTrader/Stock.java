@@ -172,7 +172,7 @@ public class Stock extends Security {
 	}
 	LOGGER.debug("Returning earliest date required for adjusted close {} ({})", earliestDatePriceNeeded.getMillis(), earliestDatePriceNeeded.toString());
 	LOGGER.debug("PRICE_TRACKING_MAP == {}", PRICE_TRACKING_MAP.toString());
-	return new DateTime(earliestDatePriceNeeded);
+	return new DateTime(earliestDatePriceNeeded, DateTimeZone.forID("America/New_York"));
     }
 
     private MissingPriceDateRange getMissingPriceDateRange() {
@@ -186,7 +186,7 @@ public class Stock extends Security {
         histMutDateTime.addDays(-1);
 
         LOGGER.debug("Setting mpdr.latest to {} ({})", EARLIEST_PRICE_DATE.getMillis(), EARLIEST_PRICE_DATE.toString());
-        mpdr.latest = new DateTime(EARLIEST_PRICE_DATE);
+        mpdr.latest = new DateTime(EARLIEST_PRICE_DATE, DateTimeZone.forID("America/New_York"));
         LOGGER.debug("mpdr.latest = {} ({})", mpdr.latest.getMillis(), mpdr.latest.toString());
         LOGGER.debug("mpdr.earliest = {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
 	for(long epochPriceRequired : historicalPriceMap.keySet()) {
@@ -198,7 +198,7 @@ public class Stock extends Security {
 		if(mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant())) {
 		    LOGGER.debug("mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant()) : ({}).isAfter({})",
 				 mpdr.earliest.toString(), missingDateTimeToCheck.toString());
-		    mpdr.earliest = new DateTime(missingDateTimeToCheck).withTime(16, (GaussTrader.delayedQuotes ? 20 : 0), 0, 0);
+		    mpdr.earliest = new DateTime(missingDateTimeToCheck, DateTimeZone.forID("America/New_York")).withTime(16, (GaussTrader.delayedQuotes ? 20 : 0), 0, 0);
 		    LOGGER.debug("Updating mpdr.earliest = {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
 		}
 		if(mpdr.latest.isBefore(missingDateTimeToCheck.toInstant())) {

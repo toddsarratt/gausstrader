@@ -2,6 +2,7 @@ package net.toddsarratt.GaussTrader;
 
 import java.io.IOException;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +11,7 @@ public class Position {
     private boolean open = true;
     private String ticker = "APPL";
     private String secType = "PUT";
-    private DateTime expiry = new DateTime();
+    private DateTime expiry = new DateTime(DateTimeZone.forID("America/New_York"));
     private String underlyingTicker = "AAPL";
     private double strikePrice = 0.00;
     private long epochOpened = System.currentTimeMillis();

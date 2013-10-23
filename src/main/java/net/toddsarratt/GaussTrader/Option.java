@@ -214,8 +214,8 @@ public class Option extends Security {
 	LOGGER.debug("Entering Option.getOption(String {}, String {}, int {}, double {})", stockTicker, optionType, monthsOut, limitStrikePrice);
 	double strikePrice = 0.0;
 	String optionTickerToTry = null;
-	MutableDateTime expiryMutableDateTime = new MutableDateTime();
-	int monthOfYear = new MutableDateTime().getMonthOfYear();
+	MutableDateTime expiryMutableDateTime = new MutableDateTime(DateTimeZone.forID("America/New_York"));
+	int monthOfYear = new MutableDateTime(DateTimeZone.forID("America/New_York")).getMonthOfYear();
 	if(monthsOut == 6) {
 	    expiryMutableDateTime.addMonths(6 - (int)(monthOfYear / 6));
 	} else {

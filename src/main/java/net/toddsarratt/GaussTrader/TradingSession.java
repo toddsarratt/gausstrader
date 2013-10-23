@@ -96,6 +96,9 @@ public class TradingSession {
     static boolean isEarlyClose(ReadableDateTime date) {
         return isEarlyClose(date.getDayOfYear(), date.getYear());
     }
+    /**
+     * This method contains DateTime constructors without TZ arguments to display local time in DEBUG logs
+     */
     private static boolean marketIsOpenToday() {
 	LOGGER.debug("Entering TradingSession.marketIsOpenToday()");
 	LOGGER.debug("julianToday = {}", todaysDateTime.getDayOfYear());

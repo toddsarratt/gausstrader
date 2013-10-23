@@ -62,9 +62,12 @@ configure(updateLaunchScript) {
 }
 
 task listJars << {
-    description = 'Lists dependency jars'
-    group = 'Build'
     configurations.compile.each { File file -> println file.name }
+}
+
+configure(listJars) {
+    group = 'Build'
+    description = 'Lists dependency jars'
 }
 
 test {
