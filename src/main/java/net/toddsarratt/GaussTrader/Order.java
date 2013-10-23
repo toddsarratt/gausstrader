@@ -1,6 +1,7 @@
 package net.toddsarratt.GaussTrader;
 
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +26,7 @@ class Order {
     private long orderId = System.currentTimeMillis();
     private boolean open = true;
     private String ticker = "AAPL";
-    private DateTime expiry = new DateTime();
+    private DateTime expiry = new DateTime(DateTimeZone.forID("America/New_York"));
     private String underlyingTicker = "AAPL";
     private double strikePrice = 0.00;
     private double limitPrice = 0.00;
@@ -190,7 +191,7 @@ class Order {
 	this.expiry = expiry;
     }
     void setExpiry(long expiryMillis) {
-	this.expiry = new DateTime(expiryMillis);
+	this.expiry = new DateTime(expiryMillis,DateTimeZone.forID("America/New_York"));
     }
     DateTime getExpiry() {
 	return expiry;

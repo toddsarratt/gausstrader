@@ -3,10 +3,13 @@ package net.toddsarratt.GaussTrader;
 import java.io.IOException;
 import java.net.URL;
 import java.text.ParseException;
+import java.util.Arrays;
+
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.joda.time.base.BaseDateTime;
+import org.joda.time.DateMidnight;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateTimeConstants;
@@ -171,13 +174,29 @@ public class Option extends Security {
         ask = Double.parseDouble(price);
         return ask;
     }
-	
-    public static int getExpirySaturday(int month, int year) {
-	MutableDateTime expiryCalc = new MutableDateTime(year, month, 1, 0, 0, 0, 0, DateTimeZone.forID("America/New_York"));
-	expiryCalc.addDays(20 - (expiryCalc.getDayOfWeek() % 7) );
-	return expiryCalc.getDayOfMonth();
+    /**
+     * @deprecated
+     * All monthly options expire on a Saturday through the 2015 calendar year
+     */
+    @Deprecated	public static int getExpirySaturday(int month, int year) {
+	DateMidnight secondOfexpiryMonth = new DateMidnight(year, month, 2, DateTimeZone.forID("America/New_York"));
+	int expiryFriday = 21 - (secondOfexpiryMonth.getDayOfWeek() % 7);
+	return expiryFriday + 1;
     }
-    /* Build option ticker. Example : Exxon Mobil 90 Strike Aug 13 expiry call = XOM130817C00090000 */
+    /**
+     * This method replaces deprecated method getExpirySaturday()
+     * Expiration date is the Saturday that follows the third Friday of the month
+     * This function returns the expiration date's day of the month [15th - 21st]
+     */
+    public static int calculateFutureExpiry(int month, int year) {
+	MutableDateTime expiryDate = new MutableDateTime(year, month, 2, 16, 20, 0, 0, DateTimeZone.forID("America/New_York"));
+        expiryDate.setDayOfMonth(21 - (expiryDate.getDayOfWeek() % 7));   // Calculate third friday
+	expiryDate.addDays(1);                                            // Add one for Saturday
+	return expiryDate.getDayOfMonth();
+    }
+    /**
+     * Build option ticker. Example : Exxon Mobil 90 Strike Aug 13 expiry call = XOM130817C00090000 
+     */
     public static String optionTicker(String stockTicker, BaseDateTime expiry, char indicator, double strikeDouble) {
 	LOGGER.debug("Entering optionTicker(String {}, BaseDateTime {}, char {}, double {})", stockTicker, expiry.toString(), indicator, strikeDouble);
 	StringBuilder tickerBuilder = new StringBuilder(stockTicker);
@@ -195,14 +214,14 @@ public class Option extends Security {
 	LOGGER.debug("Entering Option.getOption(String {}, String {}, int {}, double {})", stockTicker, optionType, monthsOut, limitStrikePrice);
 	double strikePrice = 0.0;
 	String optionTickerToTry = null;
-	MutableDateTime expiryMutableDateTime = new MutableDateTime();
-	int monthOfYear = new MutableDateTime().getMonthOfYear();
+	MutableDateTime expiryMutableDateTime = new MutableDateTime(DateTimeZone.forID("America/New_York"));
+	int monthOfYear = new MutableDateTime(DateTimeZone.forID("America/New_York")).getMonthOfYear();
 	if(monthsOut == 6) {
 	    expiryMutableDateTime.addMonths(6 - (int)(monthOfYear / 6));
 	} else {
 	    expiryMutableDateTime.addMonths(monthsOut);
 	}
-	expiryMutableDateTime.setDayOfMonth(getExpirySaturday(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear()));
+	expiryMutableDateTime.setDayOfMonth(calculateFutureExpiry(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear()));
 
 	if(optionType.equals("CALL")) {
 	    LOGGER.debug("Finding call to sell");

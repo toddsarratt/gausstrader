@@ -28,6 +28,7 @@ dependencies {
     compile 'joda-time:joda-time:+'
     compile 'postgresql:postgresql:+'
     compile 'ch.qos.logback:logback-classic:+'
+    compile 'com.google.guava:guava:+'
     testCompile 'org.testng:testng:+'
 }
 
@@ -37,33 +38,21 @@ jar {
     manifest.attributes 'Main-Class': 'net.toddsarratt.GaussTrader.GaussTrader'
 
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-}
 
-task updateLaunchScript (dependsOn: jar) << {
-    doFirst {
-        ext {
-            launchScriptDir = file('build/libs')
-            launchScriptFile = file('build/libs/runGaussTrader.sh')
-        }
-        launchScriptFile.write('#! /bin/sh\n')
-        launchScriptFile.append('JAR_DIR=')
-        launchScriptFile.append(launchScriptDir.absolutePath)
-        launchScriptFile.append('/\n\n')
-        launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
-        launchScriptFile.append(version)
-        launchScriptFile.append('.jar > /dev/null\n')
+    ext {
+        launchScriptDir = file('build/libs')
+        launchScriptFile = file('build/libs/runGaussTrader.sh')
     }
-}
-
-configure(updateLaunchScript) {
-    group = 'Build'
-    description = 'Update the launch script that gets called from cron'
-    onlyIf { dependsOnTaskDidWork() }
+    launchScriptFile.write('#! /bin/sh\n')
+    launchScriptFile.append('JAR_DIR=')
+    launchScriptFile.append(launchScriptDir.absolutePath)
+    launchScriptFile.append('/\n\n')
+    launchScriptFile.append('java -jar ${JAR_DIR}GaussTrader-')
+    launchScriptFile.append(version)
+    launchScriptFile.append('.jar > /dev/null\n')
 }
 
 task listJars << {
-    description = 'Lists dependency jars'
-    group = 'build'
     configurations.compile.each { File file -> println file.name }
 }
 
@@ -73,9 +62,11 @@ test {
     	events 'passed'
 	showStandardStreams = true
     }
-    include 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
-    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
-    include 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
+    include 'net/toddsarratt/GaussTrader/HolidayTest**'
+    include 'net/toddsarratt/GaussTrader/OptionExpiryTest**'
+    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
+    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
+    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
     exclude 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
     exclude 'net/toddsarratt/GaussTrader/DBHistoricalPricesConnectionTest**'
     exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'

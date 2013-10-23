@@ -28,7 +28,7 @@ public abstract class DBHistoricalPrices {
     }
 	
     static boolean marketWasOpen(MutableDateTime histDateTime) {	
-	return !( (Arrays.asList(TradingSession.JULIAN_HOLIDAYS).contains(histDateTime.getDayOfYear())) ||
+	return !( TradingSession.isMarketHoliday(histDateTime) ||
 		  (histDateTime.getDayOfWeek() == DateTimeConstants.SATURDAY) || 
 		  (histDateTime.getDayOfWeek() == DateTimeConstants.SUNDAY) );
     }

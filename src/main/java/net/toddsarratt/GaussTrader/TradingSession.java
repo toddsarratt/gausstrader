@@ -4,11 +4,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
+import com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.MutableDateTime;
 import org.joda.time.Period;
+import org.joda.time.ReadableDateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormat;
@@ -33,14 +36,25 @@ public class TradingSession {
     private Portfolio portfolio = null;
     private static boolean marketOpen = false;
     /* Hard coded closed and early closure trading days : http://www.nyx.com/en/holidays-and-hours/nyse?sa_campaign=/internal_ads/homepage/08262008holidays */
-    static final Integer[] JULIAN_HOLIDAYS = {1, 21, 49, 88, 147, 185, 245, 332, 359};
-    static final Integer[] JULIAN_1PM_CLOSE = {184, 333, 358};
+    static final Integer[] JULIAN_HOLIDAYS_2013 = {1, 21, 49, 88, 147, 185, 245, 332, 359};
+    static final Integer[] JULIAN_HOLIDAYS_2014 = {1, 20, 48, 108, 146, 185, 244, 331, 359};
+    private static final ImmutableMap<Integer, List<Integer>> HOLIDAY_MAP = 
+	ImmutableMap.<Integer, List<Integer>>builder()
+	.put(2013, Arrays.asList(JULIAN_HOLIDAYS_2013))
+	.put(2014, Arrays.asList(JULIAN_HOLIDAYS_2014))
+	.build();
+    static final Integer[] JULIAN_1PM_CLOSE_2013 = {184, 333, 358};
+    static final Integer[] JULIAN_1PM_CLOSE_2014 = {184, 332, 358};
+    private static final ImmutableMap<Integer, List<Integer>> EARLY_CLOSE_MAP =
+        ImmutableMap.<Integer, List<Integer>>builder()
+        .put(2013, Arrays.asList(JULIAN_1PM_CLOSE_2013))
+        .put(2014, Arrays.asList(JULIAN_1PM_CLOSE_2013))
+        .build();
     private static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
     private static long marketOpenEpoch;
     private static long marketCloseEpoch;
     /* Time variables */
     private static DateTime todaysDateTime = new DateTime(DateTimeZone.forID("America/New_York"));
-    private static int julianToday;
     private static int dayToday;
     private static int hourToday;
     private static int minuteToday;
@@ -70,26 +84,39 @@ public class TradingSession {
         }
         LOGGER.info("End of trading day.");
     }
-
+    static boolean isMarketHoliday(int julianDay, int year) {
+	return HOLIDAY_MAP.get(year).contains(julianDay);
+    }
+    static boolean isMarketHoliday(ReadableDateTime date) {
+	return isMarketHoliday(date.getDayOfYear(), date.getYear());
+    }
+    static boolean isEarlyClose(int julianDay, int year) {
+	return EARLY_CLOSE_MAP.get(year).contains(julianDay);
+    }
+    static boolean isEarlyClose(ReadableDateTime date) {
+        return isEarlyClose(date.getDayOfYear(), date.getYear());
+    }
+    /**
+     * This method contains DateTime constructors without TZ arguments to display local time in DEBUG logs
+     */
     private static boolean marketIsOpenToday() {
 	LOGGER.debug("Entering TradingSession.marketIsOpenToday()");
-        julianToday = todaysDateTime.getDayOfYear();
-	LOGGER.debug("julianToday = {}", julianToday);
-	LOGGER.debug("Comparing to list of holidays {}", Arrays.asList(JULIAN_HOLIDAYS));
-        if(Arrays.asList(JULIAN_HOLIDAYS).contains(julianToday)) {
-	    LOGGER.debug("Arrays.asList(JULIAN_HOLIDAYS).contains(julianToday) == true. Market is on holiday.");
+	LOGGER.debug("julianToday = {}", todaysDateTime.getDayOfYear());
+	LOGGER.debug("Comparing to list of holidays {}", HOLIDAY_MAP.entrySet());
+        if(isMarketHoliday(todaysDateTime)) {
+	    LOGGER.debug("Market is on holiday.");
             return false;
         }
         dayToday = todaysDateTime.getDayOfWeek();
 	LOGGER.debug("dayToday = todaysDateTime.getDayOfWeek() = {} ({})", dayToday, todaysDateTime.dayOfWeek().getAsText());
         if( (dayToday == DateTimeConstants.SATURDAY) || (dayToday == DateTimeConstants.SUNDAY) ) {
-	    LOGGER.warn("Today is a weekend day. Market is closed.");
+	    LOGGER.warn("It's the weekend. Market is closed.");
             return false;
         }
         marketOpenEpoch = todaysDateTime.withTime(9, 30, 0, 0).getMillis();
 	LOGGER.debug("marketOpenEpoch = {} ({})", marketOpenEpoch, new DateTime(marketOpenEpoch));
-	LOGGER.debug("Checking to see if today's julian date {} matches early close list {}", julianToday, JULIAN_1PM_CLOSE);
-        if(Arrays.asList(JULIAN_1PM_CLOSE).contains(julianToday)) {
+	LOGGER.debug("Checking to see if today's julian date {} matches early close list {}", todaysDateTime.getDayOfYear(), EARLY_CLOSE_MAP.entrySet());
+	    if(isEarlyClose(todaysDateTime)) {
 	    LOGGER.info("Today the market closes at 1pm New York time");
             marketCloseEpoch = todaysDateTime.withTime(13, 0, 0, 0).getMillis();
 	    LOGGER.debug("marketCloseEpoch = {}", marketCloseEpoch, new DateTime(marketCloseEpoch));
@@ -270,7 +297,7 @@ public class TradingSession {
     private PriceBasedAction findCallAction(Stock stock) {
 	LOGGER.debug("Entering TradingSession.findCallAction(Stock {})", stock.getTicker());
 	if(portfolio.countUncoveredLongStockPositions(stock) < 1) {
-            LOGGER.info("Open long stock positions is equal or less than current short calls positions. Taking no action.");
+            LOGGER.info("Open long {} positions is equal or less than current short calls positions. Taking no action.", stock.getTicker());
 	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
 	if(stock.getPrice() >= stock.getBollingerBand(2)) {
@@ -292,7 +319,7 @@ public class TradingSession {
 	    if(portfolio.numberOfOpenPutShorts(stock) <= 2 ) {
 		return new PriceBasedAction(true, "PUT", 6);
 	    }
-	    LOGGER.info("Open short put positions exceeds 2. Taking no action.");
+	    LOGGER.info("Open short put {} positions exceeds 2. Taking no action.", stock.getTicker());
 	    return DO_NOTHING_PRICE_BASED_ACTION;
 	}
 	if(currentStockPrice <= stock.getBollingerBand(4)) {
@@ -300,7 +327,7 @@ public class TradingSession {
 	    if(portfolio.numberOfOpenPutShorts(stock) <= 1 ) {
 		return new PriceBasedAction(true, "PUT", 2);
 	    }
-	    LOGGER.info("Open short put positions exceeds 1. Taking no action.");
+	    LOGGER.info("Open short put {} positions exceeds 1. Taking no action.", stock.getTicker());
             return DO_NOTHING_PRICE_BASED_ACTION;
 	}
 	if(currentStockPrice <= stock.getBollingerBand(3)) {
@@ -308,7 +335,7 @@ public class TradingSession {
 	    if(portfolio.numberOfOpenPutShorts(stock) == 0 ) {
 		return new PriceBasedAction(true, "PUT", 1);
 	    }
-	    LOGGER.info("Open short put positions exceeds 0. Taking no action.");
+	    LOGGER.info("Open short put {} positions exceeds 0. Taking no action.", stock.getTicker());
 	}
 	return DO_NOTHING_PRICE_BASED_ACTION;
     }
@@ -316,6 +343,7 @@ public class TradingSession {
     private void reconcileExpiringOptions() {
 	/* If within two days of expiry exercise ITM options */
 	LOGGER.debug("Entering TradingSession.reconcileExpiringOptions()");
+	LOGGER.info("Checking for expiring options");
 	MutableDateTime thisSaturday = new MutableDateTime(DateTimeZone.forID("America/New_York"));
 	thisSaturday.setDayOfWeek(DateTimeConstants.SATURDAY);
 	int thisSaturdayJulian = thisSaturday.getDayOfYear();
@@ -360,6 +388,7 @@ public class TradingSession {
     private void closeGoodForDayOrders() {
 	/* Only call this method if the trading day had ended */
 	LOGGER.debug("Entering TradingSession.closeGoodForDayOrders()");
+	LOGGER.info("Closing GFD orders");
 	for(Order checkExpiredOrder : portfolio.getListOfOpenOrders()) {
 	    if(checkExpiredOrder.getTif().equals("GFD")) {
 		portfolio.expireOrder(checkExpiredOrder);
@@ -369,11 +398,13 @@ public class TradingSession {
 
     private void writePortfolioToDb() {
 	LOGGER.debug("Entering TradingSession.writePortfolioToDb()");
+	LOGGER.info("Writing portfolio information to DB");
 	portfolio.endOfDayDbUpdate();
     }
 
     private void writeClosingPricesToDb() {
         LOGGER.debug("Entering TradingSession.writeClosingPricesToDb()");
+	LOGGER.info("Writing closing prices to DB");
         double closingPrice = 0.00;
 	/*
 	 * The last price returned from Yahoo! must be later than market close. 
