@@ -14,4 +14,4 @@ a PostgreSQL database.
 * [Joda-Time](http://joda-time.sourceforge.net/) date and time API
 * [Logback](http://logback.qos.ch/) / [slf4j](http://www.slf4j.org/) with [Groovy](http://groovy.codehaus.org/) config file
 * [TestNG](http://testng.org/doc/index.html) unit testing
-* [Google Guava](https://code.google.com/p/guava-libraries/wiki/ImmutableCollectionsExplained) immutable collections used when appropriate
+* [Google Guava](https://code.google.com/p/guava-libraries/wiki/ImmutableCollectionsExplained) immutable collections used where appropriate
