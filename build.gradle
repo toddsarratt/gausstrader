@@ -40,7 +40,7 @@ jar {
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
 }
 
-task updateLaunchScript (dependsOn: jar) << {
+task updateLaunchScript << {
     doFirst {
         ext {
             launchScriptDir = file('build/libs')
@@ -59,12 +59,11 @@ task updateLaunchScript (dependsOn: jar) << {
 configure(updateLaunchScript) {
     group = 'Build'
     description = 'Update the launch script that gets called from cron'
-    onlyIf { dependsOnTaskDidWork() }
 }
 
 task listJars << {
     description = 'Lists dependency jars'
-    group = 'build'
+    group = 'Build'
     configurations.compile.each { File file -> println file.name }
 }
 
