@@ -24,11 +24,12 @@ repositories {
 }
 
 dependencies {
-    compile localGroovy()
+    compile 'org.codehaus.groovy:groovy-all:+'
     compile 'joda-time:joda-time:+'
     compile 'postgresql:postgresql:+'
     compile 'ch.qos.logback:logback-classic:+'
     compile 'com.google.guava:guava:+'
+    testCompile 'junit:junit:+'
     testCompile 'org.testng:testng:+'
 }
 
@@ -56,14 +57,23 @@ task listJars << {
     configurations.compile.each { File file -> println file.name }
 }
 
-test {
+
+task testByGroovy(type: Test) {
+    testLogging {
+        events 'passed'
+        showStandardStreams = true
+    }
+    include 'net/toddsarratt/GaussTrader/EndOfDayDbUpdateTest**'
+}
+
+task testByJava(type: Test) {
     useTestNG()
     testLogging {
-    	events 'passed'
-	showStandardStreams = true
+        events 'passed'
+        showStandardStreams = true
     }
-    include 'net/toddsarratt/GaussTrader/HolidayTest**'
-    include 'net/toddsarratt/GaussTrader/OptionExpiryTest**'
+    exclude 'net/toddsarratt/GaussTrader/HolidayTest**'
+    exclude 'net/toddsarratt/GaussTrader/OptionExpiryTest**'
     exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
     exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
     exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
@@ -75,3 +85,6 @@ test {
     exclude 'net/toddsarratt/GaussTrader/TestYahoo**'
     exclude 'net/toddsarratt/GaussTrader/TestNewOrderGettersAndSetters**'
 }
+
+test.dependsOn(testByGroovy)
+test.dependsOn(testByJava)
