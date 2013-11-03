@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 class Order {
 	
-    private long orderId = System.currentTimeMillis();
+    private long orderId = GaussTrader.getNewId();
     private boolean open = true;
     private String ticker = "AAPL";
     private DateTime expiry = new DateTime(DateTimeZone.forID("America/New_York"));
@@ -46,7 +46,6 @@ class Order {
     public Order(Security security, double limitPrice, String action, int totalQuantity, String tif) {
 	LOGGER.debug("Entering constructor Order(Security {}, double {}, String {}, int {}, String {})",
 		     security, limitPrice, action, totalQuantity, tif);
-	orderId = GaussTrader.getNewId();
 	LOGGER.debug("Security is of type {}", security.getClass());
 	ticker = security.getTicker();
 	LOGGER.debug("Assigning ticker = {} from security.getTicker() = {}", ticker, security.getTicker());
@@ -237,6 +236,6 @@ class Order {
 
     @Override
     public String toString() {
-	return (orderId + " : Qty " + totalQuantity + " " + ticker + " @ $" + limitPrice);
+	return (orderId + " " + action + " " + totalQuantity + " " + ticker + " " + secType + " @ $" + limitPrice);
     }
 }

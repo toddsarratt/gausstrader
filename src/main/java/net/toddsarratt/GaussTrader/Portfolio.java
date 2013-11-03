@@ -26,12 +26,12 @@ public class Portfolio {
     private List<Position> portfolioPositions = new ArrayList<>();
     private List<Order> portfolioOrders = new ArrayList<>();
     private static DataSource dataSource = GaussTrader.getDataSource();
-    private static Connection dbConnection;
+    private static Connection dbConnectionTODO;
     private static final Logger LOGGER = LoggerFactory.getLogger(Portfolio.class);
 
     static {
 	try {
-	    dbConnection = dataSource.getConnection();
+	    dbConnectionTODO = dataSource.getConnection();
 	} catch(SQLException sqle) {
 	    LOGGER.warn("SQLException : dataSource.getConnection()", sqle);
 	}
@@ -43,14 +43,14 @@ public class Portfolio {
 
     Portfolio(String portfolioName) {
 	LOGGER.debug("Entering Portfolio constructor Portfolio(String {})", portfolioName);
-        name = portfolioName;
+	name = portfolioName;
         try {
 	    LOGGER.info("Starting with portfolio named \"{}\"", name);
 	    if(portfolioInDb()) {
 		getDbPortfolio();
 	    } else {
-		LOGGER.info("Could not find portfolio \"{}\" in database", name);
-		LOGGER.info("Creating portfolio \"{}\" with {} free cash", name, freeCash);
+		LOGGER.info("Could not find portfolio \"{}\" in database", portfolioName);
+		LOGGER.info("Created portfolio \"{}\" with {} free cash", portfolioName, freeCash);
 	    }
 	} catch(SQLException sqle) {
 	    LOGGER.info("Error communicating with {}", GaussTrader.DB_NAME);
@@ -59,7 +59,6 @@ public class Portfolio {
 	this.calculateNetAssetValue();
 	LOGGER.debug("Starting portfolio \"{}\" with netAssetValue {} reservedCash {} totalCash {} entryCount {}", name, netAssetValue, reservedCash, totalCash, entryCount);
     }
-
     Portfolio(String portfolioName, double startingCash) {
 	this.name = portfolioName;
 	this.freeCash = startingCash;
@@ -74,35 +73,52 @@ public class Portfolio {
 	    LOGGER.debug("Caught (SQLException sqle)", sqle);
 	}
     }
-    private boolean portfolioInDb() throws SQLException {
+    boolean portfolioInDb() throws SQLException {
 	LOGGER.debug("Entering Portfolio.portfolioInDb()");
-	PreparedStatement summarySqlStatement = dbConnection.prepareStatement("SELECT * FROM portfolios WHERE name = ?");
+	Connection dbConnection = dataSource.getConnection();
+	PreparedStatement summarySqlStatement = dbConnection.prepareStatement("SELECT DISTINCT name FROM portfolios WHERE name = ?");
 	summarySqlStatement.setString(1, name);
-	LOGGER.debug("Executing SELECT * FROM portfolios WHERE name = {}", name);
+	LOGGER.debug("Executing SELECT DISTINCT name FROM portfolios WHERE name = {}", name);
 	ResultSet portfolioSummaryResultSet = summarySqlStatement.executeQuery();
-	if(!portfolioSummaryResultSet.next()) {
-	    return false;
-	} else {
+	return (portfolioSummaryResultSet.next());
+    }
+
+    void getDbPortfolio() throws SQLException {
+	getDbPortfolioSummary();
+	getDbPortfolioPositions();
+	getDbPortfolioOrders();
+    }
+    void getDbPortfolioSummary() throws SQLException {
+        Connection dbConnection = dataSource.getConnection();
+	dbConnection = dataSource.getConnection();
+	PreparedStatement portfolioSummaryStatement = dbConnection.prepareStatement("SELECT * FROM portfolios WHERE name = ?");
+	portfolioSummaryStatement.setString(1, name);
+	LOGGER.debug("Executing SELECT * FROM portfolios WHERE name = {}", name);
+	ResultSet portfolioSummaryResultSet = portfolioSummaryStatement.executeQuery();
+	if(portfolioSummaryResultSet.next()) {
 	    netAssetValue = portfolioSummaryResultSet.getDouble("net_asset_value");
 	    freeCash = portfolioSummaryResultSet.getDouble("free_cash");
 	    reservedCash = portfolioSummaryResultSet.getDouble("reserved_cash");
-	    LOGGER.info("Returning from DB netAssetValue {} freeCash {} reservedCash {}", netAssetValue, freeCash, reservedCash);
-	    return true;
+	    calculateTotalCash();
 	}
+	LOGGER.info("Returning from DB netAssetValue {} freeCash {} reservedCash {}", netAssetValue, freeCash, reservedCash);
     }
-
-    private void getDbPortfolio() throws SQLException {
-        Position portfolioPositionEntry = null;
-        Order portfolioOrderEntry = null;
-        PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND open = true");
+    void getDbPortfolioPositions() throws SQLException {
+        Connection dbConnection = dataSource.getConnection();
+        Position portfolioPositionEntry;
+	PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND open = true");
 	positionSqlStatement.setString(1, name);
 	LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND open = true", name);
-        ResultSet openPositionsResultSet = positionSqlStatement.executeQuery();
+	ResultSet openPositionsResultSet = positionSqlStatement.executeQuery();
 	while(openPositionsResultSet.next()) {
 	    portfolioPositionEntry = dbToPortfolioPosition(openPositionsResultSet);
 	    LOGGER.debug("Adding {} {}", portfolioPositionEntry.getPositionId(), portfolioPositionEntry.getTicker());
 	    portfolioPositions.add(portfolioPositionEntry);
 	}
+    }
+    void getDbPortfolioOrders() throws SQLException {
+        Connection dbConnection = dataSource.getConnection();
+        Order portfolioOrderEntry = null;
 	PreparedStatement orderSqlStatement = dbConnection.prepareStatement("SELECT * FROM orders WHERE portfolio = ? AND open = true");
 	orderSqlStatement.setString(1, name);
 	LOGGER.debug("Executing SELECT * FROM orders WHERE portfolio = {} AND open = true", name);
@@ -113,7 +129,6 @@ public class Portfolio {
 	    portfolioOrders.add(portfolioOrderEntry);
 	}
     }
-
     private static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
 	LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
         Position positionFromDb = new Position();
@@ -169,8 +184,14 @@ public class Portfolio {
 	netAssetValue = totalCash + openPositionNavs;
 	return netAssetValue;
     }
+    private void setFreeCash(double freeCash) {
+	this.freeCash = freeCash;
+    }
     public double getFreeCash() {
 	return freeCash;
+    }
+    private void setReservedCash(double reservedCash) {
+        this.reservedCash = reservedCash;
     }
     public double getReservedCash() {
 	return reservedCash;
@@ -516,16 +537,14 @@ public class Portfolio {
 	ResultSet summaryResultSet = null;
 	PreparedStatement positionSqlStatement = null;
 	ResultSet positionResultSet = null;
+	Connection dbConnection = null;
 	try {
-	    summarySqlStatement = dbConnection.prepareStatement("SELECT * FROM portfolios WHERE name = ?");
-	    summarySqlStatement.setString(1, name);
-	    LOGGER.debug("Executing SELECT * FROM portfolios WHERE name = {}", name);
-	    summaryResultSet = summarySqlStatement.executeQuery();
-	    if(summaryResultSet.next()) {
-		LOGGER.debug("summaryResultSet.next() == true, portfolio \"{}\" exists in database. Running updates instead of inserts", name);
+	    dbConnection = dataSource.getConnection();
+	    if(portfolioInDb()) {
+		LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
 		updateDbSummary();
 	    } else {
-		LOGGER.debug("summaryResultSet.next() == false, inserting portfolio \"{}\" newly into database", name);
+		LOGGER.debug("Inserting portfolio \"{}\" newly into database", name);
 		insertDbSummary();
 	    }
 	    positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND position_id = ?");
@@ -543,16 +562,18 @@ public class Portfolio {
 		}
 	    }
 	} catch(SQLException sqle) {
-	    LOGGER.info("Unable to get connection to {}", GaussTrader.DB_NAME);
+	    LOGGER.warn("Database error");
 	    LOGGER.debug("Caught (SQLException sqle) ", sqle);
+	    /** TODO : If cannot write to database write to file to preserve data */
 	} 
     }
     private void updateDbSummary() throws SQLException {
 	LOGGER.debug("Entering Portfolio.updateDbSummary()");
+        Connection dbConnection = dataSource.getConnection();
 	String sqlString = new String("UPDATE portfolios SET net_asset_value = ?, free_cash = ?, reserved_cash = ?, total_cash = ? WHERE name = ?");
-        PreparedStatement updateSummarySqlStatement = null;
-        int updatedRowCount;
-        updateSummarySqlStatement = dbConnection.prepareStatement(sqlString);
+        PreparedStatement updateSummarySqlStatement = dbConnection.prepareStatement(sqlString);
+	int updatedRowCount;
+	calculateNetAssetValue();
         updateSummarySqlStatement.setDouble(1, netAssetValue);
         updateSummarySqlStatement.setDouble(2, freeCash);
         updateSummarySqlStatement.setDouble(3, reservedCash);
@@ -570,7 +591,7 @@ public class Portfolio {
         String sqlString = new String("INSERT INTO portfolios (name, net_asset_value, free_cash, reserved_cash, total_cash) VALUES (?, ?, ?, ?, ?)");
         PreparedStatement newSummarySqlStatement = null;
         int insertedRowCount;
-        newSummarySqlStatement = dbConnection.prepareStatement(sqlString);
+        newSummarySqlStatement = dbConnectionTODO.prepareStatement(sqlString);
         newSummarySqlStatement.setString(1, name);
         newSummarySqlStatement.setDouble(2, netAssetValue);
         newSummarySqlStatement.setDouble(3, freeCash);
@@ -588,7 +609,7 @@ public class Portfolio {
 	String sqlString = new String("UPDATE positions SET last_tick = ?, net_asset_value = ? WHERE position_id = ?");
 	PreparedStatement updatePositionSqlStatement = null;
 	int updatedRowCount;
-	updatePositionSqlStatement = dbConnection.prepareStatement(sqlString);
+	updatePositionSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
 	updatePositionSqlStatement.setDouble(1, portfolioPosition.getLastTick());
 	updatePositionSqlStatement.setDouble(2, portfolioPosition.calculateNetAssetValue());
 	updatePositionSqlStatement.setLong(3, portfolioPosition.getPositionId());
@@ -599,7 +620,7 @@ public class Portfolio {
 	}
 	if(!portfolioPosition.isOpen()) {
 	    sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
-	    updatePositionSqlStatement = dbConnection.prepareStatement(sqlString);
+	    updatePositionSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
 	    updatePositionSqlStatement.setLong(1, portfolioPosition.getEpochClosed());
 	    updatePositionSqlStatement.setDouble(2, portfolioPosition.getPriceAtClose());
 	    updatePositionSqlStatement.setDouble(3, portfolioPosition.getProfit());
@@ -619,7 +640,7 @@ public class Portfolio {
 	PreparedStatement newPositionSqlStatement = null;
 	int insertedRowCount;
 	int updatedRowCount;
-	newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
+	newPositionSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
 	newPositionSqlStatement.setString(1, name);
 	newPositionSqlStatement.setLong(2, portfolioPosition.getPositionId());
 	newPositionSqlStatement.setBoolean(3, portfolioPosition.isOpen());
@@ -651,7 +672,7 @@ public class Portfolio {
 	int updatedRowCount = 0;
 	String sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
         PreparedStatement newPositionSqlStatement = null;
-	newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
+	newPositionSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
 	newPositionSqlStatement.setLong(1, positionToClose.getEpochClosed());
 	newPositionSqlStatement.setDouble(2, positionToClose.getPriceAtClose());
 	newPositionSqlStatement.setDouble(3, positionToClose.getProfit());
@@ -670,7 +691,7 @@ public class Portfolio {
 	    String sqlString = new String("UPDATE orders SET open = false, epoch_closed = ?, close_reason = ?, fill_price = ? WHERE order_id = ?");
 	    PreparedStatement updateOrderSqlStatement = null;
 	    int updatedRowCount;
-	    updateOrderSqlStatement = dbConnection.prepareStatement(sqlString);
+	    updateOrderSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
 	    updateOrderSqlStatement.setLong(1, portfolioOrder.getEpochClosed());
 	    updateOrderSqlStatement.setString(2, portfolioOrder.getCloseReason());
 	    updateOrderSqlStatement.setDouble(3, portfolioOrder.getFillPrice());
@@ -690,7 +711,7 @@ public class Portfolio {
 	PreparedStatement newOrderSqlStatement = null;
 	int insertedRowCount;
 	int updatedRowCount;
-	newOrderSqlStatement = dbConnection.prepareStatement(sqlString);
+	newOrderSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
 	newOrderSqlStatement.setString(1, name);
 	newOrderSqlStatement.setLong(2, portfolioOrder.getOrderId());
 	newOrderSqlStatement.setBoolean(3, portfolioOrder.isOpen());
@@ -716,7 +737,7 @@ public class Portfolio {
 	}
 	if(!portfolioOrder.isOpen()) {
 	    sqlString = "UPDATE orders SET epoch_closed = ?, close_reason = ?, fill_price = ?, open = 'false' WHERE order_id = ?";
-	    newOrderSqlStatement = dbConnection.prepareStatement(sqlString);
+	    newOrderSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
 	    newOrderSqlStatement.setLong(1, portfolioOrder.getEpochClosed());
 	    newOrderSqlStatement.setString(2, portfolioOrder.getCloseReason());
 	    newOrderSqlStatement.setDouble(3, portfolioOrder.getFillPrice());
