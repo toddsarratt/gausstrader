@@ -59,11 +59,14 @@ task listJars << {
 
 
 task testByGroovy(type: Test) {
+    logging.captureStandardOutput LogLevel.INFO
+    useTestNG()
     testLogging {
         events 'passed'
         showStandardStreams = true
     }
-    include 'net/toddsarratt/GaussTrader/EndOfDayDbUpdateTest**'
+    include 'net/toddsarratt/GaussTrader/PortfolioDbTests**'
+    include 'net/toddsarratt/GaussTrader/FillOrderTest**'
 }
 
 task testByJava(type: Test) {
@@ -72,6 +75,7 @@ task testByJava(type: Test) {
         events 'passed'
         showStandardStreams = true
     }
+    exclude 'net/toddsarratt/GaussTrader/FillShortPutOrderTest**'
     exclude 'net/toddsarratt/GaussTrader/HolidayTest**'
     exclude 'net/toddsarratt/GaussTrader/OptionExpiryTest**'
     exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'

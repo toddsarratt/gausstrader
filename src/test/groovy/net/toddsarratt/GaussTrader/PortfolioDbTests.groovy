@@ -33,4 +33,20 @@ class PortfolioDbTests {
         assertEquals(readDbPortfolio.getReservedCash(), testPortfolio.getReservedCash())
         assertEquals(readDbPortfolio.calculateTotalCash(), testPortfolio.calculateTotalCash())
     }
+
+    @Test
+    public void testDbReadWriteOrder() {
+        def testOrderToInsert = new Order()
+	testPortfolio.insertDbOrder(testOrderToInsert)
+	testPortfolio.getDbPortfolioOrders()
+	def testOrderFromDb = testPortfolio.portfolioOrders.find {
+	    order -> order.getOrderId() == testOrderToInsert.getOrderId()
+        }
+	println "testOrderFromDb.metaClass.getProperties().getName() --> " + testOrderFromDb.metaClass.getProperties().getName()
+        println "testOrderFromDb.class.getDeclaredFields() --> " + testOrderFromDb.class.getDeclaredFields()
+	testOrderFromDb.class.getDeclaredFields() {
+            println "$it"
+	    assertEquals testOrderFromDb."$it", testOrderToInsert."$it"
+	}
+    }
 }
