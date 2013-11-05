@@ -20,10 +20,9 @@ public class Portfolio {
    private double freeCash = GaussTrader.STARTING_CASH;
    private double reservedCash = 0.00;
    private double totalCash = 0.00;
-   private int entryCount = 0;
-   private List<Position> portfolioPositions = new ArrayList<>();
-   private List<Order> portfolioOrders = new ArrayList<>();
-   private static DataSource dataSource = GaussTrader.getDataSource();
+   private final List<Position> portfolioPositions = new ArrayList<>();
+   private final List<Order> portfolioOrders = new ArrayList<>();
+   private static final DataSource dataSource = GaussTrader.getDataSource();
    private static final Logger LOGGER = LoggerFactory.getLogger(Portfolio.class);
 
    Portfolio() {
@@ -46,9 +45,10 @@ public class Portfolio {
          LOGGER.debug("Caught (SQLException sqle)", sqle);
       }
       this.calculateNetAssetValue();
-      LOGGER.debug("Starting portfolio \"{}\" with netAssetValue {} reservedCash {} totalCash {} entryCount {}", name, netAssetValue, reservedCash, totalCash, entryCount);
+      LOGGER.debug("Starting portfolio \"{}\" with netAssetValue {} reservedCash {} totalCash {}", name, netAssetValue, reservedCash, totalCash);
    }
 
+   @SuppressWarnings("WeakerAccess")
    Portfolio(String portfolioName, double startingCash) {
       this.name = portfolioName;
       this.freeCash = startingCash;
@@ -171,6 +171,7 @@ public class Portfolio {
       return name;
    }
 
+   @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
    public double calculateNetAssetValue() {
       double openPositionNavs = 0.00;
       calculateTotalCash();
@@ -183,6 +184,7 @@ public class Portfolio {
       return netAssetValue;
    }
 
+   @SuppressWarnings("UnusedDeclaration")
    private void setFreeCash(double freeCash) {
       this.freeCash = freeCash;
    }
@@ -202,10 +204,6 @@ public class Portfolio {
    public double calculateTotalCash() {
       totalCash = freeCash + reservedCash;
       return totalCash;
-   }
-
-   public int getEntryCount() {
-      return entryCount;
    }
 
    int countUncoveredLongStockPositions(Stock stock) {
@@ -325,7 +323,7 @@ public class Portfolio {
       return openShortCount;
    }
 
-   public void addNewOrder(Order orderToAdd) throws InsufficientFundsException, SecurityNotFoundException {
+   public void addNewOrder(Order orderToAdd) throws InsufficientFundsException {
       LOGGER.debug("Entering Portfolio.addNewOrder(Order {})", orderToAdd);
       double orderRequiredCash = orderToAdd.getClaimAgainstCash();
       LOGGER.debug("orderRequiredCash = orderToAdd.getClaimAgainstCash() = ${}", orderRequiredCash);
@@ -339,7 +337,6 @@ public class Portfolio {
       freeCash -= orderRequiredCash;
       LOGGER.info("orderRequiredCash == ${}, freeCash == ${}, reservedCash == ${}", orderRequiredCash, freeCash, reservedCash);
       portfolioOrders.add(orderToAdd);
-      entryCount++;
       LOGGER.info("Added order id {} to portfolio {}", orderToAdd.getOrderId(), name);
       try {
          insertDbOrder(orderToAdd);
@@ -361,8 +358,7 @@ public class Portfolio {
          LOGGER.warn("Unable to add position {} to DB", position.getPositionId());
          LOGGER.debug("Caught (SQLException sqle)", sqle);
       }
-      entryCount++;
-      LOGGER.debug("entryCount incremented to {}", entryCount);
+      /** TODO : Move try catch to called method which should write to a file if dbwrite fails */
    }
 
    public List<Order> getListOfOpenOrders() {
@@ -377,6 +373,7 @@ public class Portfolio {
       return openOrderList;
    }
 
+   @SuppressWarnings("WeakerAccess")
    public List<Position> getListOfOpenPositions() {
       LOGGER.debug("Entering Portfolio.getListOfOpenPositions()");
       List<Position> openPositionList = new ArrayList<>();
@@ -696,7 +693,7 @@ public class Portfolio {
    }
 
    private void closeDbPosition(Position positionToClose) throws SQLException {
-      int updatedRowCount = 0;
+      int updatedRowCount;
       Connection dbConnection = dataSource.getConnection();
       String sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
       PreparedStatement newPositionSqlStatement;
