@@ -5,7 +5,8 @@ import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/* Class to record each order 
+/**
+ *  Class to record each order
  * Fields :
  * orderId : Use GaussTrader.getNewId() to populate
  * open : boolean, open or closed order

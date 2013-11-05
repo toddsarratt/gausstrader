@@ -1,23 +1,18 @@
 package net.toddsarratt.GaussTrader;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-
 import com.google.common.collect.ImmutableMap;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.DateTimeConstants;
-import org.joda.time.MutableDateTime;
-import org.joda.time.Period;
-import org.joda.time.ReadableDateTime;
+import org.joda.time.*;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 class PriceBasedAction {
    boolean doSomething;
@@ -36,7 +31,6 @@ public class TradingSession {
    private static final PriceBasedAction DO_NOTHING_PRICE_BASED_ACTION = new PriceBasedAction(false, "", 0);
    private ArrayList<Stock> stockList = null;
    private Portfolio portfolio = null;
-   private static boolean marketOpen = false;
    /* Hard coded closed and early closure trading days : http://www.nyx.com/en/holidays-and-hours/nyse?sa_campaign=/internal_ads/homepage/08262008holidays */
    static final Integer[] JULIAN_HOLIDAYS_2013 = {1, 21, 49, 88, 147, 185, 245, 332, 359};
    static final Integer[] JULIAN_HOLIDAYS_2014 = {1, 20, 48, 108, 146, 185, 244, 331, 359};
@@ -50,7 +44,7 @@ public class TradingSession {
    private static final ImmutableMap<Integer, List<Integer>> EARLY_CLOSE_MAP =
       ImmutableMap.<Integer, List<Integer>>builder()
          .put(2013, Arrays.asList(JULIAN_1PM_CLOSE_2013))
-         .put(2014, Arrays.asList(JULIAN_1PM_CLOSE_2013))
+         .put(2014, Arrays.asList(JULIAN_1PM_CLOSE_2014))
          .build();
    private static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
    private static long marketOpenEpoch;
@@ -58,8 +52,6 @@ public class TradingSession {
    /* Time variables */
    private static DateTime todaysDateTime = new DateTime(DateTimeZone.forID("America/New_York"));
    private static int dayToday;
-   private static int hourToday;
-   private static int minuteToday;
 
    TradingSession(Portfolio portfolio, ArrayList<Stock> stockList) {
       LOGGER.debug("Creating new TradingSession() with portfolio {} and stocklist {}", portfolio.getName(), stockList);
@@ -200,14 +192,14 @@ public class TradingSession {
    }
 
    private void findMispricedStocks() {
-	/* 
+	/**
 	 * Using an Iterator instead of foreach
 	 * may need to remove a stock if a suitable option is not found to trade
 	 */
       LOGGER.debug("Entering TradingSession.findMispricedStocks()");
       Iterator<Stock> stockIterator = stockList.iterator();
       Stock stock;
-      double currentPrice = 0.00;
+      double currentPrice;
       while (stockIterator.hasNext()) {
          stock = stockIterator.next();
          LOGGER.debug("Retrieved stock with ticker {} from stockIterator", stock.getTicker());
@@ -412,7 +404,7 @@ public class TradingSession {
    private void writeClosingPricesToDb() {
       LOGGER.debug("Entering TradingSession.writeClosingPricesToDb()");
       LOGGER.info("Writing closing prices to DB");
-      double closingPrice = 0.00;
+      double closingPrice;
 	/*
 	 * The last price returned from Yahoo! must be later than market close. 
 	 * Removing yahoo quote delay from previous market close calculation in TradingSession.marketIsOpenToday() 

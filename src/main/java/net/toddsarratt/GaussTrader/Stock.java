@@ -10,27 +10,19 @@ package net.toddsarratt.GaussTrader;
  * bollingerBand[5] = lowerBoll3 = MA - 3 standard deviations
  */
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.MutableDateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.text.ParseException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Arrays;
-import javax.sql.DataSource;
-
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.DateTimeZone;
-import org.joda.time.DateTime;
-import org.joda.time.MutableDateTime;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.*;
 
 public class Stock extends Security {
 
@@ -41,21 +33,15 @@ public class Stock extends Security {
    */
    private String ticker = "AAPL";
    private double price = 0.00;
-   private String secType = "STOCK";
    private long lastPriceUpdateEpoch = 0l;
    private double fiftyDma = 0.00;
    private double twoHundredDma = 0.00;
-   private long lastAvgUpdateEpoch = 0;
    private LinkedHashMap<Long, Double> historicalPriceMap = new LinkedHashMap<>(PRICE_TRACKING_MAP);
-   private Collection<Double> historicalPriceArray;
    Boolean tickerValid = null;
    //	public LinkedList<Dividend> dividendsPaid = null;
-   private static DataSource dataSource = GaussTrader.getDataSource();
    private double[] bollingerBand = new double[6];
    private static final int PRICES_NEEDED = GaussTrader.bollBandPeriod;
-   private static final DateTimeFormatter HIST_DATE_FORMATTER = DateTimeFormat.forPattern("yyyy-MM-dd");
    private static final DateTimeFormatter LAST_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyy hh:mmaa");
-   private static final DateTimeFormatter YAHOO_HIST_FORMATTER = DateTimeFormat.forPattern("yyyy-MM-dd hh:mmaa");
    private static final Logger LOGGER = LoggerFactory.getLogger(Stock.class);
    private static final Map<Long, Double> PRICE_TRACKING_MAP = new HashMap<>();
    private static final DateTime EARLIEST_PRICE_DATE = earliestHistoricalPriceNeeded();
@@ -63,9 +49,8 @@ public class Stock extends Security {
    Stock() {
    }
 
-   Stock(String ticker) throws MalformedURLException, IOException {
+   Stock(String ticker) throws IOException {
       LOGGER.debug("Entering constructor Stock(String {})", ticker);
-      secType = "STOCK";
       this.ticker = ticker;
       populateStockInfo();
       populateHistoricalPricesDB();
@@ -80,7 +65,6 @@ public class Stock extends Security {
          quoteString = askYahoo(ticker, "l1d1t1m3m4");
          price = Double.parseDouble(quoteString[0]);
          lastPriceUpdateEpoch = jodaLastTickToEpoch(quoteString[1] + " " + quoteString[2]);
-         lastAvgUpdateEpoch = lastPriceUpdateEpoch;
          fiftyDma = Double.parseDouble(quoteString[3]);
          twoHundredDma = Double.parseDouble(quoteString[4]);
       } catch (IOException ioe) {
@@ -245,6 +229,7 @@ public class Stock extends Security {
    void calculateBollingerBands() {
       LOGGER.debug("Entering Stock.calculateBollingerBands()");
       int period = GaussTrader.bollBandPeriod;
+      Collection<Double> historicalPriceArray;
 
       if (historicalPriceMap.containsValue(-1.0)) {
          LOGGER.warn("Not enough historical data to calculate Bollinger Bands for {}", ticker);
@@ -256,9 +241,9 @@ public class Stock extends Security {
          bollingerBand[5] = -1.0;
       } else {
          double currentSMASum = 0;
-         double currentSMA = 0;
+         double currentSMA;
          double currentSDSum = 0;
-         double currentSD = 0;
+         double currentSD;
          historicalPriceArray = historicalPriceMap.values();
          for (double adjClose : historicalPriceArray) {
             currentSMASum += adjClose;
@@ -311,16 +296,11 @@ public class Stock extends Security {
    private LinkedHashMap<Long, Double> retrieveYahooHistoricalPrices(MissingPriceDateRange dateRange) throws IOException {
       LOGGER.debug("Entering Stock.retrieveYahooHistoricalPrices(MissingPriceDateRange dateRange)");
       LinkedHashMap<Long, Double> yahooPriceReturns = new LinkedHashMap<>();
-      String inputLine = null;
+      String inputLine;
       final URL YAHOO_URL = new URL(createYahooHistUrl(dateRange));
       BufferedReader yahooBufferedReader = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
-      MutableDateTime yahooHistMutableDateTime;
-      long yahooHistEpoch;
-      double yahooHistAdjClose;
-
 	/* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" */
-
-      LOGGER.debug(yahooBufferedReader.readLine().toString().replace("Date,", "Date         ").replaceAll(",", "    "));
+      LOGGER.debug(yahooBufferedReader.readLine().replace("Date,", "Date         ").replaceAll(",", "    "));
       while ((inputLine = yahooBufferedReader.readLine()) != null) {
          String[] yahooLine = inputLine.replaceAll("[\"+%]", "").split("[,]");
          LOGGER.debug(Arrays.toString(yahooLine));
@@ -341,7 +321,7 @@ public class Stock extends Security {
       LOGGER.debug("Entering Stock.askYahoo(String {}, String {})", ticker, arguments);
       final URL YAHOO_URL = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
       BufferedReader br = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
-      String[] yahooResults = br.readLine().toString().replaceAll("[\"+%]", "").split("[,]");
+      String[] yahooResults = br.readLine().replaceAll("[\"+%]", "").split("[,]");
       LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
       return yahooResults;
    }

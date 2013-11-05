@@ -16,8 +16,7 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/*
- * 
+/**
  * Root Symbol + Expiration Year(yy) + Expiration Month(mm) + Expiration Day(dd) + Call/Put Indicator (C or P) +
  * Strike Price Dollars + Strike Price Fraction of Dollars (which can include decimals)
  * Read more: http://www.investopedia.com/articles/optioninvestor/10/options-symbol-rules.asp#ixzz2IOZQ4kou
@@ -25,14 +24,11 @@ import java.util.regex.Pattern;
 
 public class Option extends Security {
    private String ticker;
-   private double price;
    private String secType;
    private DateTime expiry = null;
    private String underlyingTicker = null;
+   private double price;
    private double strike = 0.00;
-   private double last = 0.00;
-   private double bid = 0.00;
-   private double ask = 0.00;
    private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
 
    Option(String optionTickerArg) {
@@ -73,7 +69,7 @@ public class Option extends Security {
    public static boolean optionTickerValid(String optionTicker) throws IOException {
    /* Yahoo! returns 'There are no All Markets results for XOM130216P00077501' in the web page of an invalid option quote */
       LOGGER.debug("Entering optionTickerValid(String {})", optionTicker);
-      String input = null;
+      String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + optionTicker);
       Scanner yahooScan = new Scanner(yahoo_url.openStream());
       if (!yahooScan.hasNextLine()) {
@@ -88,9 +84,10 @@ public class Option extends Security {
       return (from == -1);
    }
 
-   double lastTick() {
-        /* reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
-      String input = null;
+      @Override
+      double lastTick() {
+      /** reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
+      String input;
       try {
          URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
          Scanner yahooScan = new Scanner(yahoo_url.openStream());
@@ -104,9 +101,9 @@ public class Option extends Security {
          int from = input.indexOf("<span", tickerIndex);
          from = input.indexOf(">", from + 4);
          int toIndex = input.indexOf("</span>", from);
-         String price = input.substring(from + 1, toIndex);
-         last = Double.parseDouble(price);
-         return last;
+         String tickPrice = input.substring(from + 1, toIndex);
+         price = Double.parseDouble(tickPrice);
+         return price;
       } catch (IOException ioe) {
          LOGGER.warn("IOException generated trying to get lastTick for {}", ticker);
          LOGGER.debug("Caught (IOException ioe)", ioe);
@@ -115,7 +112,7 @@ public class Option extends Security {
    }
 
    public static double lastTick(String ticker) throws IOException {
-      String input = null;
+      String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
       Scanner yahooScan = new Scanner(yahoo_url.openStream());
       if (!yahooScan.hasNextLine()) {
@@ -128,9 +125,9 @@ public class Option extends Security {
       int from = input.indexOf("<span", tickerIndex);
       from = input.indexOf(">", from + 4);
       int toIndex = input.indexOf("</span>", from);
-      String price = input.substring(from + 1, toIndex);
+      String tickPrice = input.substring(from + 1, toIndex);
       try {
-         return Double.parseDouble(price);
+         return Double.parseDouble(tickPrice);
       } catch(NumberFormatException nfe) {
          LOGGER.debug("Caught NumberFormatException", nfe);
       }
@@ -139,7 +136,7 @@ public class Option extends Security {
 
    double lastBid() throws IOException {
         /* reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
-      String input = null;
+      String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
       Scanner yahooScan = new Scanner(yahoo_url.openStream());
       if (!yahooScan.hasNextLine()) {
@@ -152,14 +149,14 @@ public class Option extends Security {
       int from = input.indexOf("<span", yahooBid);
       from = input.indexOf(">", from + 4);
       int to = input.indexOf("</span>", from);
-      String price = input.substring(from + 1, to);
-      bid = Double.parseDouble(price);
-      return bid;
+      String bidPrice = input.substring(from + 1, to);
+      price = Double.parseDouble(bidPrice);
+      return price;
    }
 
    double lastAsk() throws IOException {
       // reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html
-      String input = null;
+      String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
       Scanner yahooScan = new Scanner(yahoo_url.openStream());
       if (!yahooScan.hasNextLine()) {
@@ -172,9 +169,8 @@ public class Option extends Security {
       int from = input.indexOf("<span", yahooAsk);
       from = input.indexOf(">", from + 4);
       int to = input.indexOf("</span>", from);
-      String price = input.substring(from + 1, to);
-      ask = Double.parseDouble(price);
-      return ask;
+      String askPrice = input.substring(from + 1, to);
+      return Double.parseDouble(askPrice);
    }
 
    /**
@@ -217,12 +213,12 @@ public class Option extends Security {
 
    public static Option getOption(String stockTicker, String optionType, int monthsOut, double limitStrikePrice) {
       LOGGER.debug("Entering Option.getOption(String {}, String {}, int {}, double {})", stockTicker, optionType, monthsOut, limitStrikePrice);
-      double strikePrice = 0.0;
-      String optionTickerToTry = null;
+      double strikePrice;
+      String optionTickerToTry;
       MutableDateTime expiryMutableDateTime = new MutableDateTime(DateTimeZone.forID("America/New_York"));
       int monthOfYear = new MutableDateTime(DateTimeZone.forID("America/New_York")).getMonthOfYear();
       if (monthsOut == 6) {
-         expiryMutableDateTime.addMonths(6 - (int) (monthOfYear / 6));
+         expiryMutableDateTime.addMonths(6 - (monthOfYear / 6));
       } else {
          expiryMutableDateTime.addMonths(monthsOut);
       }
@@ -283,14 +279,12 @@ public class Option extends Security {
       return null;  // Failed to supply valid information
    }
 
+   @Override
    String getTicker() {
       return ticker;
    }
 
-   double getPrice() {
-      return price;
-   }
-
+   @Override
    String getSecType() {
       return secType;
    }
@@ -301,6 +295,11 @@ public class Option extends Security {
 
    DateTime getExpiry() {
       return expiry;
+   }
+
+   @Override
+   double getPrice() {
+      return price;
    }
 
    String getUnderlyingTicker() {

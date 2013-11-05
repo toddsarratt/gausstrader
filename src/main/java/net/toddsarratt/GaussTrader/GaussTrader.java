@@ -1,16 +1,15 @@
 package net.toddsarratt.GaussTrader;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.net.MalformedURLException;
-import java.sql.*;
-import javax.sql.DataSource;
-
 import org.joda.time.DateTime;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.sql.DataSource;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * http://www.gummy-stuff.org/Yahoo-data.htm
@@ -36,7 +35,7 @@ public class GaussTrader {
    private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
 
    static {
-        /* Set up DB connection. Package classes that need DB access can call GaussTrader.getDataSource() */
+      /** Set up DB connection. Package classes that need DB access can call GaussTrader.getDataSource() */
       LOGGER.debug("Entering GaussTrader.prepareDatabaseConnection()");
       LOGGER.debug("dataSource.setServerName({})", DB_IP);
       dataSource.setServerName(DB_IP);
@@ -48,13 +47,13 @@ public class GaussTrader {
       dataSource.setPassword(DB_PASSWORD);
    }
 
-   /* Returns current epoch time + least significant nano seconds to generate unique order and position ids */
+   /** Returns current epoch time + least significant nano seconds to generate unique order and position ids */
    static long getNewId() {
       return ((System.currentTimeMillis() << 20) & 0x7FFFFFFFFFF00000l) | (System.nanoTime() & 0x00000000000FFFFFl);
    }
 
    static DataSource getDataSource() {
-      return (DataSource) dataSource;
+      return dataSource;
    }
 
    private static void addTickerlistToTradeableList(ArrayList<String> tickerList, ArrayList<Stock> tradeableStockList) {

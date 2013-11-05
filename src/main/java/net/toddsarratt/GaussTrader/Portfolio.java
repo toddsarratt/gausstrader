@@ -24,16 +24,7 @@ public class Portfolio {
    private List<Position> portfolioPositions = new ArrayList<>();
    private List<Order> portfolioOrders = new ArrayList<>();
    private static DataSource dataSource = GaussTrader.getDataSource();
-   private static Connection dbConnectionTODO;
    private static final Logger LOGGER = LoggerFactory.getLogger(Portfolio.class);
-
-   static {
-      try {
-         dbConnectionTODO = dataSource.getConnection();
-      } catch (SQLException sqle) {
-         LOGGER.warn("SQLException : dataSource.getConnection()", sqle);
-      }
-   }
 
    Portfolio() {
       LOGGER.debug("Entering Portfolio default constructor Portfolio()");
@@ -91,7 +82,6 @@ public class Portfolio {
 
    void getDbPortfolioSummary() throws SQLException {
       Connection dbConnection = dataSource.getConnection();
-      dbConnection = dataSource.getConnection();
       PreparedStatement portfolioSummaryStatement = dbConnection.prepareStatement("SELECT * FROM portfolios WHERE name = ?");
       portfolioSummaryStatement.setString(1, name);
       LOGGER.debug("Executing SELECT * FROM portfolios WHERE name = {}", name);
@@ -121,7 +111,7 @@ public class Portfolio {
 
    void getDbPortfolioOrders() throws SQLException {
       Connection dbConnection = dataSource.getConnection();
-      Order portfolioOrderEntry = null;
+      Order portfolioOrderEntry;
       PreparedStatement orderSqlStatement = dbConnection.prepareStatement("SELECT * FROM orders WHERE portfolio = ? AND open = true");
       orderSqlStatement.setString(1, name);
       LOGGER.debug("Executing SELECT * FROM orders WHERE portfolio = {} AND open = true", name);
@@ -567,11 +557,9 @@ public class Portfolio {
 
    void endOfDayDbUpdate() {
       LOGGER.debug("Entering Portfolio.endOfDayDbUpdate()");
-      PreparedStatement summarySqlStatement = null;
-      ResultSet summaryResultSet = null;
-      PreparedStatement positionSqlStatement = null;
-      ResultSet positionResultSet = null;
-      Connection dbConnection = null;
+      PreparedStatement positionSqlStatement;
+      ResultSet positionResultSet;
+      Connection dbConnection;
       try {
          dbConnection = dataSource.getConnection();
          if (portfolioInDb()) {
@@ -605,7 +593,7 @@ public class Portfolio {
    private void updateDbSummary() throws SQLException {
       LOGGER.debug("Entering Portfolio.updateDbSummary()");
       Connection dbConnection = dataSource.getConnection();
-      String sqlString = new String("UPDATE portfolios SET net_asset_value = ?, free_cash = ?, reserved_cash = ?, total_cash = ? WHERE name = ?");
+      String sqlString = "UPDATE portfolios SET net_asset_value = ?, free_cash = ?, reserved_cash = ?, total_cash = ? WHERE name = ?";
       PreparedStatement updateSummarySqlStatement = dbConnection.prepareStatement(sqlString);
       int updatedRowCount;
       calculateNetAssetValue();
@@ -623,10 +611,11 @@ public class Portfolio {
 
    private void insertDbSummary() throws SQLException {
       LOGGER.debug("Entering Portfolio.insertDbSummary()");
-      String sqlString = new String("INSERT INTO portfolios (name, net_asset_value, free_cash, reserved_cash, total_cash) VALUES (?, ?, ?, ?, ?)");
-      PreparedStatement newSummarySqlStatement = null;
+      Connection dbConnection = dataSource.getConnection();
+      String sqlString = "INSERT INTO portfolios (name, net_asset_value, free_cash, reserved_cash, total_cash) VALUES (?, ?, ?, ?, ?)";
+      PreparedStatement newSummarySqlStatement;
       int insertedRowCount;
-      newSummarySqlStatement = dbConnectionTODO.prepareStatement(sqlString);
+      newSummarySqlStatement = dbConnection.prepareStatement(sqlString);
       newSummarySqlStatement.setString(1, name);
       newSummarySqlStatement.setDouble(2, netAssetValue);
       newSummarySqlStatement.setDouble(3, freeCash);
@@ -641,10 +630,11 @@ public class Portfolio {
 
    private void updateDbPosition(Position portfolioPosition) throws SQLException {
       LOGGER.debug("Entering Portfolio.updateDbPosition(Position {})", portfolioPosition.getPositionId());
-      String sqlString = new String("UPDATE positions SET last_tick = ?, net_asset_value = ? WHERE position_id = ?");
-      PreparedStatement updatePositionSqlStatement = null;
+      Connection dbConnection = dataSource.getConnection();
+      String sqlString = "UPDATE positions SET last_tick = ?, net_asset_value = ? WHERE position_id = ?";
+      PreparedStatement updatePositionSqlStatement;
       int updatedRowCount;
-      updatePositionSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
+      updatePositionSqlStatement = dbConnection.prepareStatement(sqlString);
       updatePositionSqlStatement.setDouble(1, portfolioPosition.getLastTick());
       updatePositionSqlStatement.setDouble(2, portfolioPosition.calculateNetAssetValue());
       updatePositionSqlStatement.setLong(3, portfolioPosition.getPositionId());
@@ -655,7 +645,7 @@ public class Portfolio {
       }
       if (!portfolioPosition.isOpen()) {
          sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
-         updatePositionSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
+         updatePositionSqlStatement = dbConnection.prepareStatement(sqlString);
          updatePositionSqlStatement.setLong(1, portfolioPosition.getEpochClosed());
          updatePositionSqlStatement.setDouble(2, portfolioPosition.getPriceAtClose());
          updatePositionSqlStatement.setDouble(3, portfolioPosition.getProfit());
@@ -670,13 +660,13 @@ public class Portfolio {
 
    private void insertDbPosition(Position portfolioPosition) throws SQLException {
       LOGGER.debug("Entering Portfolio.insertDbPosition(Position {})", portfolioPosition.getPositionId());
-      String sqlString = new String("INSERT INTO positions (portfolio, position_id, open, ticker, sec_type, epoch_expiry, " +
+      Connection dbConnection = dataSource.getConnection();
+      String sqlString = "INSERT INTO positions (portfolio, position_id, open, ticker, sec_type, epoch_expiry, " +
          "underlying_ticker, strike_price, epoch_opened, long_position, number_transacted, price_at_open, " +
-         "cost_basis, last_tick, net_asset_value, claim_against_cash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-      PreparedStatement newPositionSqlStatement = null;
+         "cost_basis, last_tick, net_asset_value, claim_against_cash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      PreparedStatement newPositionSqlStatement;
       int insertedRowCount;
-      int updatedRowCount;
-      newPositionSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
+      newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
       newPositionSqlStatement.setString(1, name);
       newPositionSqlStatement.setLong(2, portfolioPosition.getPositionId());
       newPositionSqlStatement.setBoolean(3, portfolioPosition.isOpen());
@@ -707,9 +697,10 @@ public class Portfolio {
 
    private void closeDbPosition(Position positionToClose) throws SQLException {
       int updatedRowCount = 0;
+      Connection dbConnection = dataSource.getConnection();
       String sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
-      PreparedStatement newPositionSqlStatement = null;
-      newPositionSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
+      PreparedStatement newPositionSqlStatement;
+      newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
       newPositionSqlStatement.setLong(1, positionToClose.getEpochClosed());
       newPositionSqlStatement.setDouble(2, positionToClose.getPriceAtClose());
       newPositionSqlStatement.setDouble(3, positionToClose.getProfit());
@@ -724,11 +715,12 @@ public class Portfolio {
    private void closeDbOrder(Order portfolioOrder) throws SQLException {
 	/* Nothing changes in an order unless it is filled (i.e. closed) */
       LOGGER.debug("Entering Portfolio.closeDbOrder(Order {})", portfolioOrder.getOrderId());
+      Connection dbConnection = dataSource.getConnection();
       if (!portfolioOrder.isOpen()) {
-         String sqlString = new String("UPDATE orders SET open = false, epoch_closed = ?, close_reason = ?, fill_price = ? WHERE order_id = ?");
-         PreparedStatement updateOrderSqlStatement = null;
+         String sqlString = "UPDATE orders SET open = false, epoch_closed = ?, close_reason = ?, fill_price = ? WHERE order_id = ?";
+         PreparedStatement updateOrderSqlStatement;
          int updatedRowCount;
-         updateOrderSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
+         updateOrderSqlStatement = dbConnection.prepareStatement(sqlString);
          updateOrderSqlStatement.setLong(1, portfolioOrder.getEpochClosed());
          updateOrderSqlStatement.setString(2, portfolioOrder.getCloseReason());
          updateOrderSqlStatement.setDouble(3, portfolioOrder.getFillPrice());
@@ -743,12 +735,13 @@ public class Portfolio {
 
    private void insertDbOrder(Order portfolioOrder) throws SQLException {
       LOGGER.debug("Entering Portfolio.insertDbOrder(Order {})", portfolioOrder.getOrderId());
-      String sqlString = new String("INSERT INTO orders (portfolio, order_id, open, ticker, epoch_expiry, underlying_ticker, strike_price, limit_price, " +
-         "action, total_quantity, sec_type, tif, epoch_opened, claim_against_cash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-      PreparedStatement newOrderSqlStatement = null;
+      Connection dbConnection = dataSource.getConnection();
+      String sqlString = "INSERT INTO orders (portfolio, order_id, open, ticker, epoch_expiry, underlying_ticker, strike_price, limit_price, " +
+         "action, total_quantity, sec_type, tif, epoch_opened, claim_against_cash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      PreparedStatement newOrderSqlStatement;
       int insertedRowCount;
       int updatedRowCount;
-      newOrderSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
+      newOrderSqlStatement = dbConnection.prepareStatement(sqlString);
       newOrderSqlStatement.setString(1, name);
       newOrderSqlStatement.setLong(2, portfolioOrder.getOrderId());
       newOrderSqlStatement.setBoolean(3, portfolioOrder.isOpen());
@@ -774,7 +767,7 @@ public class Portfolio {
       }
       if (!portfolioOrder.isOpen()) {
          sqlString = "UPDATE orders SET epoch_closed = ?, close_reason = ?, fill_price = ?, open = 'false' WHERE order_id = ?";
-         newOrderSqlStatement = dbConnectionTODO.prepareStatement(sqlString);
+         newOrderSqlStatement = dbConnection.prepareStatement(sqlString);
          newOrderSqlStatement.setLong(1, portfolioOrder.getEpochClosed());
          newOrderSqlStatement.setString(2, portfolioOrder.getCloseReason());
          newOrderSqlStatement.setDouble(3, portfolioOrder.getFillPrice());
