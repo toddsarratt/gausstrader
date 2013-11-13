@@ -51,7 +51,7 @@ public class TradingSession {
    private static long marketCloseEpoch;
    /* Time variables */
    private static DateTime todaysDateTime = new DateTime(DateTimeZone.forID("America/New_York"));
-   private static int dayToday;
+   private static int dayToday = todaysDateTime.getDayOfWeek();
 
    TradingSession(Portfolio portfolio, ArrayList<Stock> stockList) {
       LOGGER.debug("Creating new TradingSession() with portfolio {} and stocklist {}", portfolio.getName(), stockList);
@@ -106,7 +106,6 @@ public class TradingSession {
          LOGGER.debug("Market is on holiday.");
          return false;
       }
-      dayToday = todaysDateTime.getDayOfWeek();
       LOGGER.debug("dayToday = todaysDateTime.getDayOfWeek() = {} ({})", dayToday, todaysDateTime.dayOfWeek().getAsText());
       if ((dayToday == DateTimeConstants.SATURDAY) || (dayToday == DateTimeConstants.SUNDAY)) {
          LOGGER.warn("It's the weekend. Market is closed.");
@@ -221,8 +220,6 @@ public class TradingSession {
                         portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", 1, "GFD"));
                      } catch (InsufficientFundsException ife) {
                         LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
-                     } catch (SecurityNotFoundException snfe) {
-                        LOGGER.warn("Missing securities needed to cover attempted order", snfe);
                      }
                   }
                }
@@ -339,11 +336,15 @@ public class TradingSession {
       return DO_NOTHING_PRICE_BASED_ACTION;
    }
 
+   /**
+    * If within two days of expiry exercise ITM options. If underlyingTicker < optionStrike then stock is PUT to Portfolio
+    * If ticker > strike stock is CALLed away
+    * else option expires worthless, close position
+    */
    private void reconcileExpiringOptions() {
-	/* If within two days of expiry exercise ITM options */
       LOGGER.debug("Entering TradingSession.reconcileExpiringOptions()");
       LOGGER.info("Checking for expiring options");
-      MutableDateTime thisSaturday = new MutableDateTime(DateTimeZone.forID("America/New_York"));
+      MutableDateTime thisSaturday = new MutableDateTime(todaysDateTime, DateTimeZone.forID("America/New_York"));
       thisSaturday.setDayOfWeek(DateTimeConstants.SATURDAY);
       int thisSaturdayJulian = thisSaturday.getDayOfYear();
       int thisSaturdayYear = thisSaturday.getYear();
@@ -355,20 +356,14 @@ public class TradingSession {
                openOptionPosition.getExpiry().getDayOfYear(), thisSaturdayJulian, openOptionPosition.getExpiry().getYear(), thisSaturdayYear);
             if ((openOptionPosition.getExpiry().getDayOfYear() == thisSaturdayJulian) &&
                (openOptionPosition.getExpiry().getYear() == thisSaturdayYear)) {
-		    /* If underlyingTicker < optionStrike
-		     * then stock is PUT to us 
-		     * if ticker > strike 
-		     * stock is CALLed away
-		     * else
-		     * option expires worthless, close position
-		     */
                LOGGER.debug("Option expires tomorrow, checking moneyness");
                try {
+                  double stockLastTick = Stock.lastTick(openOptionPosition.getUnderlyingTicker());
                   if (openOptionPosition.isPut() &&
-                     (Stock.lastTick(openOptionPosition.getUnderlyingTicker()) <= openOptionPosition.getStrikePrice())) {
+                     (stockLastTick <= openOptionPosition.getStrikePrice())) {
                      portfolio.exerciseOption(openOptionPosition);
                   } else if (openOptionPosition.isCall() &&
-                     (Stock.lastTick(openOptionPosition.getUnderlyingTicker()) >= openOptionPosition.getStrikePrice())) {
+                     (stockLastTick >= openOptionPosition.getStrikePrice())) {
                      portfolio.exerciseOption(openOptionPosition);
                   } else {
                      portfolio.expireOptionPosition(openOptionPosition);
