@@ -351,7 +351,7 @@ public class TradingSession {
       if (dayToday == DateTimeConstants.FRIDAY) {
          LOGGER.debug("Today is Friday, checking portfolio.getListOfOpenOptionPositions() for expiring options");
          for (Position openOptionPosition : portfolio.getListOfOpenOptionPositions()) {
-            LOGGER.debug("Examining optionId {} for option ticker {}", openOptionPosition.getPositionId(), openOptionPosition.getTicker());
+            LOGGER.debug("Examining positionId {} for option ticker {}", openOptionPosition.getPositionId(), openOptionPosition.getTicker());
             LOGGER.debug("Comparing Saturday Julian {} to {} and year {} to {}",
                openOptionPosition.getExpiry().getDayOfYear(), thisSaturdayJulian, openOptionPosition.getExpiry().getYear(), thisSaturdayYear);
             if ((openOptionPosition.getExpiry().getDayOfYear() == thisSaturdayJulian) &&

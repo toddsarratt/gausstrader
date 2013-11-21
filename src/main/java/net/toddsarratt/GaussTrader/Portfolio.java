@@ -141,6 +141,7 @@ public class Portfolio {
       positionFromDb.setNetAssetValue(dbResult.getDouble("net_asset_value"));
       positionFromDb.setExpiry(new DateTime(dbResult.getLong("epoch_expiry"), DateTimeZone.forID("America/New_York")));
       positionFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
+      positionFromDb.setOriginatingOrderId(dbResult.getLong("originating_order_id"));
       return positionFromDb;
    }
 
@@ -660,7 +661,7 @@ public class Portfolio {
       Connection dbConnection = dataSource.getConnection();
       String sqlString = "INSERT INTO positions (portfolio, position_id, open, ticker, sec_type, epoch_expiry, " +
          "underlying_ticker, strike_price, epoch_opened, long_position, number_transacted, price_at_open, " +
-         "cost_basis, last_tick, net_asset_value, claim_against_cash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+         "cost_basis, last_tick, net_asset_value, claim_against_cash, originating_order_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
       PreparedStatement newPositionSqlStatement;
       int insertedRowCount;
       newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
@@ -680,13 +681,14 @@ public class Portfolio {
       newPositionSqlStatement.setDouble(14, portfolioPosition.getLastTick());
       newPositionSqlStatement.setDouble(15, portfolioPosition.calculateNetAssetValue());
       newPositionSqlStatement.setDouble(16, portfolioPosition.getClaimAgainstCash());
+      newPositionSqlStatement.setDouble(17, portfolioPosition.getOriginatingOrderId());
       LOGGER.debug("Executing INSERT INTO positions (portfolio, position_id, open, ticker, sec_type, epoch_expiry, underlying_ticker, strike_price, epoch_opened, " +
-         "long_position, number_transacted, price_at_open, cost_basis, last_tick, net_asset_value, claim_against_cash) " +
-         "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {} {})",
+         "long_position, number_transacted, price_at_open, cost_basis, last_tick, net_asset_value, claim_against_cash, originating_order_id) " +
+         "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
          name, portfolioPosition.getPositionId(), portfolioPosition.isOpen(), portfolioPosition.getTicker(), portfolioPosition.getSecType(),
          portfolioPosition.getExpiry().getMillis(), portfolioPosition.getTicker(), portfolioPosition.getStrikePrice(), portfolioPosition.getEpochOpened(),
          portfolioPosition.isLong(), portfolioPosition.getNumberTransacted(), portfolioPosition.getPriceAtOpen(), portfolioPosition.getCostBasis(),
-         portfolioPosition.getLastTick(), portfolioPosition.calculateNetAssetValue(), portfolioPosition.getClaimAgainstCash());
+         portfolioPosition.getLastTick(), portfolioPosition.calculateNetAssetValue(), portfolioPosition.getClaimAgainstCash(), portfolioPosition.getOriginatingOrderId());
       if ((insertedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Inserted {} rows. Should have inserted 1 row", insertedRowCount);
       }

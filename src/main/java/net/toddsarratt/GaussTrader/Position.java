@@ -9,6 +9,7 @@ import java.io.IOException;
 
 public class Position {
    private long positionId = System.currentTimeMillis();
+   private long originatingOrderId = System.currentTimeMillis();
    private boolean open = true;
    private String ticker = "APPL";
    private String secType = "PUT";
@@ -37,6 +38,7 @@ public class Position {
 
    Position(Order orderToFill, double priceAtOpen) {
       positionId = GaussTrader.getNewId();
+      originatingOrderId = orderToFill.getOrderId();
       open = true;
       ticker = orderToFill.getTicker();
       secType = orderToFill.getSecType();
@@ -44,6 +46,9 @@ public class Position {
          expiry = orderToFill.getExpiry();
          underlyingTicker = orderToFill.getUnderlyingTicker();
          strikePrice = orderToFill.getStrikePrice();
+      } else {
+         underlyingTicker = ticker;
+         expiry = null;
       }
       epochOpened = System.currentTimeMillis();
       longPosition = orderToFill.isLong();
@@ -97,6 +102,14 @@ public class Position {
 
    void setPositionId(long positionId) {
       this.positionId = positionId;
+   }
+
+   public long getOriginatingOrderId() {
+      return originatingOrderId;
+   }
+
+   void setOriginatingOrderId(long originatingOrderId) {
+      this.originatingOrderId = originatingOrderId;
    }
 
    void setOpen(boolean open) {

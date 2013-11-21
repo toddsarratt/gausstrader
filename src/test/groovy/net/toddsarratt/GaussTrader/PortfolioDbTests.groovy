@@ -1,6 +1,7 @@
 package net.toddsarratt.GaussTrader
 
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.postgresql.util.PSQLException
 import org.testng.annotations.Test
 
@@ -39,7 +40,7 @@ class PortfolioDbTests {
     @Test
     public void testDbReadWriteOrder() {
         def testOrderToInsert = new Order(ticker: "TESTINSERT", underlyingTicker: "TESTME", strikePrice: 500.0, limitPrice: 1.00, action: "BUY", totalQuantity: 10, secType: "CALL", tif: "GTC")
-        testOrderToInsert.setExpiry(new DateTime(2013, 11, 16, 0, 0))
+        testOrderToInsert.setExpiry new DateTime(2013, 12, 20, 0, 0, DateTimeZone.forID("America/New_York"))
         testPortfolio.insertDbOrder(testOrderToInsert)
         testPortfolio.getDbPortfolioOrders()
         def testOrderFromDb = testPortfolio.portfolioOrders.find {
