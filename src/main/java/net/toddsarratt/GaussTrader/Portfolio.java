@@ -554,36 +554,42 @@ public class Portfolio {
 
    void endOfDayDbUpdate() {
       LOGGER.debug("Entering Portfolio.endOfDayDbUpdate()");
-      PreparedStatement positionSqlStatement;
-      ResultSet positionResultSet;
-      Connection dbConnection;
       try {
-         dbConnection = dataSource.getConnection();
-         if (portfolioInDb()) {
-            LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
-            updateDbSummary();
-         } else {
-            LOGGER.debug("Inserting portfolio \"{}\" newly into database", name);
-            insertDbSummary();
-         }
-         positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND position_id = ?");
-         positionSqlStatement.setString(1, name);
-         for (Position portfolioPosition : portfolioPositions) {
-            positionSqlStatement.setLong(2, portfolioPosition.getPositionId());
-            LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND position_id = {}", name, portfolioPosition.getPositionId());
-            positionResultSet = positionSqlStatement.executeQuery();
-            if (positionResultSet.next()) {
-               LOGGER.debug("positionResultSet.next() == true, position {} exists in database. Running update instead of insert", portfolioPosition.getPositionId());
-               updateDbPosition(portfolioPosition);
-            } else {
-               LOGGER.debug("positionResultSet.next() == false, inserting position {} newly into database", portfolioPosition.getPositionId());
-               insertDbPosition(portfolioPosition);
-            }
-         }
+         dbSummaryUpdate();
+         dbPositionsUpdate();
       } catch (SQLException sqle) {
          LOGGER.warn("Database error");
          LOGGER.debug("Caught (SQLException sqle) ", sqle);
          /** TODO : If cannot write to database write to file to preserve data */
+      }
+   }
+
+   private void dbSummaryUpdate() throws SQLException {
+      if (portfolioInDb()) {
+         LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
+         updateDbSummary();
+      } else {
+         LOGGER.debug("Inserting portfolio \"{}\" newly into database", name);
+         insertDbSummary();
+      }
+   }
+
+   private void dbPositionsUpdate() throws SQLException {
+      Connection dbConnection = dataSource.getConnection();
+      ResultSet positionResultSet;
+      PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND position_id = ?");
+      positionSqlStatement.setString(1, name);
+      for (Position portfolioPosition : portfolioPositions) {
+         positionSqlStatement.setLong(2, portfolioPosition.getPositionId());
+         LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND position_id = {}", name, portfolioPosition.getPositionId());
+         positionResultSet = positionSqlStatement.executeQuery();
+         if (positionResultSet.next()) {
+            LOGGER.debug("positionResultSet.next() == true, position {} exists in database. Running update instead of insert", portfolioPosition.getPositionId());
+            updateDbPosition(portfolioPosition);
+         } else {
+            LOGGER.debug("positionResultSet.next() == false, inserting position {} newly into database", portfolioPosition.getPositionId());
+            insertDbPosition(portfolioPosition);
+         }
       }
    }
 
