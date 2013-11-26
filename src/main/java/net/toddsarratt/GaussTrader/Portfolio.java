@@ -453,6 +453,7 @@ public class Portfolio {
    }
 
    private void exerciseShortPut(Position optionPositionToExercise) {
+      LOGGER.debug("Entering Portfolio.exerciseShortPut(Position {})", optionPositionToExercise.getPositionId());
       Position optionToStockPosition = Position.exerciseOptionPosition(optionPositionToExercise);
       portfolioPositions.add(optionToStockPosition);
       try {
@@ -464,37 +465,33 @@ public class Portfolio {
    }
 
    private void exerciseShortCall(Position optionPositionToExercise) {
-      //	LOGGER.debug("Entering Portfolio.exerciseShortCall(Position {})", optionPositionToExercise.getPositionId());
-      //	LOGGER.debug("optionPositionToExercise.getNumberTransacted() = {}", optionPositionToExercise.getNumberTransacted());
+      LOGGER.debug("Entering Portfolio.exerciseShortCall(Position {})", optionPositionToExercise.getPositionId());
       for (int contractsToHonor = 1; contractsToHonor <= optionPositionToExercise.getNumberTransacted(); contractsToHonor++) {
-         //	    LOGGER.debug("contractsToHonor = {}", contractsToHonor);
          Position calledAwayStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
          if (calledAwayStockPosition != null) {
-            //		LOGGER.debug("calledAwayStockPosition != null");
             calledAwayStockPosition.close(optionPositionToExercise.getStrikePrice());
-            //		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * calledAwayStockPosition.getNumberTransacted() {}",
-            //		freeCash, optionPositionToExercise.getStrikePrice(), calledAwayStockPosition.getNumberTransacted());
+            LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * calledAwayStockPosition.getNumberTransacted() {}",
+               freeCash, optionPositionToExercise.getStrikePrice(), calledAwayStockPosition.getNumberTransacted());
             freeCash += optionPositionToExercise.getStrikePrice() * calledAwayStockPosition.getNumberTransacted();
-            //		LOGGER.debug("freeCash == {}", freeCash);
+            LOGGER.debug("freeCash == {}", freeCash);
          } else {
 		/* Buy the stock at market price and deliver it */
-            //		LOGGER.debug("calledAwayStockPosition == null");
             Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-            //		LOGGER.debug("Buying 100 shares at market price");
-            //		LOGGER.debug("freeCash {} -= buyStockToDeliverPosition.getLastTick() {} * buyStockToDeliverPosition.getNumberTransacted() {}",
-            //			     freeCash, buyStockToDeliverPosition.getLastTick(), buyStockToDeliverPosition.getNumberTransacted());
-            freeCash -= buyStockToDeliverPosition.getLastTick() * buyStockToDeliverPosition.getNumberTransacted();
-            //		LOGGER.debug("freeCash == {}", freeCash);
-            //		LOGGER.debug("Selling 100 shares at strike price (delivering to call holder)");
+            double positionLastTick = buyStockToDeliverPosition.getLastTick();
+            LOGGER.debug("freeCash {} -= buyStockToDeliverPosition.getLastTick() {} * buyStockToDeliverPosition.getNumberTransacted() {}",
+               freeCash, positionLastTick, buyStockToDeliverPosition.getNumberTransacted());
+            freeCash -= positionLastTick * buyStockToDeliverPosition.getNumberTransacted();
+            LOGGER.debug("freeCash == {}", freeCash);
             buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
-            //		LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100.00", freeCash, optionPositionToExercise.getStrikePrice());
+            LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100.00", freeCash, optionPositionToExercise.getStrikePrice());
             freeCash += optionPositionToExercise.getStrikePrice() * 100.00;
-            //		LOGGER.debug("freeCash == {}", freeCash);
+            LOGGER.debug("freeCash == {}", freeCash);
          }
       }
    }
 
    private void exerciseLongPut(Position optionPositionToExercise) {
+      LOGGER.debug("Entering Portfolio.exerciseLongPut(Position {})", optionPositionToExercise.getPositionId());
       for (int contractsToHonor = 1; contractsToHonor <= optionPositionToExercise.getNumberTransacted(); contractsToHonor++) {
          Position puttingToStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
          if (puttingToStockPosition != null) {
@@ -517,6 +514,7 @@ public class Portfolio {
    }
 
    private void exerciseLongCall(Position optionPositionToExercise) {
+      LOGGER.debug("Entering Portfolio.exerciseLongCall(Position {})", optionPositionToExercise.getPositionId());
       Position optionToStockPosition = Position.exerciseOptionPosition(optionPositionToExercise);
       portfolioPositions.add(optionToStockPosition);
       freeCash -= optionToStockPosition.getCostBasis();
@@ -529,6 +527,7 @@ public class Portfolio {
    }
 
    void expireOptionPosition(Position optionPositionToExercise) {
+      LOGGER.debug("Entering Portfolio.expireOptionPosition(Position {})", optionPositionToExercise.getPositionId());
       freeCash += optionPositionToExercise.getClaimAgainstCash();
       reservedCash -= optionPositionToExercise.getClaimAgainstCash();
       optionPositionToExercise.close(0.00);
@@ -555,36 +554,42 @@ public class Portfolio {
 
    void endOfDayDbUpdate() {
       LOGGER.debug("Entering Portfolio.endOfDayDbUpdate()");
-      PreparedStatement positionSqlStatement;
-      ResultSet positionResultSet;
-      Connection dbConnection;
       try {
-         dbConnection = dataSource.getConnection();
-         if (portfolioInDb()) {
-            LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
-            updateDbSummary();
-         } else {
-            LOGGER.debug("Inserting portfolio \"{}\" newly into database", name);
-            insertDbSummary();
-         }
-         positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND position_id = ?");
-         positionSqlStatement.setString(1, name);
-         for (Position portfolioPosition : portfolioPositions) {
-            positionSqlStatement.setLong(2, portfolioPosition.getPositionId());
-            LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND position_id = {}", name, portfolioPosition.getPositionId());
-            positionResultSet = positionSqlStatement.executeQuery();
-            if (positionResultSet.next()) {
-               LOGGER.debug("positionResultSet.next() == true, position {} exists in database. Running update instead of insert", portfolioPosition.getPositionId());
-               updateDbPosition(portfolioPosition);
-            } else {
-               LOGGER.debug("positionResultSet.next() == false, inserting position {} newly into database", portfolioPosition.getPositionId());
-               insertDbPosition(portfolioPosition);
-            }
-         }
+         dbSummaryUpdate();
+         dbPositionsUpdate();
       } catch (SQLException sqle) {
          LOGGER.warn("Database error");
          LOGGER.debug("Caught (SQLException sqle) ", sqle);
          /** TODO : If cannot write to database write to file to preserve data */
+      }
+   }
+
+   private void dbSummaryUpdate() throws SQLException {
+      if (portfolioInDb()) {
+         LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
+         updateDbSummary();
+      } else {
+         LOGGER.debug("Inserting portfolio \"{}\" newly into database", name);
+         insertDbSummary();
+      }
+   }
+
+   private void dbPositionsUpdate() throws SQLException {
+      Connection dbConnection = dataSource.getConnection();
+      ResultSet positionResultSet;
+      PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND position_id = ?");
+      positionSqlStatement.setString(1, name);
+      for (Position portfolioPosition : portfolioPositions) {
+         positionSqlStatement.setLong(2, portfolioPosition.getPositionId());
+         LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND position_id = {}", name, portfolioPosition.getPositionId());
+         positionResultSet = positionSqlStatement.executeQuery();
+         if (positionResultSet.next()) {
+            LOGGER.debug("positionResultSet.next() == true, position {} exists in database. Running update instead of insert", portfolioPosition.getPositionId());
+            updateDbPosition(portfolioPosition);
+         } else {
+            LOGGER.debug("positionResultSet.next() == false, inserting position {} newly into database", portfolioPosition.getPositionId());
+            insertDbPosition(portfolioPosition);
+         }
       }
    }
 
@@ -632,12 +637,13 @@ public class Portfolio {
       String sqlString = "UPDATE positions SET last_tick = ?, net_asset_value = ? WHERE position_id = ?";
       PreparedStatement updatePositionSqlStatement;
       int updatedRowCount;
+      double positionLastTick = portfolioPosition.getLastTick();
       updatePositionSqlStatement = dbConnection.prepareStatement(sqlString);
-      updatePositionSqlStatement.setDouble(1, portfolioPosition.getLastTick());
+      updatePositionSqlStatement.setDouble(1, positionLastTick);
       updatePositionSqlStatement.setDouble(2, portfolioPosition.calculateNetAssetValue());
       updatePositionSqlStatement.setLong(3, portfolioPosition.getPositionId());
       LOGGER.debug("Executing UPDATE positions SET last_tick = {}, net_asset_value = {} WHERE position_id = {}",
-         portfolioPosition.getLastTick(), portfolioPosition.calculateNetAssetValue(), portfolioPosition.getPositionId());
+         positionLastTick, portfolioPosition.calculateNetAssetValue(), portfolioPosition.getPositionId());
       if ((updatedRowCount = updatePositionSqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
       }
@@ -664,6 +670,7 @@ public class Portfolio {
          "cost_basis, last_tick, net_asset_value, claim_against_cash, originating_order_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
       PreparedStatement newPositionSqlStatement;
       int insertedRowCount;
+      double positionLastTick = portfolioPosition.getLastTick();
       newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
       newPositionSqlStatement.setString(1, name);
       newPositionSqlStatement.setLong(2, portfolioPosition.getPositionId());
@@ -678,7 +685,7 @@ public class Portfolio {
       newPositionSqlStatement.setInt(11, portfolioPosition.getNumberTransacted());
       newPositionSqlStatement.setDouble(12, portfolioPosition.getPriceAtOpen());
       newPositionSqlStatement.setDouble(13, portfolioPosition.getCostBasis());
-      newPositionSqlStatement.setDouble(14, portfolioPosition.getLastTick());
+      newPositionSqlStatement.setDouble(14, positionLastTick);
       newPositionSqlStatement.setDouble(15, portfolioPosition.calculateNetAssetValue());
       newPositionSqlStatement.setDouble(16, portfolioPosition.getClaimAgainstCash());
       newPositionSqlStatement.setDouble(17, portfolioPosition.getOriginatingOrderId());
@@ -688,7 +695,7 @@ public class Portfolio {
          name, portfolioPosition.getPositionId(), portfolioPosition.isOpen(), portfolioPosition.getTicker(), portfolioPosition.getSecType(),
          portfolioPosition.getExpiry().getMillis(), portfolioPosition.getTicker(), portfolioPosition.getStrikePrice(), portfolioPosition.getEpochOpened(),
          portfolioPosition.isLong(), portfolioPosition.getNumberTransacted(), portfolioPosition.getPriceAtOpen(), portfolioPosition.getCostBasis(),
-         portfolioPosition.getLastTick(), portfolioPosition.calculateNetAssetValue(), portfolioPosition.getClaimAgainstCash(), portfolioPosition.getOriginatingOrderId());
+         positionLastTick, portfolioPosition.calculateNetAssetValue(), portfolioPosition.getClaimAgainstCash(), portfolioPosition.getOriginatingOrderId());
       if ((insertedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Inserted {} rows. Should have inserted 1 row", insertedRowCount);
       }

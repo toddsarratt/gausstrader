@@ -300,17 +300,7 @@ public class Position {
    }
 
    public double calculateNetAssetValue() {
-      try {
-         if (isStock()) {
-            lastTick = Stock.lastTick(ticker);
-         } else {
-            lastTick = Option.lastTick(ticker);
-         }
-         netAssetValue = lastTick * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
-      } catch (IOException ioe) {
-         LOGGER.warn("Caught IOException trying to get lastTick({}). Returning last known netAssetValue (We are no longer real-time).", ticker);
-         LOGGER.debug("Caught (IOException ioe)", ioe);
-      }
+      netAssetValue = lastTick * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
       return netAssetValue;
    }
 
