@@ -67,7 +67,12 @@ public class Option extends Security {
    }
 
    public static boolean optionTickerValid(String optionTicker) throws IOException {
-   /* Yahoo! returns 'There are no All Markets results for XOM130216P00077501' in the web page of an invalid option quote */
+   /**
+    *  Yahoo! returns 'There are no All Markets results for [invalid_option]' in the web page of an invalid option quote
+    *
+    *  Changed on 11/25/13 : 'There are no results for the given search term.'
+    *  */
+
       LOGGER.debug("Entering optionTickerValid(String {})", optionTicker);
       String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + optionTicker);
@@ -79,7 +84,7 @@ public class Option extends Security {
       }
       input = yahooScan.useDelimiter("\\A").next();
       yahooScan.close();
-      int from = input.indexOf("There are no All Markets");
+      int from = input.indexOf("There are no");
       LOGGER.debug("{} is a valid option ticker : {}", optionTicker, (from == -1));
       return (from == -1);
    }
