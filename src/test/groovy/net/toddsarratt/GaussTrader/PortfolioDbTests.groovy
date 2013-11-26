@@ -17,7 +17,7 @@ class PortfolioDbTests {
     @Test 
     public void testInsertDbSummary() {
         testPortfolio.insertDbSummary()
-	    assertTrue testPortfolio.portfolioInDb().booleanValue()
+	    assertTrue testPortfolio.portfolioInDb()
     }
     @Test(dependsOnMethods = ["testInsertDbSummary"], expectedExceptions = PSQLException.class)
     public void testDuplicateInsertDbSummary() {
@@ -26,9 +26,9 @@ class PortfolioDbTests {
     }
     @Test
     public void testUpdateDbSummary() {
-        testPortfolio.setFreeCash(9000.38.doubleValue())
-	    testPortfolio.setReservedCash(5000.38.doubleValue())
-	    assertEquals(testPortfolio.calculateTotalCash(), 14000.76.doubleValue(), 0.001.doubleValue())
+        testPortfolio.setFreeCash(9000.38)
+	    testPortfolio.setReservedCash(5000.38)
+	    assertEquals(testPortfolio.calculateTotalCash(), 14000.76, 0.001)
 	    testPortfolio.updateDbSummary()
 
 	    def readDbPortfolio = new Portfolio(testPortfolio.getName())
@@ -71,4 +71,12 @@ class PortfolioDbTests {
             println "${it.getProperty(testPositionFromDb)} = ${it.getProperty(testPositionToInsert)}"
         }
     }
+
+    @Test
+    public void testDbSummaryUpdate() {
+
+    }
+
+    @Test
+    public void testDbPositionsUpdates() {}
 }

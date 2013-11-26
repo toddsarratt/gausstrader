@@ -15,8 +15,9 @@ public class OptionExpiryReconcile {
     public void testPortfolioExerciseLongPut() {
         Stock cisco = new Stock("CSCO")
         Portfolio expiringOptionsPort = new Portfolio("expiringOptionsPort", 1_000_000.00)
+        /* Adjust the prices in the new Positions below against the current price of CSCO */
         Position expiringItmShortPut = new Position(ticker: "CSCO131116P00030000", expiry: new DateTime(1384578000000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 30)
-        Position expiringOtmShortPut = new Position(ticker: "CSCO131116P00022000", expiry: new DateTime(1384578000000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 22)
+        Position expiringOtmShortPut = new Position(ticker: "CSCO131116P00021000", expiry: new DateTime(1384578000000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 21)
         Position nonExpiringShortPut = new Position(ticker: "CSCO131221P00200000", expiry: new DateTime(1387602000000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 20)
         expiringOptionsPort.portfolioPositions.add(expiringItmShortPut)
         expiringOptionsPort.portfolioPositions.add(expiringOtmShortPut)
