@@ -71,7 +71,10 @@ public class Option extends Security {
     *  Yahoo! returns 'There are no All Markets results for [invalid_option]' in the web page of an invalid option quote
     *
     *  Changed on 11/25/13 : 'There are no results for the given search term.'
-    *  */
+    *
+    *  Additional logic 12/2/13 : Some future options will show N/A for all fields and not the
+    *  error message above.
+    */
 
       LOGGER.debug("Entering optionTickerValid(String {})", optionTicker);
       String input;
@@ -79,14 +82,26 @@ public class Option extends Security {
       Scanner yahooScan = new Scanner(yahoo_url.openStream());
       if (!yahooScan.hasNextLine()) {
          yahooScan.close();
-         LOGGER.debug("{} is not a valid option ticker", optionTicker);
+         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
          return false;
       }
       input = yahooScan.useDelimiter("\\A").next();
       yahooScan.close();
-      int from = input.indexOf("There are no");
-      LOGGER.debug("{} is a valid option ticker : {}", optionTicker, (from == -1));
-      return (from == -1);
+      if(input.indexOf("There are no") > 0) {
+         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
+         return false;
+      }
+      int closeIndex = input.indexOf("Prev Close:");
+      int closeFrom = input.indexOf("\">", closeIndex);
+      int closeTo = input.indexOf("</td>", closeFrom);
+      String closePrice = input.substring(closeFrom + 2, closeTo);
+      LOGGER.debug("Prev Close: {}", closePrice);
+      if(closePrice.equals("N/A")) {
+         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
+         return false;
+      }
+      LOGGER.debug("{} is a valid option ticker", optionTicker);
+      return true;
    }
 
       @Override
