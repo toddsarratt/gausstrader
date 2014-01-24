@@ -212,9 +212,9 @@ public class TradingSession {
                if (actionToTake.doSomething) {
                   Option optionToSell = Option.getOption(stock.getTicker(), actionToTake.optionType, actionToTake.monthsOut, currentPrice);
                   if (optionToSell == null) {
+                     stockIterator.remove();
                      LOGGER.info("Cannot find a valid option for {}", stock.getTicker());
                      LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
-                     stockIterator.remove();
                   } else {
                      try {
                         portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", 1, "GFD"));
@@ -393,14 +393,14 @@ public class TradingSession {
    private void writePortfolioToDb() {
       LOGGER.debug("Entering TradingSession.writePortfolioToDb()");
       LOGGER.info("Writing portfolio information to DB");
-      portfolio.endOfDayDbUpdate();
+      portfolio.endOfDayDbWrite();
    }
 
    private void writeClosingPricesToDb() {
       LOGGER.debug("Entering TradingSession.writeClosingPricesToDb()");
       LOGGER.info("Writing closing prices to DB");
       double closingPrice;
-	/*
+	/**
 	 * The last price returned from Yahoo! must be later than market close. 
 	 * Removing yahoo quote delay from previous market close calculation in TradingSession.marketIsOpenToday() 
 	 */

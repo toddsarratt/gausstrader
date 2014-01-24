@@ -552,11 +552,11 @@ public class Portfolio {
       return positionToDeliver;
    }
 
-   void endOfDayDbUpdate() {
-      LOGGER.debug("Entering Portfolio.endOfDayDbUpdate()");
+   void endOfDayDbWrite() {
+      LOGGER.debug("Entering Portfolio.endOfDayDbWrite()");
       try {
-         dbSummaryUpdate();
-         dbPositionsUpdate();
+         endOfDayDbSummaryWrite();
+         endOfDayDbPositionsWrite();
       } catch (SQLException sqle) {
          LOGGER.warn("Database error");
          LOGGER.debug("Caught (SQLException sqle) ", sqle);
@@ -564,7 +564,7 @@ public class Portfolio {
       }
    }
 
-   private void dbSummaryUpdate() throws SQLException {
+   private void endOfDayDbSummaryWrite() throws SQLException {
       if (portfolioInDb()) {
          LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
          updateDbSummary();
@@ -574,7 +574,7 @@ public class Portfolio {
       }
    }
 
-   private void dbPositionsUpdate() throws SQLException {
+   private void endOfDayDbPositionsWrite() throws SQLException {
       Connection dbConnection = dataSource.getConnection();
       ResultSet positionResultSet;
       PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND position_id = ?");

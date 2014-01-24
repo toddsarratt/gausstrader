@@ -97,4 +97,18 @@ public abstract class DBHistoricalPrices {
          LOGGER.debug("Caught (SQLException sqle)", sqle);
       }
    }
+   public static boolean tickerPriceInDb(String ticker) {
+      LOGGER.debug("Entering DBHistoricalPrices.tickerPriceInDb()");
+      try {
+         PreparedStatement summarySqlStatement = dbConnection.prepareStatement("SELECT DISTINCT ticker FROM prices WHERE ticker = ?");
+         summarySqlStatement.setString(1, ticker);
+         LOGGER.debug("Executing SELECT DISTINCT ticker FROM prices WHERE ticker = {}", ticker);
+         ResultSet tickerInDbResultSet = summarySqlStatement.executeQuery();
+         return (tickerInDbResultSet.next());
+      } catch (SQLException sqle) {
+         LOGGER.info("SQLException attempting to find historical price for {}", ticker);
+         LOGGER.debug("Exception", sqle);
+      }
+      return false;
+   }
 }

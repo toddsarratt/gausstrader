@@ -7,9 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 
 /**
  * http://www.gummy-stuff.org/Yahoo-data.htm
@@ -24,6 +24,7 @@ public class GaussTrader {
    protected static final String DB_NAME = "postgres";
    protected static final String DB_USER = "postgres";
    protected static final String DB_PASSWORD = "b3llcurv38";
+   protected static final int YAHOO_RETRIES = 5;
    protected static final double STARTING_CASH = 1_000_000.00;  // Default value for new portfolio
    protected static int bollBandPeriod = 20;
    protected static double bollingerSD1 = 2.0;
@@ -35,6 +36,8 @@ public class GaussTrader {
    private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
 
    static {
+      LOGGER.info("*** START PROGRAM ***");
+      LOGGER.info("Starting GaussTrader at {}", new DateTime());
       /** Set up DB connection. Package classes that need DB access can call GaussTrader.getDataSource() */
       LOGGER.debug("Entering GaussTrader.prepareDatabaseConnection()");
       LOGGER.debug("dataSource.setServerName({})", DB_IP);
@@ -58,8 +61,12 @@ public class GaussTrader {
 
    private static void addTickerlistToTradeableList(ArrayList<String> tickerList, ArrayList<Stock> tradeableStockList) {
       LOGGER.debug("Entering GaussTrader.addTickerlistToTradeableList(ArrayList<String> {}, ArrayList<Stock> {})", tickerList.toString(), tradeableStockList.toString());
+      Iterator<String> tickerIterator = tickerList.iterator();
+      String candidateTicker;
       Stock stockToAdd;
-      for (String candidateTicker : tickerList) {
+      int yahooAttempt = 0;
+      while(tickerIterator.hasNext() && (++yahooAttempt <= GaussTrader.YAHOO_RETRIES)) {
+         candidateTicker = tickerIterator.next();
          try {
             LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
             stockToAdd = new Stock(candidateTicker);
@@ -70,13 +77,10 @@ public class GaussTrader {
             } else {
                tradeableStockList.add(stockToAdd);
             }
-         } catch (MalformedURLException mue) {
-            LOGGER.error("MalformedURLException *** END PROGRAM ***", mue);
-            System.exit(1);
+            tickerIterator.remove();
          } catch (IOException ioe) {
             LOGGER.error("Cannot connect to Yahoo!");
-            LOGGER.error("IOException ioe *** END PROGRAM ***", ioe);
-            System.exit(1);
+            LOGGER.error("IOException ioe", ioe);
          } catch (NumberFormatException nfe) {
             LOGGER.warn("Bad data from Yahoo! for ticker {}", candidateTicker);
             LOGGER.debug("Caught (NumberFormatException nfe)", nfe);
@@ -86,8 +90,6 @@ public class GaussTrader {
 
    public static void main(String[] args) {
       try {
-         LOGGER.info("*** START PROGRAM ***");
-         LOGGER.info("Starting GaussTrader at {}", new DateTime());
          ArrayList<String> tickerList = new ArrayList<>();
          ArrayList<Stock> tradeableStockList = new ArrayList<>();
        /* Add DJIA to list of stocks to track */

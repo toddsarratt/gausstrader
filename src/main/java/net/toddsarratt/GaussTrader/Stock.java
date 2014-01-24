@@ -61,15 +61,18 @@ public class Stock extends Security {
    void populateStockInfo() {
       LOGGER.debug("Entering Stock.populateStockInfo()");
       String[] quoteString;
-      try {
-         quoteString = askYahoo(ticker, "l1d1t1m3m4");
-         price = Double.parseDouble(quoteString[0]);
-         lastPriceUpdateEpoch = jodaLastTickToEpoch(quoteString[1] + " " + quoteString[2]);
-         fiftyDma = Double.parseDouble(quoteString[3]);
-         twoHundredDma = Double.parseDouble(quoteString[4]);
-      } catch (IOException ioe) {
-         LOGGER.info("Could not connect to Yahoo! to populate stock info for {}", ticker);
-         LOGGER.debug("Caught (IOException ioe) ", ioe);
+      for(int yahooAttempt = 1; yahooAttempt <= GaussTrader.YAHOO_RETRIES; yahooAttempt++) {
+         try {
+            quoteString = askYahoo(ticker, "l1d1t1m3m4");
+            price = Double.parseDouble(quoteString[0]);
+            lastPriceUpdateEpoch = jodaLastTickToEpoch(quoteString[1] + " " + quoteString[2]);
+            fiftyDma = Double.parseDouble(quoteString[3]);
+            twoHundredDma = Double.parseDouble(quoteString[4]);
+            return;
+         } catch (IOException ioe) {
+            LOGGER.info("Caught IOException ({}) connecting to Yahoo! to populate stock info for {}", yahooAttempt, ticker);
+            LOGGER.debug("Caught (IOException ioe) ", ioe);
+         }
       }
    }
 
@@ -319,11 +322,19 @@ public class Stock extends Security {
 
    public static String[] askYahoo(String ticker, String arguments) throws IOException {
       LOGGER.debug("Entering Stock.askYahoo(String {}, String {})", ticker, arguments);
-      final URL YAHOO_URL = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
-      BufferedReader br = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
-      String[] yahooResults = br.readLine().replaceAll("[\"+%]", "").split("[,]");
-      LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
-      return yahooResults;
+      try {
+         final URL YAHOO_URL = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
+         for(int yahooAttempt = 1; yahooAttempt <= GaussTrader.YAHOO_RETRIES; yahooAttempt++) {
+            BufferedReader br = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
+            String[] yahooResults = br.readLine().replaceAll("[\"+%]", "").split("[,]");
+            LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
+            return yahooResults;
+         }
+      } catch(IOException ioe) {
+         LOGGER.info("Caught IOException attempting Yahoo ticker validity check {}", ticker);
+         LOGGER.debug("Caught (IOException ioe)", ioe);
+      }
+      throw new IOException();
    }
 
    double lastTick() {
@@ -402,10 +413,21 @@ public class Stock extends Security {
    public long getLastPriceUpdateEpoch() {
       return lastPriceUpdateEpoch;
    }
-
-   public boolean tickerValid() throws IOException {
+   public boolean tickerValidDb() {
+      return DBHistoricalPrices.tickerPriceInDb(ticker);
+   }
+   public boolean tickerValidYahoo() {
+      try {
+         return askYahoo(ticker, "e1")[0].equals("N/A");
+      } catch(IOException ioe) {
+         LOGGER.info("Could not connect to Yahoo! to verify ticker {} validity", ticker);
+         LOGGER.debug("Caught exception ", ioe);
+      }
+      return false;
+   }
+   public boolean tickerValid() {
       if (tickerValid == null) {
-         return (tickerValid = askYahoo(ticker, "e1")[0].equals("N/A"));
+         return(tickerValid = (tickerValidDb() || tickerValidYahoo()));
       }
       return tickerValid;
    }
