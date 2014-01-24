@@ -24,7 +24,7 @@ public class GaussTrader {
    protected static final String DB_NAME = "postgres";
    protected static final String DB_USER = "postgres";
    protected static final String DB_PASSWORD = "b3llcurv38";
-   protected static final int YAHOO_RETRIES = 5;
+   protected static final int YAHOO_RETRIES = 5;                // Number of ties to retry Yahoo connections
    protected static final double STARTING_CASH = 1_000_000.00;  // Default value for new portfolio
    protected static int bollBandPeriod = 20;
    protected static double bollingerSD1 = 2.0;
