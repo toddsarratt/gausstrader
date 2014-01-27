@@ -414,9 +414,11 @@ public class Stock extends Security {
       return lastPriceUpdateEpoch;
    }
    public boolean tickerValidDb() {
+      LOGGER.debug("Entering Stock.tickerValidDb()");
       return DBHistoricalPrices.tickerPriceInDb(ticker);
    }
    public boolean tickerValidYahoo() {
+      LOGGER.debug("Entering Stock.tickerValidYahoo()");
       try {
          return askYahoo(ticker, "e1")[0].equals("N/A");
       } catch(IOException ioe) {
@@ -426,6 +428,7 @@ public class Stock extends Security {
       return false;
    }
    public boolean tickerValid() {
+      LOGGER.debug("Entering Stock.tickerValid()");
       if (tickerValid == null) {
          return(tickerValid = (tickerValidDb() || tickerValidYahoo()));
       }

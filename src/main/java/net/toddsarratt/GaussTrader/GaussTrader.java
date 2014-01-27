@@ -9,7 +9,6 @@ import javax.sql.DataSource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 
 /**
  * http://www.gummy-stuff.org/Yahoo-data.htm
@@ -61,23 +60,18 @@ public class GaussTrader {
 
    private static void addTickerlistToTradeableList(ArrayList<String> tickerList, ArrayList<Stock> tradeableStockList) {
       LOGGER.debug("Entering GaussTrader.addTickerlistToTradeableList(ArrayList<String> {}, ArrayList<Stock> {})", tickerList.toString(), tradeableStockList.toString());
-      Iterator<String> tickerIterator = tickerList.iterator();
-      String candidateTicker;
       Stock stockToAdd;
-      int yahooAttempt = 0;
-      while(tickerIterator.hasNext() && (++yahooAttempt <= GaussTrader.YAHOO_RETRIES)) {
-         candidateTicker = tickerIterator.next();
+      for(String candidateTicker : tickerList) {
          try {
-            LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
             stockToAdd = new Stock(candidateTicker);
             if (!stockToAdd.tickerValid()) {
-               LOGGER.warn("Ticker {} invalid", candidateTicker);
+               LOGGER.warn("Ticker {} invalid. Removing from candidate ticker list.", candidateTicker);
             } else if (stockToAdd.getBollingerBand(0) <= 0.00) {
-               LOGGER.warn("Failed to calculate valid Bollinger Bands for {}", candidateTicker);
+               LOGGER.warn("Failed to calculate valid Bollinger Bands for {}. Removing from candidate ticker list.", candidateTicker);
             } else {
                tradeableStockList.add(stockToAdd);
+               LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
             }
-            tickerIterator.remove();
          } catch (IOException ioe) {
             LOGGER.error("Cannot connect to Yahoo!");
             LOGGER.error("IOException ioe", ioe);
@@ -99,9 +93,7 @@ public class GaussTrader {
 	    /* Adding AAPL for Bill */
          tickerList.add("AAPL");
          LOGGER.debug("tickerList.size() = {}", tickerList.size());
-
          addTickerlistToTradeableList(tickerList, tradeableStockList);
-
          LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolioName);
          TradingSession todaysSession = new TradingSession(new Portfolio(portfolioName), tradeableStockList);
          todaysSession.runTradingDay();
