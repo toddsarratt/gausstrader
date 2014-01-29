@@ -68,7 +68,7 @@ public class Stock extends Security {
          fiftyDma = Double.parseDouble(quoteString[3]);
          twoHundredDma = Double.parseDouble(quoteString[4]);
       } catch (IOException ioe) {
-         LOGGER.info("Caught IOException connecting to Yahoo! to populate stock info for {}", ticker);
+         LOGGER.warn("Caught IOException connecting to Yahoo! to populate stock info for {}", ticker);
          LOGGER.debug("Caught (IOException ioe) ", ioe);
       }
    }
@@ -116,7 +116,7 @@ public class Stock extends Security {
                   }
                }
             } catch (IOException ioe) {
-               LOGGER.info("Could not connect to Yahoo! to get historical prices");
+               LOGGER.warn("Could not connect to Yahoo! to get historical prices");
                LOGGER.debug("Caught (IOException ioe) {}", ioe);
             }
          } else {
@@ -327,7 +327,7 @@ public class Stock extends Security {
             LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
             return yahooResults;
          } catch(IOException ioe) {
-            LOGGER.info("Attempt {} : Caught IOException to Yahoo! with args {} for ticker {}", yahooAttempt, arguments, ticker);
+            LOGGER.warn("Attempt {} : Caught IOException to Yahoo! with args {} for ticker {}", yahooAttempt, arguments, ticker);
             LOGGER.debug("Caught (IOException ioe)", ioe);
          }
       }
@@ -419,7 +419,7 @@ public class Stock extends Security {
       try {
          return askYahoo(ticker, "e1")[0].equals("N/A");
       } catch(IOException ioe) {
-         LOGGER.info("Could not connect to Yahoo! to verify ticker {} validity", ticker);
+         LOGGER.warn("Could not connect to Yahoo! to verify ticker {} validity", ticker);
          LOGGER.debug("Caught exception ", ioe);
       }
       return false;

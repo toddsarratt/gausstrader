@@ -134,22 +134,25 @@ public class Option extends Security {
    public static double lastTick(String ticker) throws IOException {
       String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-      Scanner yahooScan = new Scanner(yahoo_url.openStream());
-      if (!yahooScan.hasNextLine()) {
+      for(int attempt = 1; attempt <= GaussTrader.YAHOO_RETRIES; attempt++) {
+         Scanner yahooScan = new Scanner(yahoo_url.openStream());
+         if (!yahooScan.hasNextLine()) {
+            yahooScan.close();
+            return -1.0;
+         }
+         input = yahooScan.useDelimiter("\\A").next();
          yahooScan.close();
-         return -1.0;
-      }
-      input = yahooScan.useDelimiter("\\A").next();
-      yahooScan.close();
-      int tickerIndex = input.indexOf("time_rtq_ticker", 0);
-      int from = input.indexOf("<span", tickerIndex);
-      from = input.indexOf(">", from + 4);
-      int toIndex = input.indexOf("</span>", from);
-      String tickPrice = input.substring(from + 1, toIndex);
-      try {
-         return Double.parseDouble(tickPrice);
-      } catch(NumberFormatException nfe) {
-         LOGGER.debug("Caught NumberFormatException", nfe);
+         int tickerIndex = input.indexOf("time_rtq_ticker", 0);
+         int from = input.indexOf("<span", tickerIndex);
+         from = input.indexOf(">", from + 4);
+         int toIndex = input.indexOf("</span>", from);
+         String tickPrice = input.substring(from + 1, toIndex);
+         try {
+            return Double.parseDouble(tickPrice);
+         } catch(NumberFormatException nfe) {
+            LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, tickPrice, ticker);
+            LOGGER.debug("Caught NumberFormatException", nfe);
+         }
       }
       return -1.0;
    }
