@@ -38,4 +38,50 @@ public class OptionExpiryReconcile {
         assertEquals(expiringOptionsPort.numberOfOpenPutShorts(cisco), 1)
         assertEquals(expiringOptionsPort.numberOfOpenStockLongs(cisco), 1)
     }
+    @Test
+    public void testPortfolioExerciseExpiredOptions() {
+        Stock cisco = new Stock("CSCO")
+        Portfolio expiredOptionsPortfolio = new Portfolio("expiredOptionsPortfolio", 1_000_000.00)
+        Position nonExpiredShortCall = new Position(
+                ticker: "CSCO200118C00022000",
+                expiry: new DateTime(2020, 1, 18, 16, 20, DateTimeZone.forID("America/New_York")),
+                underlyingTicker: "CSCO",
+                secType: "CALL",
+                strikePrice: 22)
+        Position expiredItmShortCall = new Position(
+                ticker: "CSCO140118C00022000",
+                expiry: new DateTime(1390021200000, DateTimeZone.forID("America/New_York")),
+                underlyingTicker: "CSCO",
+                secType: "CALL",
+                strikePrice: 22)
+        Position longCiscoStock = new Position(ticker: "CSCO",
+                secType: "STOCK",
+                underlyingTicker: "CSCO",
+                numberTransacted: 100,
+                longPosition: true,
+                priceAtOpen: 22,
+                costBasis: 2200
+                )
+        expiredOptionsPortfolio.portfolioPositions.add(expiredItmShortCall)
+        expiredOptionsPortfolio.portfolioPositions.add(nonExpiredShortCall)
+        expiredOptionsPortfolio.portfolioPositions.add(longCiscoStock)
+
+        assertEquals(expiredOptionsPortfolio.getListOfOpenPositions().size(), 3)
+        assertEquals(expiredOptionsPortfolio.getListOfOpenOptionPositions().size(), 2)
+        assertEquals(expiredOptionsPortfolio.numberOfOpenCallShorts(cisco), 2)
+        assertEquals(expiredOptionsPortfolio.numberOfOpenStockLongs(cisco), 1)
+        assertEquals(expiredOptionsPortfolio.freeCash.doubleValue(), 1_000_000.00, 0.01)
+        assertEquals(expiredOptionsPortfolio.reservedCash.doubleValue(), 0.00, 0.01)
+
+        assertTrue(expiredItmShortCall.isExpired())
+        assertFalse(nonExpiredShortCall.isExpired())
+        expiredOptionsPortfolio.reconcileExpiredOptionPosition(expiredItmShortCall)
+
+        assertEquals(expiredOptionsPortfolio.getListOfOpenPositions().size(), 1)
+        assertEquals(expiredOptionsPortfolio.getListOfOpenOptionPositions().size(), 1)
+        assertEquals(expiredOptionsPortfolio.numberOfOpenCallShorts(cisco), 1)
+        assertEquals(expiredOptionsPortfolio.numberOfOpenStockLongs(cisco), 0)
+        assertEquals(expiredOptionsPortfolio.freeCash.doubleValue(), 1_002_200.0, 0.01)
+        assertEquals(expiredOptionsPortfolio.reservedCash.doubleValue(), 0.0, 0.01)
+    }
 }

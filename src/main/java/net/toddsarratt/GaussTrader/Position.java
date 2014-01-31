@@ -288,6 +288,10 @@ public class Position {
       claimAgainstCash = requiredCash;
    }
 
+    public boolean isExpired() {
+      return expiry.isBeforeNow();
+   }
+
    /* Position.claimAgainstCash() is a bit disingenuous. Selling an option or shorting a stock
     * could result in an infinite liability. Only calculating for selling a put which has
     * a fixed obligation.

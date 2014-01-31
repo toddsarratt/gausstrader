@@ -37,7 +37,10 @@ public class CashFlowTestForNewOrder {
 
       testPortfolio.fillOrder(sellPutOrder, 1.05);
 
-      assertEquals(System.currentTimeMillis(), sellPutOrder.getEpochClosed(), 100_000);
+      /** Delta (last argument) should exceed expected test completion time (in ms)
+       * Testing on 1/31/14 took 249s
+      */
+      assertEquals(System.currentTimeMillis(), sellPutOrder.getEpochClosed(), 500_000);
       assertEquals("FILLED", sellPutOrder.getCloseReason());
       assertEquals(testPortfolio.getFreeCash(), 990_105.00);
       assertEquals(testPortfolio.getReservedCash(), 10_000.00);

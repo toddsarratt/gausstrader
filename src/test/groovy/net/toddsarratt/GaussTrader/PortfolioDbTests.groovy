@@ -57,7 +57,8 @@ class PortfolioDbTests {
 
     @Test
     public void testDbReadWritePosition() {
-        def testPositionToInsert = new Position(ticker: "TESTINSERT", underlyingTicker: "TESTME", strikePrice: 500.0, longPosition: false, numberTransacted: 10, secType: "CALL", priceAtOpen: 1.50)
+        def testPositionToInsert = new Position(ticker: "TESTINSERT", underlyingTicker: "TESTME", strikePrice: 500.0,
+                longPosition: false, numberTransacted: 10, secType: "CALL", priceAtOpen: 1.50, expiry : new DateTime(2020, 1, 1, 0, 0, 0, DateTimeZone.forID("America/New_York")))
         testPortfolio.insertDbPosition(testPositionToInsert)
         testPortfolio.getDbPortfolioPositions()
         def testPositionFromDb = testPortfolio.portfolioPositions.find {

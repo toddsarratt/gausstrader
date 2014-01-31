@@ -2,10 +2,12 @@ package net.toddsarratt.GaussTrader;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.MutableDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -104,8 +106,12 @@ public class Portfolio {
       ResultSet openPositionsResultSet = positionSqlStatement.executeQuery();
       while (openPositionsResultSet.next()) {
          portfolioPositionEntry = dbToPortfolioPosition(openPositionsResultSet);
-         LOGGER.debug("Adding {} {}", portfolioPositionEntry.getPositionId(), portfolioPositionEntry.getTicker());
-         portfolioPositions.add(portfolioPositionEntry);
+         if(portfolioPositionEntry.isExpired()) {
+            reconcileExpiredOptionPosition(portfolioPositionEntry);
+         } else {
+            LOGGER.debug("Adding {} {}", portfolioPositionEntry.getPositionId(), portfolioPositionEntry.getTicker());
+            portfolioPositions.add(portfolioPositionEntry);
+         }
       }
    }
 
@@ -419,6 +425,30 @@ public class Portfolio {
       } catch (SQLException sqle) {
          LOGGER.warn("Error writing to database filling order {} with position {}", orderToFill.getOrderId(), positionTakenByOrder.getPositionId());
          LOGGER.debug("Caught (SQLException sqle)", sqle);
+      }
+   }
+
+   private void reconcileExpiredOptionPosition(Position expiredOptionPosition) {
+      MutableDateTime expiryFriday = new MutableDateTime(expiredOptionPosition.getExpiry());
+      expiryFriday.addDays(-1);
+      expiryFriday.setMillisOfDay((16 * 60 + 20) * 60 * 1000);
+      for(int attempts = 1; attempts <= GaussTrader.YAHOO_RETRIES; attempts++) {
+         try {
+            double expirationPrice = YahooFinance.getHistoricalClosingPrice(expiredOptionPosition.getUnderlyingTicker(), expiryFriday);
+            if (expiredOptionPosition.isPut() &&
+               (expirationPrice <= expiredOptionPosition.getStrikePrice())) {
+               exerciseOption(expiredOptionPosition);
+            } else if (expiredOptionPosition.isCall() &&
+               (expirationPrice >= expiredOptionPosition.getStrikePrice())) {
+               exerciseOption(expiredOptionPosition);
+            } else {
+               expireOptionPosition(expiredOptionPosition);
+            }
+            return;
+         } catch(IOException ioe) {
+            LOGGER.warn("Attempt {} to get historical price for expired option position {} failed", attempts, expiredOptionPosition.getPositionId());
+            LOGGER.debug("Caught exception", ioe);
+         }
       }
    }
 

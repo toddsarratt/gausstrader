@@ -104,7 +104,7 @@ public class Stock extends Security {
          priceRangeToDownload = getMissingPriceDateRange();
          if (!priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant())) {
             try {
-               retrievedYahooPriceMap = retrieveYahooHistoricalPrices(priceRangeToDownload);
+               retrievedYahooPriceMap = YahooFinance.retrieveYahooHistoricalPrices(this.ticker, priceRangeToDownload);
                for (long epochToCheck : historicalPriceMap.keySet()) {
                   if (historicalPriceMap.get(epochToCheck) < 0.00) {
                      if (retrievedYahooPriceMap.containsKey(epochToCheck)) {
@@ -279,37 +279,6 @@ public class Stock extends Security {
   return dateTimeEasternTZ.getMillis();
   }
    */
-   private String createYahooHistUrl(MissingPriceDateRange dateRange) {
-	/* http://ichart.finance.yahoo.com/table.csv?s=INTC&a=11&b=1&c=2012&d=00&e=21&f=2013&g=d&ignore=.csv 
-	 * where month January = 00 
-	 */
-      LOGGER.debug("Entering Stock.createYahooHistUrl(MissingPriceDateRange dateRange)");
-      StringBuilder yahooPriceArgs = new StringBuilder("http://ichart.finance.yahoo.com/table.csv?s=");
-      yahooPriceArgs.append(ticker).append("&a=").append(dateRange.earliest.getMonthOfYear() - 1).append("&b=").append(dateRange.earliest.getDayOfMonth());
-      yahooPriceArgs.append("&c=").append(dateRange.earliest.getYear()).append("&d=").append(dateRange.latest.getMonthOfYear() - 1);
-      yahooPriceArgs.append("&e=").append(dateRange.latest.getDayOfMonth()).append("&f=").append(dateRange.latest.getYear());
-      yahooPriceArgs.append("&g=d&ignore=.csv");
-      LOGGER.debug("yahooPriceArgs = {}", yahooPriceArgs);
-      return yahooPriceArgs.toString();
-   }
-
-   private LinkedHashMap<Long, Double> retrieveYahooHistoricalPrices(MissingPriceDateRange dateRange) throws IOException {
-      LOGGER.debug("Entering Stock.retrieveYahooHistoricalPrices(MissingPriceDateRange dateRange)");
-      LinkedHashMap<Long, Double> yahooPriceReturns = new LinkedHashMap<>();
-      String inputLine;
-      final URL YAHOO_URL = new URL(createYahooHistUrl(dateRange));
-      BufferedReader yahooBufferedReader = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
-	/* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" */
-      LOGGER.debug(yahooBufferedReader.readLine().replace("Date,", "Date         ").replaceAll(",", "    "));
-      while ((inputLine = yahooBufferedReader.readLine()) != null) {
-         String[] yahooLine = inputLine.replaceAll("[\"+%]", "").split("[,]");
-         LOGGER.debug(Arrays.toString(yahooLine));
-         HistoricalPrice yahooHistPrice = new HistoricalPrice(yahooLine[0], yahooLine[6]);
-         yahooPriceReturns.put(yahooHistPrice.getDateEpoch(), yahooHistPrice.getAdjClose());
-      }
-      return yahooPriceReturns;
-   }
-
 
    //	public void addDividend(Dividend dividendPayment) {
     /* http://ichart.finance.yahoo.com/table.csv?s=INTC&a=11&b=1&c=2011&d=00&e=21&f=2013&g=v&ignore=.csv */
