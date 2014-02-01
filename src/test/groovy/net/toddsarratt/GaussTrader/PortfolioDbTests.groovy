@@ -59,11 +59,16 @@ class PortfolioDbTests {
     public void testDbReadWritePosition() {
         def testPositionToInsert = new Position(ticker: "TESTINSERT", underlyingTicker: "TESTME", strikePrice: 500.0,
                 longPosition: false, numberTransacted: 10, secType: "CALL", priceAtOpen: 1.50, expiry : new DateTime(2020, 1, 1, 0, 0, 0, DateTimeZone.forID("America/New_York")))
+
         testPortfolio.insertDbPosition(testPositionToInsert)
         testPortfolio.getDbPortfolioPositions()
         def testPositionFromDb = testPortfolio.portfolioPositions.find {
             position -> position.getPositionId() == testPositionToInsert.getPositionId()
         }
+        /** Verify that variables are not referencing the same object
+         * assertEquals that follows verifies that all properties are equal, verifying integrity of data through
+         * inserting and reading from database.
+         */
         assertNotSame testPositionFromDb, testPositionToInsert
         List<MetaProperty> groovyProperties = Position.metaClass.properties
         groovyProperties.each {
@@ -74,10 +79,23 @@ class PortfolioDbTests {
     }
 
     @Test
+    public void testDbReadExpiredPosition() {
+        def expiredOptionPosition = new Position(ticker: "TESTINSERT", underlyingTicker: "TESTME", strikePrice: 500.0,
+                longPosition: false, numberTransacted: 10, secType: "CALL", priceAtOpen: 1.50, expiry : new DateTime(2010, 1, 1, 0, 0, 0, DateTimeZone.forID("America/New_York")))
+        testPortfolio.insertDbPosition(expiredOptionPosition)
+        testPortfolio.getDbPortfolioPositions()
+        def expiredPositionFromDb = testPortfolio.portfolioPositions.find {
+            position -> position.getPositionId() == expiredOptionPosition.getPositionId()
+        }
+        /* Expired position will not be read in by getDbPortfolioPositions() and so will be null */
+        assertNull expiredPositionFromDb
+    }
+/* TODO : These tests
+    @Test
     public void testDbSummaryUpdate() {
-
     }
 
     @Test
     public void testDbPositionsUpdates() {}
+ */
 }

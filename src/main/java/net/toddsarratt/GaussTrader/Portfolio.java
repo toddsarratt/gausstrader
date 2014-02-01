@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -107,6 +108,7 @@ public class Portfolio {
       while (openPositionsResultSet.next()) {
          portfolioPositionEntry = dbToPortfolioPosition(openPositionsResultSet);
          if(portfolioPositionEntry.isExpired()) {
+            LOGGER.warn("Position {} read from the database has expired", portfolioPositionEntry.getTicker());
             reconcileExpiredOptionPosition(portfolioPositionEntry);
          } else {
             LOGGER.debug("Adding {} {}", portfolioPositionEntry.getPositionId(), portfolioPositionEntry.getTicker());
@@ -444,6 +446,10 @@ public class Portfolio {
             } else {
                expireOptionPosition(expiredOptionPosition);
             }
+            return;
+         } catch(FileNotFoundException fnfe) {
+            LOGGER.warn("File not found exception from Yahoo! indicating invalid ticker. Returning from method.");
+            LOGGER.debug("Caught exception", fnfe);
             return;
          } catch(IOException ioe) {
             LOGGER.warn("Attempt {} to get historical price for expired option position {} failed", attempts, expiredOptionPosition.getPositionId());

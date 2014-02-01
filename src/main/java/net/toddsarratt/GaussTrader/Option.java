@@ -152,6 +152,10 @@ public class Option extends Security {
          } catch(NumberFormatException nfe) {
             LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, tickPrice, ticker);
             LOGGER.debug("Caught NumberFormatException", nfe);
+            if( (attempt == 1) && (!Option.optionTickerValid(ticker)) ) {
+               LOGGER.warn("Option ticker {} is invalid. ");
+               return -1.0;
+            }
          }
       }
       return -1.0;
