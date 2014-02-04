@@ -31,12 +31,14 @@ public class Position {
    private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
 
    Position() {
+      LOGGER.debug("Entering Position default constructor");
       positionId = GaussTrader.getNewId();
       epochOpened = System.currentTimeMillis();
       open = true;
    }
 
    Position(Order orderToFill, double priceAtOpen) {
+      LOGGER.debug("Entering Position constructor Position(Order {}, prica {})", orderToFill.getOrderId(), priceAtOpen);
       positionId = GaussTrader.getNewId();
       originatingOrderId = orderToFill.getOrderId();
       open = true;
@@ -289,7 +291,10 @@ public class Position {
    }
 
     public boolean isExpired() {
-      return expiry.isBeforeNow();
+       if(isOption()) {
+          return expiry.isBeforeNow();
+       }
+       return false;
    }
 
    /* Position.claimAgainstCash() is a bit disingenuous. Selling an option or shorting a stock

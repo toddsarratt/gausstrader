@@ -1,10 +1,9 @@
 package net.toddsarratt.GaussTrader
-
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.testng.annotations.Test
-import static org.testng.Assert.*;
 
+import static org.testng.Assert.*
 /**
  * Created with IntelliJ IDEA.
  * User: tsarratt
@@ -83,5 +82,34 @@ public class OptionExpiryReconcile {
         assertEquals(expiredOptionsPortfolio.numberOfOpenStockLongs(cisco), 0)
         assertEquals(expiredOptionsPortfolio.freeCash.doubleValue(), 1_002_200.0, 0.01)
         assertEquals(expiredOptionsPortfolio.reservedCash.doubleValue(), 0.0, 0.01)
+    }
+    /* Tried to expire a stock position. Verify this now fails */
+    @Test
+    public void testPortfolioExpireOptionFailsAgainstStock() {
+        Stock cisco = new Stock("CSCO")
+        Portfolio oneStockPortfolio = new Portfolio("oneStockPortfolio", 1_000.00)
+        Position longCiscoStock = new Position(ticker: "CSCO",
+                secType: "STOCK",
+                underlyingTicker: "CSCO",
+                numberTransacted: 100,
+                longPosition: true,
+                priceAtOpen: 22,
+                costBasis: 2200
+        )
+        oneStockPortfolio.portfolioPositions.add(longCiscoStock)
+        assertEquals(oneStockPortfolio.getListOfOpenPositions().size(), 1)
+        assertEquals(oneStockPortfolio.getListOfOpenOptionPositions().size(), 0)
+        assertEquals(oneStockPortfolio.numberOfOpenCallShorts(cisco), 0)
+        assertEquals(oneStockPortfolio.numberOfOpenStockLongs(cisco), 1)
+        assertEquals(oneStockPortfolio.freeCash, 1_000.00, 0.01)
+        assertEquals(oneStockPortfolio.reservedCash, 0.0, 0.01)
+
+        oneStockPortfolio.expireOptionPosition(longCiscoStock)
+        assertEquals(oneStockPortfolio.getListOfOpenPositions().size(), 1)
+        assertEquals(oneStockPortfolio.getListOfOpenOptionPositions().size(), 0)
+        assertEquals(oneStockPortfolio.numberOfOpenCallShorts(cisco), 0)
+        assertEquals(oneStockPortfolio.numberOfOpenStockLongs(cisco), 1)
+        assertEquals(oneStockPortfolio.freeCash, 1_000.00, 0.01)
+        assertEquals(oneStockPortfolio.reservedCash, 0.0, 0.01)
     }
 }

@@ -53,6 +53,7 @@ public class Portfolio {
 
    @SuppressWarnings("WeakerAccess")
    Portfolio(String portfolioName, double startingCash) {
+      LOGGER.debug("Entering Portfolio constructor Portfolio(String {})", portfolioName);
       this.name = portfolioName;
       this.freeCash = startingCash;
       try {
@@ -78,12 +79,14 @@ public class Portfolio {
    }
 
    void getDbPortfolio() throws SQLException {
+      LOGGER.debug("Entering Portfolio.getDbPortfolio()");
       getDbPortfolioSummary();
       getDbPortfolioPositions();
       getDbPortfolioOrders();
    }
 
    void getDbPortfolioSummary() throws SQLException {
+      LOGGER.debug("Entering Portfolio.getDbPortfolioSummary()");
       Connection dbConnection = dataSource.getConnection();
       PreparedStatement portfolioSummaryStatement = dbConnection.prepareStatement("SELECT * FROM portfolios WHERE name = ?");
       portfolioSummaryStatement.setString(1, name);
@@ -99,6 +102,7 @@ public class Portfolio {
    }
 
    void getDbPortfolioPositions() throws SQLException {
+      LOGGER.debug("Entering Portfolio.getDbPortfolioPositions()");
       Connection dbConnection = dataSource.getConnection();
       Position portfolioPositionEntry;
       PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND open = true");
@@ -118,6 +122,7 @@ public class Portfolio {
    }
 
    void getDbPortfolioOrders() throws SQLException {
+      LOGGER.debug("Entering Portfolio.getDbPortfolioOrders()");
       Connection dbConnection = dataSource.getConnection();
       Order portfolioOrderEntry;
       PreparedStatement orderSqlStatement = dbConnection.prepareStatement("SELECT * FROM orders WHERE portfolio = ? AND open = true");
@@ -564,6 +569,10 @@ public class Portfolio {
 
    void expireOptionPosition(Position optionPositionToExercise) {
       LOGGER.debug("Entering Portfolio.expireOptionPosition(Position {})", optionPositionToExercise.getPositionId());
+      if(optionPositionToExercise.isStock()) {
+         LOGGER.warn("Attempted to expire a stock position");
+         return;
+      }
       freeCash += optionPositionToExercise.getClaimAgainstCash();
       reservedCash -= optionPositionToExercise.getClaimAgainstCash();
       optionPositionToExercise.close(0.00);
@@ -611,6 +620,7 @@ public class Portfolio {
    }
 
    private void endOfDayDbPositionsWrite() throws SQLException {
+      LOGGER.debug("Entering Portfolio.endOfDayDbPositionsWrite()");
       Connection dbConnection = dataSource.getConnection();
       ResultSet positionResultSet;
       PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND position_id = ?");

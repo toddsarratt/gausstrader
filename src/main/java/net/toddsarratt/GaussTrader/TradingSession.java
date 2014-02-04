@@ -31,19 +31,15 @@ public class TradingSession {
    private static final PriceBasedAction DO_NOTHING_PRICE_BASED_ACTION = new PriceBasedAction(false, "", 0);
    private ArrayList<Stock> stockList = null;
    private Portfolio portfolio = null;
-   /* Hard coded closed and early closure trading days : http://www.nyx.com/en/holidays-and-hours/nyse?sa_campaign=/internal_ads/homepage/08262008holidays */
-   static final Integer[] JULIAN_HOLIDAYS_2013 = {1, 21, 49, 88, 147, 185, 245, 332, 359};
+   /* Hard coded closed and early closure trading days : http://www.nyx.com/en/holidays-and-hours/nyse */
    static final Integer[] JULIAN_HOLIDAYS_2014 = {1, 20, 48, 108, 146, 185, 244, 331, 359};
    private static final ImmutableMap<Integer, List<Integer>> HOLIDAY_MAP =
       ImmutableMap.<Integer, List<Integer>>builder()
-         .put(2013, Arrays.asList(JULIAN_HOLIDAYS_2013))
          .put(2014, Arrays.asList(JULIAN_HOLIDAYS_2014))
          .build();
-   static final Integer[] JULIAN_1PM_CLOSE_2013 = {184, 333, 358};
    static final Integer[] JULIAN_1PM_CLOSE_2014 = {184, 332, 358};
    private static final ImmutableMap<Integer, List<Integer>> EARLY_CLOSE_MAP =
       ImmutableMap.<Integer, List<Integer>>builder()
-         .put(2013, Arrays.asList(JULIAN_1PM_CLOSE_2013))
          .put(2014, Arrays.asList(JULIAN_1PM_CLOSE_2014))
          .build();
    private static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
