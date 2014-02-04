@@ -162,23 +162,34 @@ public class Option extends Security {
    }
 
    double lastBid() throws IOException {
-        /* reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
+      /* reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
       String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-      Scanner yahooScan = new Scanner(yahoo_url.openStream());
-      if (!yahooScan.hasNextLine()) {
+      for(int attempt = 1; attempt <= GaussTrader.YAHOO_RETRIES; attempt++) {
+         Scanner yahooScan = new Scanner(yahoo_url.openStream());
+         if (!yahooScan.hasNextLine()) {
+            yahooScan.close();
+            return -1.0;
+         }
+         input = yahooScan.useDelimiter("\\A").next();
          yahooScan.close();
-         return -1.0;
+         int yahooBid = input.indexOf("Bid:", 0);
+         int from = input.indexOf("<span", yahooBid);
+         from = input.indexOf(">", from + 4);
+         int to = input.indexOf("</span>", from);
+         String bidPrice = input.substring(from + 1, to);
+         try {
+            return Double.parseDouble(bidPrice);
+         } catch(NumberFormatException nfe) {
+            LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, bidPrice, ticker);
+            LOGGER.debug("Caught NumberFormatException", nfe);
+            if( (attempt == 1) && (!Option.optionTickerValid(ticker)) ) {
+               LOGGER.warn("Option ticker {} is invalid. ");
+               return -1.0;
+            }
+         }
       }
-      input = yahooScan.useDelimiter("\\A").next();
-      yahooScan.close();
-      int yahooBid = input.indexOf("Bid:", 0);
-      int from = input.indexOf("<span", yahooBid);
-      from = input.indexOf(">", from + 4);
-      int to = input.indexOf("</span>", from);
-      String bidPrice = input.substring(from + 1, to);
-      price = Double.parseDouble(bidPrice);
-      return price;
+      return -1.0;
    }
 
    double lastAsk() throws IOException {
