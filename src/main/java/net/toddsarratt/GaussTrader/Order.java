@@ -270,6 +270,9 @@ class Order {
    }
 
    public boolean canBeFilled(double lastTick) {
+      if(lastTick < 0.00) {
+         return false;
+      }
       return (isLong() && (lastTick <= limitPrice)) || (isShort() && (lastTick >= limitPrice));
    }
 

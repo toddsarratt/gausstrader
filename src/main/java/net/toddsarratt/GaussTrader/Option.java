@@ -128,6 +128,11 @@ public class Option extends Security {
          from = input.indexOf(">", from + 4);
          int toIndex = input.indexOf("</span>", from);
          String tickPrice = input.substring(from + 1, toIndex);
+         LOGGER.debug("Option.lastTick() received last tick from Yahoo! of {}", tickPrice);
+         if(!YahooFinance.isNumeric(tickPrice)) {
+            LOGGER.warn("Option.lastTick received invalid value from Yahoo!");
+            return -1.0;
+         }
          price = Double.parseDouble(tickPrice);
          return price;
       } catch (IOException ioe) {
@@ -159,7 +164,7 @@ public class Option extends Security {
             LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, tickPrice, ticker);
             LOGGER.debug("Caught NumberFormatException", nfe);
             if( (attempt == 1) && (!Option.optionTickerValid(ticker)) ) {
-               LOGGER.warn("Option ticker {} is invalid. ");
+               LOGGER.warn("Option ticker {} is invalid. ", ticker);
                return -1.0;
             }
          }

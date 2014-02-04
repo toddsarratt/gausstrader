@@ -237,7 +237,7 @@ public class TradingSession {
       for (Order openOrder : portfolio.getListOfOpenOrders()) {
          LOGGER.debug("Checking current open orderId {} for ticker {}", openOrder.getOrderId(), openOrder.getTicker());
          try {
-		/* This code sucks. Should be able to replace if / else with Security.lastTick(ticker) */
+		/** TODO : Replace if / else with Security.lastTick(ticker) */
             if (openOrder.isOption()) {
                lastTick = Option.lastTick(openOrder.getTicker());
             } else {
