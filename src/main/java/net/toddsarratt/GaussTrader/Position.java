@@ -38,7 +38,7 @@ public class Position {
    }
 
    Position(Order orderToFill, double priceAtOpen) {
-      LOGGER.debug("Entering Position constructor Position(Order {}, prica {})", orderToFill.getOrderId(), priceAtOpen);
+      LOGGER.debug("Entering Position constructor Position(Order {}, price {})", orderToFill.getOrderId(), priceAtOpen);
       positionId = GaussTrader.getNewId();
       originatingOrderId = orderToFill.getOrderId();
       open = true;

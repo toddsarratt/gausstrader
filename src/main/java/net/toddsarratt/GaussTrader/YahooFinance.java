@@ -61,4 +61,8 @@ public class YahooFinance {
       LOGGER.debug("Comparing against {}", expiryFriday.getMillis());
       return retrieveYahooHistoricalPrices(ticker, closingMpdr).get(expiryFriday.getMillis());
    }
+   /** Source : http://stackoverflow.com/questions/1102891/how-to-check-if-a-string-is-a-numeric-type-in-java */
+   public static boolean isNumeric(String stringToCheck) {
+      return stringToCheck.matches("-?\\d+(\\.\\d+)?");  //match a number with optional '-' and decimal.
+   }
 }

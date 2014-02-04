@@ -74,9 +74,11 @@ public class Option extends Security {
     *
     *  Additional logic 12/2/13 : Some future options will show N/A for all fields and not the
     *  error message above.
+    *
+    *  Change 2/4/14 : Wrote YahooFinance.isNumeric(String) to handle bad Yahoo! responses
     */
 
-      LOGGER.debug("Entering optionTickerValid(String {})", optionTicker);
+      LOGGER.debug("Entering Option.optionTickerValid(String {})", optionTicker);
       String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + optionTicker);
       Scanner yahooScan = new Scanner(yahoo_url.openStream());
@@ -95,7 +97,11 @@ public class Option extends Security {
       int closeFrom = input.indexOf("\">", closeIndex);
       int closeTo = input.indexOf("</td>", closeFrom);
       String closePrice = input.substring(closeFrom + 2, closeTo);
-      LOGGER.debug("Prev Close: {}", closePrice);
+      LOGGER.debug("Parsed from Yahoo! Prev Close: {}", closePrice);
+      if(!YahooFinance.isNumeric(closePrice)) {
+         LOGGER.warn("Invalid response from Yahoo! for {}", optionTicker);
+         return false;
+      }
       if(closePrice.equals("N/A")) {
          LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
          return false;
