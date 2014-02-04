@@ -12,7 +12,7 @@ appender("FILE", RollingFileAppender) {
   file = "${PROJECT_HOME}/logs/GaussTrader.log"
   rollingPolicy(TimeBasedRollingPolicy) {
     fileNamePattern = "${PROJECT_HOME}/logs/GaussTrader.log.%d"
-    maxHistory = 30
+    maxHistory = 120
   }
   encoder(PatternLayoutEncoder) {
     pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS zzz} [%thread] %-5level %logger{0} - %msg%n"

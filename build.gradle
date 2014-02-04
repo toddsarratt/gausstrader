@@ -56,39 +56,3 @@ jar {
 task listJars << {
     configurations.compile.each { File file -> println file.name }
 }
-
-
-task testByGroovy(type: Test) {
-    logging.captureStandardOutput LogLevel.INFO
-    useTestNG()
-    testLogging {
-        events 'passed'
-        showStandardStreams = true
-    }
-    include 'net/toddsarratt/GaussTrader/PortfolioDbTests**'
-    include 'net/toddsarratt/GaussTrader/FillOrderTest**'
-}
-
-task testByJava(type: Test) {
-    useTestNG()
-    testLogging {
-        events 'passed'
-        showStandardStreams = true
-    }
-    exclude 'net/toddsarratt/GaussTrader/FillShortPutOrderTest**'
-    exclude 'net/toddsarratt/GaussTrader/HolidayTest**'
-    exclude 'net/toddsarratt/GaussTrader/OptionExpiryTest**'
-    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseLongPut**'
-    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortPut**'
-    exclude 'net/toddsarratt/GaussTrader/PortfolioExerciseShortCall**'
-    exclude 'net/toddsarratt/GaussTrader/CashFlowTestForNewOrder**'
-    exclude 'net/toddsarratt/GaussTrader/DBHistoricalPricesConnectionTest**'
-    exclude 'net/toddsarratt/GaussTrader/ClaimAgainstCashTest**'
-    exclude 'net/toddsarratt/GaussTrader/OptionTickerAndExpiryGeneration**'
-    exclude 'net/toddsarratt/GaussTrader/StockTestTickerAAPL**'
-    exclude 'net/toddsarratt/GaussTrader/TestYahoo**'
-    exclude 'net/toddsarratt/GaussTrader/TestNewOrderGettersAndSetters**'
-}
-
-test.dependsOn(testByGroovy)
-test.dependsOn(testByJava)
