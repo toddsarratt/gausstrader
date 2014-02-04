@@ -17,12 +17,12 @@ import java.util.List;
 class PriceBasedAction {
    boolean doSomething;
    String optionType;
-   int monthsOut;
+   int contractsToTransact;
 
-   PriceBasedAction(boolean doSomething, String optionType, int monthsOut) {
+   PriceBasedAction(boolean doSomething, String optionType, int contractsToTransact) {
       this.doSomething = doSomething;
       this.optionType = optionType;
-      this.monthsOut = monthsOut;
+      this.contractsToTransact = contractsToTransact;
    }
 }
 
@@ -31,16 +31,20 @@ public class TradingSession {
    private static final PriceBasedAction DO_NOTHING_PRICE_BASED_ACTION = new PriceBasedAction(false, "", 0);
    private ArrayList<Stock> stockList = null;
    private Portfolio portfolio = null;
-   /* Hard coded closed and early closure trading days : http://www.nyx.com/en/holidays-and-hours/nyse */
+   /* Hard coded closed and early closure trading days : http://www.nyse.com/press/1387194753915.html */
    static final Integer[] JULIAN_HOLIDAYS_2014 = {1, 20, 48, 108, 146, 185, 244, 331, 359};
+   static final Integer[] JULIAN_HOLIDAYS_2015 = {1,19, 47, 93, 145, 184, 250, 330, 359};
    private static final ImmutableMap<Integer, List<Integer>> HOLIDAY_MAP =
       ImmutableMap.<Integer, List<Integer>>builder()
          .put(2014, Arrays.asList(JULIAN_HOLIDAYS_2014))
+         .put(2015, Arrays.asList(JULIAN_HOLIDAYS_2015))
          .build();
    static final Integer[] JULIAN_1PM_CLOSE_2014 = {184, 332, 358};
+   static final Integer[] JULIAN_1PM_CLOSE_2015 = {331, 358};
    private static final ImmutableMap<Integer, List<Integer>> EARLY_CLOSE_MAP =
       ImmutableMap.<Integer, List<Integer>>builder()
          .put(2014, Arrays.asList(JULIAN_1PM_CLOSE_2014))
+         .put(2015, Arrays.asList(JULIAN_1PM_CLOSE_2015))
          .build();
    private static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
    private static long marketOpenEpoch;
@@ -201,19 +205,19 @@ public class TradingSession {
          try {
             currentPrice = stock.lastTick();
             LOGGER.debug("stock.lastTick() returns ${}", currentPrice);
-            if ((currentPrice == -1)) {
+            if ((currentPrice == -1.0)) {
                LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
             } else {
                PriceBasedAction actionToTake = priceActionable(stock);
                if (actionToTake.doSomething) {
-                  Option optionToSell = Option.getOption(stock.getTicker(), actionToTake.optionType, actionToTake.monthsOut, currentPrice);
+                  Option optionToSell = Option.getOption(stock.getTicker(), actionToTake.optionType, 1, currentPrice);
                   if (optionToSell == null) {
                      stockIterator.remove();
-                     LOGGER.info("Cannot find a valid option for {}", stock.getTicker());
-                     LOGGER.info("Removing {} from list of tradable securities", stock.getTicker());
+                     LOGGER.warn("Cannot find a valid option for {}", stock.getTicker());
+                     LOGGER.warn("Removing {} from list of tradable securities", stock.getTicker());
                   } else {
                      try {
-                        portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", 1, "GFD"));
+                        portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.contractsToTransact, "GFD"));
                      } catch (InsufficientFundsException ife) {
                         LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
                      }
@@ -294,11 +298,12 @@ public class TradingSession {
       }
       if (stock.getPrice() >= stock.getBollingerBand(2)) {
          LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(2));
-         return new PriceBasedAction(true, "CALL", 2);
+         return new PriceBasedAction(true, "CALL", Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
       }
+      /* TODO : Remove this if statement. We would not be in this method if the condition wasn't met */
       if (stock.getPrice() >= stock.getBollingerBand(1)) {
          LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stock.getPrice(), stock.getBollingerBand(1));
-         return new PriceBasedAction(true, "CALL", 1);
+         return new PriceBasedAction(true, "CALL", Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
       }
       return DO_NOTHING_PRICE_BASED_ACTION;
    }
@@ -308,24 +313,25 @@ public class TradingSession {
       double currentStockPrice = stock.getPrice();
       if (currentStockPrice <= stock.getBollingerBand(5)) {
          LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(5));
-         if (portfolio.numberOfOpenPutShorts(stock) <= 2) {
-            return new PriceBasedAction(true, "PUT", 6);
+         if (portfolio.numberOfOpenPutShorts(stock) < 20) {
+            return new PriceBasedAction(true, "PUT", 5);
          }
          LOGGER.info("Open short put {} positions exceeds 2. Taking no action.", stock.getTicker());
          return DO_NOTHING_PRICE_BASED_ACTION;
       }
       if (currentStockPrice <= stock.getBollingerBand(4)) {
          LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(4));
-         if (portfolio.numberOfOpenPutShorts(stock) <= 1) {
-            return new PriceBasedAction(true, "PUT", 2);
+         if (portfolio.numberOfOpenPutShorts(stock) < 10) {
+            return new PriceBasedAction(true, "PUT", 5);
          }
          LOGGER.info("Open short put {} positions exceeds 1. Taking no action.", stock.getTicker());
          return DO_NOTHING_PRICE_BASED_ACTION;
       }
+      /* TODO : Remove this if statement. We would not be in this method if the condition wasn't met */
       if (currentStockPrice <= stock.getBollingerBand(3)) {
          LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(3));
-         if (portfolio.numberOfOpenPutShorts(stock) == 0) {
-            return new PriceBasedAction(true, "PUT", 1);
+         if (portfolio.numberOfOpenPutShorts(stock) < 5) {
+            return new PriceBasedAction(true, "PUT", 5);
          }
          LOGGER.info("Open short put {} positions exceeds 0. Taking no action.", stock.getTicker());
       }

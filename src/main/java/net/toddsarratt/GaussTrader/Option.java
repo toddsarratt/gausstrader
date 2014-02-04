@@ -243,23 +243,31 @@ public class Option extends Security {
       double strikePrice;
       String optionTickerToTry;
       MutableDateTime expiryMutableDateTime = new MutableDateTime(DateTimeZone.forID("America/New_York"));
+      /* TODO : The algorithm below does not work */
+      /*
       int monthOfYear = new MutableDateTime(DateTimeZone.forID("America/New_York")).getMonthOfYear();
       if (monthsOut == 6) {
          expiryMutableDateTime.addMonths(6 - (monthOfYear / 6));
       } else {
+      */
          expiryMutableDateTime.addMonths(monthsOut);
+      /*
       }
+       */
       expiryMutableDateTime.setDayOfMonth(calculateFutureExpiry(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear()));
-
+      /** Let's sell ITM options and generate some alpha */
       if (optionType.equals("CALL")) {
          LOGGER.debug("Finding call to sell");
-         strikePrice = (int) limitStrikePrice + 0.50;
+         /** Should provide an ITM price either on the dollar or half dollar  */
+         strikePrice = Math.floor(limitStrikePrice * 2.0 - 0.1) / 2.0;
          LOGGER.debug("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
+         /* Deprecated for ITM options
          if (strikePrice < limitStrikePrice) {
             strikePrice += 0.50;
             LOGGER.debug("Adjusted strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
          }
-	    /* While looking for an option don't go further than 10% out from current underlying security price */
+         */
+	    /** While looking for an option don't go further than 10% out from current underlying security price */
          while ((strikePrice - limitStrikePrice) / limitStrikePrice < 0.1) {
             optionTickerToTry = optionTicker(stockTicker, expiryMutableDateTime, 'C', strikePrice);
             LOGGER.debug("Trying option ticker {}", optionTickerToTry);
@@ -279,11 +287,13 @@ public class Option extends Security {
          LOGGER.debug("Finding put to sell");
          strikePrice = (int) limitStrikePrice + 0.50;
          LOGGER.debug("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+         /** Deprecated for ITM options
          if (strikePrice > limitStrikePrice) {
             strikePrice -= 0.50;
             LOGGER.debug("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
          }
-            /* While looking for an option don't go further than 10% out from current underlying security price */
+         */
+         /** While looking for an option don't go further than 10% out from current underlying security price */
          while ((strikePrice - limitStrikePrice) / limitStrikePrice > -0.1) {
             optionTickerToTry = optionTicker(stockTicker, expiryMutableDateTime, 'P', strikePrice);
             try {
