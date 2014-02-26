@@ -262,12 +262,14 @@ public class TradingSession {
       long msUntilMarketClose = marketCloseEpoch - System.currentTimeMillis();
       LOGGER.debug("Comparing msUntilMarketClose {} with GaussTrader.delayMs {}", msUntilMarketClose, GaussTrader.delayMs);
       sleepTimeMs = (msUntilMarketClose < GaussTrader.delayMs) ? msUntilMarketClose : GaussTrader.delayMs;
-      try {
-         LOGGER.debug("Sleeping for {} ms ({})", sleepTimeMs, (new Period(sleepTimeMs).toString(PeriodFormat.wordBased())));
-         Thread.sleep(sleepTimeMs);
-      } catch (InterruptedException ie) {
-         LOGGER.warn("Interrupted exception trying to sleep {} ms", sleepTimeMs);
-         LOGGER.debug("Caught (InterruptedException ie)", ie);
+      if(sleepTimeMs > 0) {
+         try {
+            LOGGER.debug("Sleeping for {} ms ({})", sleepTimeMs, (new Period(sleepTimeMs).toString(PeriodFormat.wordBased())));
+            Thread.sleep(sleepTimeMs);
+         } catch (InterruptedException ie) {
+            LOGGER.warn("Interrupted exception trying to sleep {} ms", sleepTimeMs);
+            LOGGER.debug("Caught (InterruptedException ie)", ie);
+         }
       }
    }
 

@@ -265,7 +265,7 @@ class Order {
       if (isLong()) {
          claimAgainstCash = costBasis;
       } else if (isPut()) {
-         claimAgainstCash = strikePrice * 100.0 + costBasis;
+         claimAgainstCash = strikePrice * totalQuantity * 100.0 + costBasis;
       }
    }
 
