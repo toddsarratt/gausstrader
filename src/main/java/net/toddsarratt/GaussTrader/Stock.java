@@ -296,8 +296,11 @@ public class Stock extends Security {
             LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
             return yahooResults;
          } catch(IOException ioe) {
-            LOGGER.warn("Attempt {} : Caught IOException to Yahoo! with args {} for ticker {}", yahooAttempt, arguments, ticker);
+            LOGGER.warn("Attempt {} : Caught IOException in .askYahoo() with args {} for ticker {}", yahooAttempt, arguments, ticker);
             LOGGER.debug("Caught (IOException ioe)", ioe);
+         } catch(NullPointerException npe) {                            /* Found 3/10/14 */
+            LOGGER.warn("Attempt {} : Caught NullPointerException in .askYahoo() with args {} for ticker {}", yahooAttempt, arguments, ticker);
+            LOGGER.debug("Caught (NullPointerException)", npe);
          }
       }
       throw new IOException();
