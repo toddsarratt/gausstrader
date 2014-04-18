@@ -68,14 +68,13 @@ public class TradingSession {
             checkOpenOrders();
             pauseBetweenCycles();
          }
+         closeGoodForDayOrders();
+         writeClosingPricesToDb();
       } else{
          LOGGER.info("Market is closed today.");
          reconcileExpiringOptions();
-         return;
       }
-      closeGoodForDayOrders();
       writePortfolioToDb();
-      writeClosingPricesToDb();
       LOGGER.info("End of trading day.");
    }
 
@@ -364,7 +363,7 @@ public class TradingSession {
                try {
                   double stockLastTick = Stock.lastTick(openOptionPosition.getUnderlyingTicker());
                   if (stockLastTick < 0.00) {
-                     /* TODO : Better description */
+                     /* TODO : Need logic to handle this condition */
                      throw new IOException("Foo");
                   }
                   if (openOptionPosition.isPut() &&
@@ -404,6 +403,11 @@ public class TradingSession {
       portfolio.endOfDayDbWrite();
    }
 
+   /**
+    * This method is NOT called if options expiration occurs on a Friday when the market is closed
+    * Do not make any change to this logic assuming that it will always be run on a day when
+    * option positions have been opened, closed, or updated
+    */
    private void writeClosingPricesToDb() {
       LOGGER.debug("Entering TradingSession.writeClosingPricesToDb()");
       LOGGER.info("Writing closing prices to DB");

@@ -73,6 +73,7 @@ public class Position {
       String ticker = exercisingOptionPosition.getUnderlyingTicker();
       double lastTick = 0.00;
       newStockPosition.setTicker(ticker);
+      newStockPosition.setUnderlyingTicker(ticker);
       newStockPosition.setSecType("STOCK");
       newStockPosition.setLongPosition(true);
       newStockPosition.setNumberTransacted(exercisingOptionPosition.getNumberTransacted() * 100);
