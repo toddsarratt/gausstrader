@@ -16,7 +16,7 @@ class OptionTickerValidTest {
     @Test
     public void testOptionTickerValid() {
         assertTrue Option.optionTickerValid('INTC160115C00025000')
-        assertTrue Option.optionTickerValid('VZ140222P00045000')
+        assertTrue Option.optionTickerValid('VZ160115C00050000')
         assertFalse Option.optionTickerValid('VZ120222P00049000')
         assertFalse Option.optionTickerValid('CAT140322P00087000')
         assertFalse Option.optionTickerValid('INVALID_option_name')

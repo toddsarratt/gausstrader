@@ -68,14 +68,14 @@ public class TradingSession {
             checkOpenOrders();
             pauseBetweenCycles();
          }
-         reconcileExpiringOptions();
-         closeGoodForDayOrders();
-         writePortfolioToDb();
-         writeClosingPricesToDb();
-      } else {
+      } else{
          LOGGER.info("Market is closed today.");
+         reconcileExpiringOptions();
          return;
       }
+      closeGoodForDayOrders();
+      writePortfolioToDb();
+      writeClosingPricesToDb();
       LOGGER.info("End of trading day.");
    }
 
@@ -363,6 +363,10 @@ public class TradingSession {
                LOGGER.debug("Option expires tomorrow, checking moneyness");
                try {
                   double stockLastTick = Stock.lastTick(openOptionPosition.getUnderlyingTicker());
+                  if (stockLastTick < 0.00) {
+                     /* TODO : Better description */
+                     throw new IOException("Foo");
+                  }
                   if (openOptionPosition.isPut() &&
                      (stockLastTick <= openOptionPosition.getStrikePrice())) {
                      portfolio.exerciseOption(openOptionPosition);
