@@ -136,7 +136,7 @@ public class Portfolio {
       }
    }
 
-   private static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
+   public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
       LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
       Position positionFromDb = new Position();
       positionFromDb.setPositionId(dbResult.getLong("position_id"));
