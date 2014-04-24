@@ -140,7 +140,7 @@ public class Portfolio {
       LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
       Position positionFromDb = new Position();
       positionFromDb.setPositionId(dbResult.getLong("position_id"));
-      positionFromDb.setOpen(true);
+      positionFromDb.setOpen(dbResult.getBoolean("open"));
       positionFromDb.setTicker(dbResult.getString("ticker"));
       positionFromDb.setSecType(dbResult.getString("sec_type"));
       positionFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
