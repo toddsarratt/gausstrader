@@ -311,6 +311,7 @@ public class Position {
 
    public double calculateNetAssetValue() {
       netAssetValue = lastTick * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
+      profit = netAssetValue - costBasis;
       return netAssetValue;
    }
 
