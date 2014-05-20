@@ -72,8 +72,8 @@ public class TradingSession {
          writeClosingPricesToDb();
       } else{
          LOGGER.info("Market is closed today.");
-         reconcileExpiringOptions();
       }
+      reconcileExpiringOptions();
       writePortfolioToDb();
       LOGGER.info("End of trading day.");
    }

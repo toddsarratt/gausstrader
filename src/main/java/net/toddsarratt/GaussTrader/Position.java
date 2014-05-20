@@ -269,10 +269,10 @@ public class Position {
    }
 
    public double getProfit() {
-      if (!open) {
-         return profit;
-      }
-      return -1;
+       if(open) {
+        profit = netAssetValue - costBasis;
+       }
+      return profit;
    }
 
    void setProfit(double profit) {
