@@ -26,7 +26,7 @@ public class Position {
    private double netAssetValue = 0.00;
    private long epochClosed;
    private double priceAtClose;
-   private double profit;
+   private double profit = netAssetValue - costBasis;
 
    private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
 
@@ -270,7 +270,7 @@ public class Position {
 
    public double getProfit() {
        if(open) {
-        profit = netAssetValue - costBasis;
+           profit = netAssetValue - costBasis;
        }
       return profit;
    }
