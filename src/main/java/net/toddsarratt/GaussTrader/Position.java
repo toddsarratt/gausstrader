@@ -68,7 +68,7 @@ public class Position {
    }
 
    static Position exerciseOptionPosition(Position exercisingOptionPosition) {
-      LOGGER.debug("Entering Position.exerciseOptionPosition(Position exercisingOptionPosition)");
+      LOGGER.debug("Entering Position.exerciseOptionPosition(Position {})", exercisingOptionPosition.getPositionId());
       Position newStockPosition = new Position();
       String ticker = exercisingOptionPosition.getUnderlyingTicker();
       double lastTick = 0.00;
