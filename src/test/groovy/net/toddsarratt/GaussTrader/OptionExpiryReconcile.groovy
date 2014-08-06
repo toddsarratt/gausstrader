@@ -38,7 +38,7 @@ public class OptionExpiryReconcile {
         assertEquals(expiringOptionsPort.numberOfOpenStockLongs(cisco), 1)
     }
     @Test
-    public void testPortfolioExerciseExpiredOptions() {
+    public void testPortfolioShortCalls() {
         Stock cisco = new Stock("CSCO")
         Portfolio expiredOptionsPortfolio = new Portfolio("expiredOptionsPortfolio", 1_000_000.00)
         Position nonExpiredShortCall = new Position(
@@ -83,6 +83,130 @@ public class OptionExpiryReconcile {
         assertEquals(expiredOptionsPortfolio.freeCash.doubleValue(), 1_002_200.0, 0.01)
         assertEquals(expiredOptionsPortfolio.reservedCash.doubleValue(), 0.0, 0.01)
     }
+    @Test
+    public void testCoveredExpiredShortCall() {
+        Stock mmmStock = new Stock("MMM")
+        Portfolio expiredCoveredShortCallPortfolio = new Portfolio("expiredShortCallPortfolio", 1_000_000.00)
+        Position expiredCoveredShortCall = new Position(
+                ticker: "MMM140118C00120000",
+                expiry: new DateTime(1390021200000, DateTimeZone.forID("America/New_York")),
+                underlyingTicker: "MMM",
+                secType: "CALL",
+                numberTransacted: 5,
+                strikePrice: 120)
+        Position longMmmStock = new Position(ticker: "MMM",
+                secType: "STOCK",
+                underlyingTicker: "MMM",
+                numberTransacted: 500,
+                longPosition: true,
+                priceAtOpen: 100,
+                costBasis: 50_000)
+        expiredCoveredShortCallPortfolio.portfolioPositions.add(expiredCoveredShortCall)
+        expiredCoveredShortCallPortfolio.portfolioPositions.add(longMmmStock)
+
+        assertEquals(expiredCoveredShortCallPortfolio.getListOfOpenPositions().size(), 2)
+        assertEquals(expiredCoveredShortCallPortfolio.getListOfOpenOptionPositions().size(), 1)
+        assertEquals(expiredCoveredShortCallPortfolio.numberOfOpenCallShorts(mmmStock), 5)
+        assertEquals(expiredCoveredShortCallPortfolio.numberOfOpenStockLongs(mmmStock), 5)
+        assertEquals(expiredCoveredShortCallPortfolio.freeCash.doubleValue(), 1_000_000.00, 0.01)
+        assertEquals(expiredCoveredShortCallPortfolio.reservedCash.doubleValue(), 0.00, 0.01)
+
+        assertTrue(expiredCoveredShortCall.isExpired())
+        expiredCoveredShortCallPortfolio.reconcileExpiredOptionPosition(expiredCoveredShortCall)
+
+        assertEquals(expiredCoveredShortCallPortfolio.getListOfOpenPositions().size(), 0)
+        assertEquals(expiredCoveredShortCallPortfolio.getListOfOpenOptionPositions().size(), 0)
+        assertEquals(expiredCoveredShortCallPortfolio.numberOfOpenCallShorts(mmmStock), 0)
+        assertEquals(expiredCoveredShortCallPortfolio.numberOfOpenStockLongs(mmmStock), 0)
+        /* Short call, someone is buying our 500 shares of MMM at $120. Should be up $60,000 */
+        assertEquals(expiredCoveredShortCallPortfolio.freeCash.doubleValue(), 1_060_000.0, 0.01)
+        assertEquals(expiredCoveredShortCallPortfolio.reservedCash.doubleValue(), 0.0, 0.01)
+    }
+
+    public void testOverCoveredExpiredShortCall() {
+        Stock attStock = new Stock("T")
+        Portfolio expiredOverCoveredShortCallPortfolio = new Portfolio("expiredShortCallPortfolio", 1_000_000.00)
+        Position expiredOverCoveredShortCall = new Position(
+                ticker: "T140118C00020000",
+                expiry: new DateTime(1390021200000, DateTimeZone.forID("America/New_York")),
+                underlyingTicker: "T",
+                secType: "CALL",
+                numberTransacted: 4,
+                strikePrice: 30)
+        Position longAttStock = new Position(ticker: "T",
+                secType: "STOCK",
+                underlyingTicker: "T",
+                numberTransacted: 500,
+                longPosition: true,
+                priceAtOpen: 25,
+                costBasis: 12_500)
+        expiredOverCoveredShortCallPortfolio.portfolioPositions.add(expiredOverCoveredShortCall)
+        expiredOverCoveredShortCallPortfolio.portfolioPositions.add(longAttStock)
+
+        assertEquals(expiredOverCoveredShortCallPortfolio.getListOfOpenPositions().size(), 2)
+        assertEquals(expiredOverCoveredShortCallPortfolio.getListOfOpenOptionPositions().size(), 1)
+        assertEquals(expiredOverCoveredShortCallPortfolio.numberOfOpenCallShorts(attStock), 4)
+        assertEquals(expiredOverCoveredShortCallPortfolio.numberOfOpenStockLongs(attStock), 5)
+        assertEquals(expiredOverCoveredShortCallPortfolio.freeCash.doubleValue(), 1_000_000.00, 0.01)
+        assertEquals(expiredOverCoveredShortCallPortfolio.reservedCash.doubleValue(), 0.00, 0.01)
+
+        assertTrue(expiredOverCoveredShortCall.isExpired())
+        expiredOverCoveredShortCallPortfolio.reconcileExpiredOptionPosition(expiredItmShortCall)
+
+        assertEquals(expiredOverCoveredShortCallPortfolio.getListOfOpenPositions().size(), 1)
+        assertEquals(expiredOverCoveredShortCallPortfolio.getListOfOpenOptionPositions().size(), 0)
+        assertEquals(expiredOverCoveredShortCallPortfolio.numberOfOpenCallShorts(attStock), 0)
+        assertEquals(expiredOverCoveredShortCallPortfolio.numberOfOpenStockLongs(attStock), 1)
+        /* 500 shares claimed by 4 contracts, 100 shares left */
+        assertEquals(longAttStock.getNumberTransacted(), 100)
+        /* Short call, someone is buying our 400 shares of T at $30. Should be up $12,000 */
+        assertEquals(expiredOverCoveredShortCallPortfolio.freeCash.doubleValue(), 1_012_000.0, 0.01)
+        assertEquals(expiredOverCoveredShortCallPortfolio.reservedCash.doubleValue(), 0.0, 0.01)
+    }
+    @Test
+    public void testUnderCoveredExpiredShortCall() {
+        Stock catStock = new Stock("CAT")
+        Portfolio expiredUnderCoveredShortCallPortfolio = new Portfolio("expiredShortCallPortfolio", 1_000_000.00)
+        Position expiredUnderCoveredShortCall = new Position(
+                ticker: "CAT140118C00020000",
+                expiry: new DateTime(1390021200000, DateTimeZone.forID("America/New_York")),
+                underlyingTicker: "CAT",
+                secType: "CALL",
+                numberTransacted: 6,
+                strikePrice: 80)
+        Position longCatStock = new Position(ticker: "CAT",
+                secType: "STOCK",
+                underlyingTicker: "CAT",
+                numberTransacted: 500,
+                longPosition: true,
+                priceAtOpen: 25,
+                costBasis: 2500)
+        expiredUnderCoveredShortCallPortfolio.portfolioPositions.add(expiredUnderCoveredShortCall)
+        expiredUnderCoveredShortCallPortfolio.portfolioPositions.add(longCatStock)
+
+        assertEquals(expiredUnderCoveredShortCallPortfolio.getListOfOpenPositions().size(), 2)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.getListOfOpenOptionPositions().size(), 1)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.numberOfOpenCallShorts(catStock), 6)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.numberOfOpenStockLongs(catStock), 5)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.freeCash.doubleValue(), 1_000_000.00, 0.01)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.reservedCash.doubleValue(), 0.00, 0.01)
+
+        assertTrue(expiredUnderCoveredShortCall.isExpired())
+        expiredUnderCoveredShortCallPortfolio.reconcileExpiredOptionPosition(expiredUnderCoveredShortCall)
+
+        assertEquals(expiredUnderCoveredShortCallPortfolio.getListOfOpenPositions().size(), 0)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.getListOfOpenOptionPositions().size(), 0)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.numberOfOpenCallShorts(catStock), 0)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.numberOfOpenStockLongs(catStock), 0)
+        /* All 500 shares called away @ $80. Up $40,000
+        Had to buy 100 shares in the market to deliver @ $80. CAT = $101.58 on 8/6/14
+        100 * ($80 - $101.58) = -$2,158
+        $40,000 - $2,158 = $37,842
+         */
+        assertEquals(expiredUnderCoveredShortCallPortfolio.freeCash.doubleValue(), 1_037_842.0, 500)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.reservedCash.doubleValue(), 0.0, 0.01)
+    }
+
     /* Tried to expire a stock position. Verify this now fails */
     @Test
     public void testPortfolioExpireOptionFailsAgainstStock() {

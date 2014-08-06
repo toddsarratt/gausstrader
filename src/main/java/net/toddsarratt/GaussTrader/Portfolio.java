@@ -516,16 +516,24 @@ public class Portfolio {
 
    private void exerciseShortCall(Position optionPositionToExercise) {
       LOGGER.debug("Entering Portfolio.exerciseShortCall(Position {})", optionPositionToExercise.getPositionId());
-      for (int contractsToHonor = 1; contractsToHonor <= optionPositionToExercise.getNumberTransacted(); contractsToHonor++) {
+      int contractsToHonor = optionPositionToExercise.getNumberTransacted();
+      while(contractsToHonor > 0) {
          Position calledAwayStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
          if (calledAwayStockPosition != null) {
-            calledAwayStockPosition.close(optionPositionToExercise.getStrikePrice());
-            LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * calledAwayStockPosition.getNumberTransacted() {}",
-               freeCash, optionPositionToExercise.getStrikePrice(), calledAwayStockPosition.getNumberTransacted());
-            freeCash += optionPositionToExercise.getStrikePrice() * calledAwayStockPosition.getNumberTransacted();
-            LOGGER.debug("freeCash == {}", freeCash);
+            while ((calledAwayStockPosition.getNumberTransacted() >= 100) && (contractsToHonor > 0)) {
+               /* Exercise 100 shares / 1 contract per loop */
+               calledAwayStockPosition.setNumberTransacted(calledAwayStockPosition.getNumberTransacted() - 100);
+               contractsToHonor--;
+               LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100", freeCash, optionPositionToExercise.getStrikePrice());
+               freeCash += optionPositionToExercise.getStrikePrice() * 100;
+               LOGGER.debug("freeCash == {}", freeCash);
+            }
+            if(calledAwayStockPosition.getNumberTransacted() == 0) {
+               calledAwayStockPosition.close(optionPositionToExercise.getStrikePrice());
+            }
          } else {
 		/* Buy the stock at market price and deliver it */
+            optionPositionToExercise.setNumberTransacted(contractsToHonor);
             Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
             double positionLastTick = buyStockToDeliverPosition.getLastTick();
             LOGGER.debug("freeCash ${} -= buyStockToDeliverPosition.getLastTick() ${} * buyStockToDeliverPosition.getNumberTransacted() ${}",
@@ -533,6 +541,7 @@ public class Portfolio {
             freeCash -= positionLastTick * buyStockToDeliverPosition.getNumberTransacted();
             LOGGER.debug("freeCash == ${}", freeCash);
             buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
+            contractsToHonor--;
             LOGGER.debug("freeCash ${} += optionPositionToExercise.getStrikePrice() ${} * 100.00", freeCash, optionPositionToExercise.getStrikePrice());
             freeCash += optionPositionToExercise.getStrikePrice() * 100.00;
             LOGGER.debug("freeCash == ${}", freeCash);
@@ -604,12 +613,19 @@ public class Portfolio {
       }
    }
 
+   /* When exercising a short call this method returns a position that can fulfill delivery
+   Must be a stock position with the same ticker as the short call. There may be multiple positions, so deliver
+   the position with the lowest cost basis. Make sure there are at least 100 shares.
+    */
    Position findStockPositionToDeliver(String tickerToDeliver) {
       LOGGER.debug("Entering Portfolio.findStockPositionToDeliver(String {})", tickerToDeliver);
       double lowestCostBasis = Double.MAX_VALUE;
       Position positionToDeliver = null;
       for (Position openPosition : getListOfOpenPositions()) {
-         if (openPosition.isStock() && openPosition.getTicker().equals(tickerToDeliver) && (openPosition.getCostBasis() < lowestCostBasis)) {
+         if (openPosition.isStock() &&
+                 openPosition.getTicker().equals(tickerToDeliver) &&
+                 (openPosition.getCostBasis() < lowestCostBasis) &&
+                 (openPosition.getNumberTransacted() >= 100) ) {
             lowestCostBasis = openPosition.getCostBasis();
             positionToDeliver = openPosition;
          }
