@@ -70,6 +70,7 @@ public class GaussTrader {
                LOGGER.warn("Failed to calculate valid Bollinger Bands for {}. Removing from candidate ticker list.", candidateTicker);
             } else {
                tradeableStockList.add(stockToAdd);
+               WatchList.updateDbStockMetrics(stockToAdd);
                LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
             }
          } catch (IOException ioe) {
@@ -93,6 +94,7 @@ public class GaussTrader {
 	    /* Adding AAPL for Bill */
          tickerList.add("AAPL");
          LOGGER.debug("tickerList.size() = {}", tickerList.size());
+         WatchList.resetWatchList();
          addTickerlistToTradeableList(tickerList, tradeableStockList);
          LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolioName);
          TradingSession todaysSession = new TradingSession(new Portfolio(portfolioName), tradeableStockList);

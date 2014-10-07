@@ -34,6 +34,7 @@ public class Stock extends Security {
    private String ticker = "AAPL";
    private double price = 0.00;
    private long lastPriceUpdateEpoch = 0l;
+   private double twentyDma = 0.00;
    private double fiftyDma = 0.00;
    private double twoHundredDma = 0.00;
    private LinkedHashMap<Long, Double> historicalPriceMap = new LinkedHashMap<>(PRICE_TRACKING_MAP);
@@ -250,6 +251,7 @@ public class Stock extends Security {
          }
          LOGGER.debug("currentSMASum = {}", currentSMASum);
          currentSMA = currentSMASum / period;
+         twentyDma = currentSMA;
          LOGGER.debug("currentSMA = {}", currentSMA);
          for (double adjClose : historicalPriceArray) {
             currentSDSum += Math.pow((adjClose - currentSMA), 2);
@@ -367,6 +369,10 @@ public class Stock extends Security {
       return bollingerBand[index];
    }
 
+   public double getTwentyDma() {
+      return twentyDma;
+   }
+
    public double getFiftyDma() {
       return fiftyDma;
    }
@@ -382,6 +388,7 @@ public class Stock extends Security {
    public long getLastPriceUpdateEpoch() {
       return lastPriceUpdateEpoch;
    }
+
    public boolean tickerValidDb() {
       LOGGER.debug("Entering Stock.tickerValidDb()");
       return DBHistoricalPrices.tickerPriceInDb(ticker);

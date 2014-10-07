@@ -207,6 +207,7 @@ public class TradingSession {
             if ((currentPrice == -1.0)) {
                LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
             } else {
+               WatchList.updateDbLastTick(stock);
                PriceBasedAction actionToTake = priceActionable(stock);
                if (actionToTake.doSomething) {
                   Option optionToSell = Option.getOption(stock.getTicker(), actionToTake.optionType, 1, currentPrice);
