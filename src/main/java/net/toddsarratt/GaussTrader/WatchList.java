@@ -86,6 +86,8 @@ public abstract class WatchList {
          sqlUpdateStatement.setDouble(4, stockToUpdate.getPrice());
          sqlUpdateStatement.setLong(5, stockToUpdate.getLastPriceUpdateEpoch());
          sqlUpdateStatement.setString(6, stockToUpdate.getTicker());
+         LOGGER.debug("Executing SQL insert into watchlist table");
+         sqlUpdateStatement.executeUpdate();
       } catch (SQLException sqle) {
          LOGGER.info("SQLException attempting to update DB table watchlist for {}", stockToUpdate.getTicker());
          LOGGER.debug("Exception", sqle);
