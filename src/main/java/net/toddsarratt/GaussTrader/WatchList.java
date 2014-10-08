@@ -74,18 +74,20 @@ public abstract class WatchList {
          LOGGER.debug("Executing SELECT DISTINCT ticker FROM watchlist WHERE ticker = {}", ticker);
          ResultSet tickerInDbResultSet = sqlUniquenessStatement.executeQuery();
          if (tickerInDbResultSet.next()) {
-            sqlUpdateStatement = dbConnection.prepareStatement("UPDATE watchlist SET twenty_dma = ?, low_boll = ?, high_boll = ?, " +
-                    "last_tick = ?, last_tick_epoch = ?, active = TRUE WHERE ticker = ?");
+            sqlUpdateStatement = dbConnection.prepareStatement("UPDATE watchlist SET twenty_dma = ?, first_low_boll = ?, first_high_boll = ?, " +
+                    "second_low_boll = ?, second_high_boll = ?, last_tick = ?, last_tick_epoch = ?, active = TRUE WHERE ticker = ?");
          } else {
-            sqlUpdateStatement = dbConnection.prepareStatement("INSERT INTO watchlist (twenty_dma, low_boll, high_boll, " +
-                    "last_tick, last_tick_epoch, active, ticker) VALUES (?, ?, ?, ?, ?, TRUE, ?)");
+            sqlUpdateStatement = dbConnection.prepareStatement("INSERT INTO watchlist (twenty_dma, first_low_boll, first_high_boll, " +
+                    "second_low_boll, second_high_boll, last_tick, last_tick_epoch, active, ticker) VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, ?)");
          }
          sqlUpdateStatement.setDouble(1, stockToUpdate.getTwentyDma());
          sqlUpdateStatement.setDouble(2, stockToUpdate.getBollingerBand(3));
          sqlUpdateStatement.setDouble(3, stockToUpdate.getBollingerBand(1));
-         sqlUpdateStatement.setDouble(4, stockToUpdate.getPrice());
-         sqlUpdateStatement.setLong(5, stockToUpdate.getLastPriceUpdateEpoch());
-         sqlUpdateStatement.setString(6, stockToUpdate.getTicker());
+         sqlUpdateStatement.setDouble(4, stockToUpdate.getBollingerBand(4));
+         sqlUpdateStatement.setDouble(5, stockToUpdate.getBollingerBand(2));
+         sqlUpdateStatement.setDouble(6, stockToUpdate.getPrice());
+         sqlUpdateStatement.setLong(7, stockToUpdate.getLastPriceUpdateEpoch());
+         sqlUpdateStatement.setString(8, stockToUpdate.getTicker());
          LOGGER.debug("Executing SQL insert into watchlist table");
          sqlUpdateStatement.executeUpdate();
       } catch (SQLException sqle) {
