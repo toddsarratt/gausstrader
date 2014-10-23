@@ -197,24 +197,27 @@ public class TradingSession {
       LOGGER.debug("Entering TradingSession.findMispricedStocks()");
       Iterator<Stock> stockIterator = stockList.iterator();
       Stock stock;
+      String ticker;
       double currentPrice;
       while (stockIterator.hasNext()) {
          stock = stockIterator.next();
-         LOGGER.debug("Retrieved stock with ticker {} from stockIterator", stock.getTicker());
+         ticker = stock.getTicker();
+         LOGGER.debug("Retrieved stock with ticker {} from stockIterator", ticker);
          try {
             currentPrice = stock.lastTick();
             LOGGER.debug("stock.lastTick() returns ${}", currentPrice);
             if ((currentPrice == -1.0)) {
-               LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
+               LOGGER.warn("Could not get valid price for ticker {}", ticker);
             } else {
                WatchList.updateDbLastTick(stock);
                PriceBasedAction actionToTake = priceActionable(stock);
                if (actionToTake.doSomething) {
-                  Option optionToSell = Option.getOption(stock.getTicker(), actionToTake.optionType, 1, currentPrice);
+                  Option optionToSell = Option.getOption(ticker, actionToTake.optionType, 1, currentPrice);
                   if (optionToSell == null) {
                      stockIterator.remove();
-                     LOGGER.warn("Cannot find a valid option for {}", stock.getTicker());
-                     LOGGER.warn("Removing {} from list of tradable securities", stock.getTicker());
+                     WatchList.deactivateStock(ticker);
+                     LOGGER.warn("Cannot find a valid option for {}", ticker);
+                     LOGGER.warn("Removing from list of tradable securities");
                   } else {
                      try {
                         portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.contractsToTransact, "GFD"));
@@ -225,7 +228,7 @@ public class TradingSession {
                }
             }
          } catch (IOException ioe) {
-            LOGGER.info("IO exception attempting to get information on ticker {}", stock.getTicker());
+            LOGGER.info("IO exception attempting to get information on ticker {}", ticker);
             LOGGER.debug("Caught (IOException ioe)", ioe);
          }
       }
