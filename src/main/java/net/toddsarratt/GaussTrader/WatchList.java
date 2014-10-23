@@ -17,14 +17,6 @@ public abstract class WatchList {
    private static Connection dbConnection;
    private static final Logger LOGGER = LoggerFactory.getLogger(DBHistoricalPrices.class);
 
-   static {
-      try {
-         dbConnection = dataSource.getConnection();
-      } catch (SQLException sqle) {
-         LOGGER.warn("SQLException : dataSource.getConnection()", sqle);
-      }
-   }
-
    protected static void updateDbLastTick(Stock stockToUpdate) {
       LOGGER.debug("Entering WatchList.updateDb(Stock {})", stockToUpdate.getTicker());
       String ticker = stockToUpdate.getTicker();
@@ -44,6 +36,7 @@ public abstract class WatchList {
          if ((insertedRowCount = sqlStatement.executeUpdate()) != 1) {
             LOGGER.warn("Inserted {} rows. Should have inserted 1 row.", insertedRowCount);
          }
+         dbConnection.close();
       } catch (SQLException sqle) {
          LOGGER.info("Unable to get connection to {}", GaussTrader.DB_NAME);
          LOGGER.debug("Caught (SQLException sqle)", sqle);
@@ -58,6 +51,7 @@ public abstract class WatchList {
          sqlStatement = dbConnection.prepareStatement("UPDATE watchlist SET active = FALSE");
          LOGGER.debug("Executing UPDATE watchlist SET active = FALSE");
          sqlStatement.executeUpdate();
+         dbConnection.close();
       } catch (SQLException sqle) {
          LOGGER.info("Unable to get connection to {}", GaussTrader.DB_NAME);
          LOGGER.debug("Caught (SQLException sqle)", sqle);
@@ -68,6 +62,8 @@ public abstract class WatchList {
       PreparedStatement sqlUniquenessStatement;
       PreparedStatement sqlUpdateStatement;
       try {
+         LOGGER.debug("Getting connection to {}", GaussTrader.DB_NAME);
+         dbConnection = dataSource.getConnection();
          String ticker = stockToUpdate.getTicker();
          sqlUniquenessStatement = dbConnection.prepareStatement("SELECT DISTINCT ticker FROM watchlist WHERE ticker = ?");
          sqlUniquenessStatement.setString(1, ticker);
@@ -90,8 +86,21 @@ public abstract class WatchList {
          sqlUpdateStatement.setString(8, stockToUpdate.getTicker());
          LOGGER.debug("Executing SQL insert into watchlist table");
          sqlUpdateStatement.executeUpdate();
+         dbConnection.close();
       } catch (SQLException sqle) {
          LOGGER.info("SQLException attempting to update DB table watchlist for {}", stockToUpdate.getTicker());
+         LOGGER.debug("Exception", sqle);
+      }
+   }
+   protected static void deactivateStock(String tickerToRemove) {
+      PreparedStatement sqlUpdateStatement;
+      try {
+         sqlUpdateStatement = dbConnection.prepareStatement("UPDATE watchlist SET active = FALSE where ticker = ?");
+         sqlUpdateStatement.setString(1, tickerToRemove);
+         sqlUpdateStatement.executeUpdate();
+         dbConnection.close();
+      } catch (SQLException sqle) {
+         LOGGER.info("SQLException attempting to update DB table watchlist for {}", tickerToRemove);
          LOGGER.debug("Exception", sqle);
       }
    }

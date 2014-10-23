@@ -21,15 +21,7 @@ public abstract class DBHistoricalPrices {
    private static Connection dbConnection;
    private static final Logger LOGGER = LoggerFactory.getLogger(DBHistoricalPrices.class);
 
-   static {
-      try {
-         dbConnection = dataSource.getConnection();
-      } catch (SQLException sqle) {
-         LOGGER.warn("SQLException : dataSource.getConnection()", sqle);
-      }
-   }
-
-   static boolean marketWasOpen(MutableDateTime histDateTime) {
+    static boolean marketWasOpen(MutableDateTime histDateTime) {
       return !(TradingSession.isMarketHoliday(histDateTime) ||
          (histDateTime.getDayOfWeek() == DateTimeConstants.SATURDAY) ||
          (histDateTime.getDayOfWeek() == DateTimeConstants.SUNDAY));
@@ -63,6 +55,7 @@ public abstract class DBHistoricalPrices {
             queriedPrices.put(closeEpoch, adjClose);
             dbPricesFound++;
          }
+         dbConnection.close();
       } catch (SQLException sqle) {
          LOGGER.info("Unable to get connection to {}", GaussTrader.DB_NAME);
          LOGGER.debug("Caught (SQLException sqle)", sqle);
@@ -92,6 +85,7 @@ public abstract class DBHistoricalPrices {
          if ((insertedRowCount = sqlStatement.executeUpdate()) != 1) {
             LOGGER.warn("Inserted {} rows. Should have inserted 1 row.", insertedRowCount);
          }
+         dbConnection.close();
       } catch (SQLException sqle) {
          LOGGER.info("Unable to get connection to {}", GaussTrader.DB_NAME);
          LOGGER.debug("Caught (SQLException sqle)", sqle);
@@ -100,10 +94,12 @@ public abstract class DBHistoricalPrices {
    public static boolean tickerPriceInDb(String ticker) {
       LOGGER.debug("Entering DBHistoricalPrices.tickerPriceInDb()");
       try {
+         dbConnection = dataSource.getConnection();
          PreparedStatement summarySqlStatement = dbConnection.prepareStatement("SELECT DISTINCT ticker FROM prices WHERE ticker = ?");
          summarySqlStatement.setString(1, ticker);
          LOGGER.debug("Executing SELECT DISTINCT ticker FROM prices WHERE ticker = {}", ticker);
          ResultSet tickerInDbResultSet = summarySqlStatement.executeQuery();
+         dbConnection.close();
          return (tickerInDbResultSet.next());
       } catch (SQLException sqle) {
          LOGGER.info("SQLException attempting to find historical price for {}", ticker);

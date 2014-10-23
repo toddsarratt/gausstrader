@@ -75,6 +75,7 @@ public class Portfolio {
       summarySqlStatement.setString(1, name);
       LOGGER.debug("Executing SELECT DISTINCT name FROM portfolios WHERE name = {}", name);
       ResultSet portfolioSummaryResultSet = summarySqlStatement.executeQuery();
+      dbConnection.close();
       return (portfolioSummaryResultSet.next());
    }
 
@@ -98,6 +99,7 @@ public class Portfolio {
          reservedCash = portfolioSummaryResultSet.getDouble("reserved_cash");
          calculateTotalCash();
       }
+      dbConnection.close();
       LOGGER.info("Returning from DB netAssetValue {} freeCash {} reservedCash {}", netAssetValue, freeCash, reservedCash);
    }
 
@@ -119,6 +121,7 @@ public class Portfolio {
             portfolioPositions.add(portfolioPositionEntry);
          }
       }
+      dbConnection.close();
    }
 
    void getDbPortfolioOrders() throws SQLException {
@@ -134,6 +137,7 @@ public class Portfolio {
          LOGGER.debug("Adding {} {}", portfolioOrderEntry.getOrderId(), portfolioOrderEntry.getTicker());
          portfolioOrders.add(portfolioOrderEntry);
       }
+      dbConnection.close();
    }
 
    public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
@@ -673,6 +677,7 @@ public class Portfolio {
             insertDbPosition(portfolioPosition);
          }
       }
+      dbConnection.close();
    }
 
    private void updateDbSummary() throws SQLException {
@@ -692,6 +697,7 @@ public class Portfolio {
       if ((updatedRowCount = updateSummarySqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
       }
+      dbConnection.close();
    }
 
    private void insertDbSummary() throws SQLException {
@@ -711,6 +717,7 @@ public class Portfolio {
       if ((insertedRowCount = newSummarySqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Inserted {} rows. Should have inserted 1 row", insertedRowCount);
       }
+      dbConnection.close();
    }
 
    private void updateDbPosition(Position portfolioPosition) throws SQLException {
@@ -742,6 +749,7 @@ public class Portfolio {
       if ((updatedRowCount = updatePositionSqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
       }
+      dbConnection.close();
    }
 
    private void insertDbPosition(Position portfolioPosition) throws SQLException {
@@ -781,6 +789,7 @@ public class Portfolio {
       if ((insertedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Inserted {} rows. Should have inserted 1 row", insertedRowCount);
       }
+      dbConnection.close();
    }
 
    private void closeDbPosition(Position positionToClose) throws SQLException {
@@ -798,6 +807,7 @@ public class Portfolio {
       if ((updatedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
       }
+      dbConnection.close();
    }
 
    private void closeDbOrder(Order portfolioOrder) throws SQLException {
@@ -819,6 +829,7 @@ public class Portfolio {
             LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
          }
       }
+      dbConnection.close();
    }
 
    private void insertDbOrder(Order portfolioOrder) throws SQLException {
@@ -866,6 +877,7 @@ public class Portfolio {
             LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
          }
       }
+      dbConnection.close();
    }
 
    public void expireOrder(Order expiredOrder) {
