@@ -22,7 +22,7 @@ public class Position {
    private double priceAtOpen = 0.00;
    private double costBasis = 0.00;
    private double claimAgainstCash = 0.00;
-   private double lastTick = 0.00;
+   private double price = 0.00;
    private double netAssetValue = 0.00;
    private long epochClosed;
    private double priceAtClose;
@@ -59,7 +59,7 @@ public class Position {
       calculateCostBasis();
       calculateClaimAgainstCash();
       LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
-      lastTick = priceAtOpen;
+      price = priceAtOpen;
       netAssetValue = costBasis;
       LOGGER.info("New position created with positionId " + positionId + " ticker " + ticker +
          " secType " + secType + " open " + open + " epochOpened " + epochOpened);
@@ -80,12 +80,12 @@ public class Position {
       newStockPosition.setPriceAtOpen(exercisingOptionPosition.getStrikePrice());
       newStockPosition.setCostBasis(newStockPosition.getPriceAtOpen() * newStockPosition.getNumberTransacted());
       try {
-         newStockPosition.setLastTick(lastTick = Stock.lastTick(ticker));
+         newStockPosition.setPrice(lastTick = Stock.lastTick(ticker));
       } catch (IOException ioe) {
          LOGGER.info("Could not connect to yahoo! to get lastTick() for {} when exercising option position {}", ticker, exercisingOptionPosition.getPositionId());
          LOGGER.info("lastTick and netAssetValue are incorrect for current open position {}", newStockPosition.getPositionId());
          LOGGER.debug("Caught (IOException ioe)", ioe);
-         newStockPosition.setLastTick(lastTick = newStockPosition.getPriceAtOpen());
+         newStockPosition.setPrice(lastTick = newStockPosition.getPriceAtOpen());
       } finally {
          newStockPosition.setNetAssetValue(newStockPosition.getNumberTransacted() * lastTick);
       }
@@ -226,20 +226,20 @@ public class Position {
    public double getLastTick() {
       try {
          if (isStock()) {
-            lastTick = Stock.lastTick(ticker);
+            price = Stock.lastTick(ticker);
          } else {
-            lastTick = Option.lastTick(ticker);
+            price = Option.lastTick(ticker);
          }
-         netAssetValue = lastTick * numberTransacted * (isStock() ? 1 : 100) * (longPosition ? 1 : -1);
+         netAssetValue = price * numberTransacted * (isStock() ? 1 : 100) * (longPosition ? 1 : -1);
       } catch (IOException ioe) {
          LOGGER.warn("Caught IOException trying to get lastTick({}). Returning last known tick (We are no longer real-time).", ticker);
          LOGGER.debug("Caught (IOException ioe) ", ioe);
       }
-      return lastTick;
+      return price;
    }
 
-   void setLastTick(double lastTick) {
-      this.lastTick = lastTick;
+   void setPrice(double lastTick) {
+      this.price = lastTick;
    }
 
    void setNetAssetValue(double netAssetValue) {
@@ -310,7 +310,7 @@ public class Position {
    }
 
    public double calculateNetAssetValue() {
-      netAssetValue = lastTick * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
+      netAssetValue = price * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
       profit = netAssetValue - costBasis;
       return netAssetValue;
    }

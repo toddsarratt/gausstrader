@@ -154,7 +154,7 @@ public class Portfolio {
       positionFromDb.setNumberTransacted(dbResult.getInt("number_transacted"));
       positionFromDb.setPriceAtOpen(dbResult.getDouble("price_at_open"));
       positionFromDb.setCostBasis(dbResult.getDouble("cost_basis"));
-      positionFromDb.setLastTick(dbResult.getDouble("last_tick"));
+      positionFromDb.setPrice(dbResult.getDouble("last_tick"));
       positionFromDb.setNetAssetValue(dbResult.getDouble("net_asset_value"));
       positionFromDb.setExpiry(new DateTime(dbResult.getLong("epoch_expiry"), DateTimeZone.forID("America/New_York")));
       positionFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
@@ -411,12 +411,24 @@ public class Portfolio {
       LOGGER.debug("Entering Portfolio.getListOfOpenOptionPositions()");
       List<Position> openOptionPositionList = new ArrayList<>();
       for (Position portfolioPosition : portfolioPositions) {
-         if (portfolioPosition.isOpen() && (portfolioPosition.isCall() || portfolioPosition.isPut())) {
+         if (portfolioPosition.isOpen() && portfolioPosition.isOption()) {
             openOptionPositionList.add(portfolioPosition);
          }
       }
       LOGGER.debug("Returning {}", openOptionPositionList.toString());
       return openOptionPositionList;
+   }
+
+   public List<Position> getListOfOpenStockPositions() {
+      LOGGER.debug("Entering Portfolio.getListOfOpenStockPositions()");
+      List<Position> openStockPositionList = new ArrayList<>();
+      for (Position portfolioPosition : portfolioPositions) {
+         if (portfolioPosition.isOpen() && portfolioPosition.isStock()) {
+            openStockPositionList.add(portfolioPosition);
+         }
+      }
+      LOGGER.debug("Returning {}", openStockPositionList.toString());
+      return openStockPositionList;
    }
 
    public void fillOrder(Order orderToFill, double fillPrice) {
@@ -640,8 +652,8 @@ public class Portfolio {
    void endOfDayDbWrite() {
       LOGGER.debug("Entering Portfolio.endOfDayDbWrite()");
       try {
-         endOfDayDbSummaryWrite();
-         endOfDayDbPositionsWrite();
+         dbSummaryWrite();
+         dbPositionsWrite();
       } catch (SQLException sqle) {
          LOGGER.warn("Database error");
          LOGGER.debug("Caught (SQLException sqle) ", sqle);
@@ -649,7 +661,7 @@ public class Portfolio {
       }
    }
 
-   private void endOfDayDbSummaryWrite() throws SQLException {
+   void dbSummaryWrite() throws SQLException {
       if (portfolioInDb()) {
          LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
          updateDbSummary();
@@ -659,7 +671,7 @@ public class Portfolio {
       }
    }
 
-   private void endOfDayDbPositionsWrite() throws SQLException {
+   private void dbPositionsWrite() throws SQLException {
       LOGGER.debug("Entering Portfolio.endOfDayDbPositionsWrite()");
       Connection dbConnection = dataSource.getConnection();
       ResultSet positionResultSet;
@@ -893,6 +905,26 @@ public class Portfolio {
       } catch (SQLException sqle) {
          LOGGER.warn("Unable to update expired order {} in DB", expiredOrder.getOrderId());
          LOGGER.debug("Caught (SQLException sqle)", sqle);
+      }
+   }
+
+   void updateOptionPositions(Stock stock) throws IOException, SQLException {
+      for(Position optionPositionToUpdate : getListOfOpenOptionPositions()) {
+         if(stock.getTicker().equals(optionPositionToUpdate.getUnderlyingTicker())) {
+            optionPositionToUpdate.setPrice(Option.lastTick(optionPositionToUpdate.getTicker()));
+            optionPositionToUpdate.calculateNetAssetValue();
+            updateDbPosition(optionPositionToUpdate);
+         }
+      }
+   }
+
+   void updateStockPositions(Stock stock) throws IOException, SQLException {
+      for(Position stockPositionToUpdate : getListOfOpenStockPositions()) {
+         if(stockPositionToUpdate.getTicker().equals(stock.getTicker())) {
+            stockPositionToUpdate.setPrice(stock.getPrice());
+            stockPositionToUpdate.calculateNetAssetValue();
+            updateDbPosition(stockPositionToUpdate);
+         }
       }
    }
 }

@@ -9,10 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 class PriceBasedAction {
    boolean doSomething;
@@ -61,11 +58,30 @@ public class TradingSession {
 
    public void runTradingDay() {
       LOGGER.debug("Start of runTradingDay()");
+      Stock stock;
+      String ticker;
       if (marketIsOpenToday()) {
          sleepUntilMarketOpen();
+         Iterator<Stock> stockIterator = stockList.iterator();
          while (marketIsOpenThisInstant()) {
-            findMispricedStocks();
+            if(!stockIterator.hasNext()) {
+               stockIterator = stockList.iterator();   // Cheapest and only way to reset an Iterator to beginning
+            }
+            stock = stockIterator.next();
+            if(findMispricedStock(stock) == -1) {
+               WatchList.deactivateStock(stock.getTicker());
+               stockIterator.remove();
+            }
             checkOpenOrders();
+            try {
+               portfolio.updateOptionPositions(stock);
+               portfolio.updateStockPositions(stock);
+               portfolio.calculateNetAssetValue();
+               portfolio.dbSummaryWrite();
+            } catch(Exception e) {
+               LOGGER.info("Exception attempting to update positions");
+               LOGGER.debug("Caught (Exception e)", e);
+            }
             pauseBetweenCycles();
          }
          closeGoodForDayOrders();
@@ -74,6 +90,8 @@ public class TradingSession {
          LOGGER.info("Market is closed today.");
       }
       reconcileExpiringOptions();
+      // portfolio.updatePositionsNetAssetValues() or something similar needs to be written and called here
+      portfolio.calculateNetAssetValue();
       writePortfolioToDb();
       LOGGER.info("End of trading day.");
    }
@@ -189,49 +207,40 @@ public class TradingSession {
       return true;
    }
 
-   private void findMispricedStocks() {
-	/**
-	 * Using an Iterator instead of foreach
-	 * may need to remove a stock if a suitable option is not found to trade
-	 */
+   private int findMispricedStock(Stock stock) {
       LOGGER.debug("Entering TradingSession.findMispricedStocks()");
-      Iterator<Stock> stockIterator = stockList.iterator();
-      Stock stock;
       String ticker;
+      ticker = stock.getTicker();
       double currentPrice;
-      while (stockIterator.hasNext()) {
-         stock = stockIterator.next();
-         ticker = stock.getTicker();
-         LOGGER.debug("Retrieved stock with ticker {} from stockIterator", ticker);
-         try {
-            currentPrice = stock.lastTick();
-            LOGGER.debug("stock.lastTick() returns ${}", currentPrice);
-            if ((currentPrice == -1.0)) {
-               LOGGER.warn("Could not get valid price for ticker {}", ticker);
-            } else {
-               WatchList.updateDbLastTick(stock);
-               PriceBasedAction actionToTake = priceActionable(stock);
-               if (actionToTake.doSomething) {
-                  Option optionToSell = Option.getOption(ticker, actionToTake.optionType, 1, currentPrice);
-                  if (optionToSell == null) {
-                     stockIterator.remove();
-                     WatchList.deactivateStock(ticker);
-                     LOGGER.warn("Cannot find a valid option for {}", ticker);
-                     LOGGER.warn("Removing from list of tradable securities");
-                  } else {
-                     try {
-                        portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.contractsToTransact, "GFD"));
-                     } catch (InsufficientFundsException ife) {
-                        LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
-                     }
+      LOGGER.debug("Retrieved stock with ticker {} from stockIterator", ticker);
+      try {
+         currentPrice = stock.lastTick();
+         LOGGER.debug("stock.lastTick() returns ${}", currentPrice);
+         if ((currentPrice == -1.0)) {
+            LOGGER.warn("Could not get valid price for ticker {}", ticker);
+         } else {
+            WatchList.updateDbPrice(stock);
+            PriceBasedAction actionToTake = priceActionable(stock);
+            if (actionToTake.doSomething) {
+               Option optionToSell = Option.getOption(ticker, actionToTake.optionType, 1, currentPrice);
+               if (optionToSell == null) {
+                  LOGGER.warn("Cannot find a valid option for {}", ticker);
+                  LOGGER.warn("Removing from list of tradable securities");
+                  return -1;   // Tells caller to remove stock from iterator
+               } else {
+                  try {
+                     portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.contractsToTransact, "GFD"));
+                  } catch (InsufficientFundsException ife) {
+                     LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
                   }
                }
             }
-         } catch (IOException ioe) {
-            LOGGER.info("IO exception attempting to get information on ticker {}", ticker);
-            LOGGER.debug("Caught (IOException ioe)", ioe);
          }
+      } catch (IOException ioe) {
+         LOGGER.info("IO exception attempting to get information on ticker {}", ticker);
+         LOGGER.debug("Caught (IOException ioe)", ioe);
       }
+      return 1;   // Generic non-error return. Value not used
    }
 
    private void checkOpenOrders() {

@@ -17,7 +17,7 @@ public abstract class WatchList {
    private static Connection dbConnection;
    private static final Logger LOGGER = LoggerFactory.getLogger(DBHistoricalPrices.class);
 
-   protected static void updateDbLastTick(Stock stockToUpdate) {
+   protected static void updateDbPrice(Stock stockToUpdate) {
       LOGGER.debug("Entering WatchList.updateDb(Stock {})", stockToUpdate.getTicker());
       String ticker = stockToUpdate.getTicker();
       double currentPrice = stockToUpdate.getPrice();

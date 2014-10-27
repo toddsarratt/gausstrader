@@ -30,7 +30,7 @@ public class GaussTrader {
    protected static double bollingerSD2 = 2.5;
    protected static double bollingerSD3 = 3.0;
    protected static boolean delayedQuotes = true;   // 20min delay using quotes from Yahoo!
-   protected static int delayMs = 3_600_000;      // Build in delay so we're not churning tons of (not even real-time) data
+   protected static int delayMs = 300_000;      // Build in delay so we're not churning tons of (not even real-time) data
    private static PGSimpleDataSource dataSource = new PGSimpleDataSource();
    private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
 
