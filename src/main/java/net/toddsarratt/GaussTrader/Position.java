@@ -242,6 +242,10 @@ public class Position {
       this.price = lastTick;
    }
 
+   public double getPrice() {
+      return price;
+   }
+
    void setNetAssetValue(double netAssetValue) {
       this.netAssetValue = netAssetValue;
    }

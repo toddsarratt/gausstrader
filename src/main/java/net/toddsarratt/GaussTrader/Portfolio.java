@@ -738,13 +738,13 @@ public class Portfolio {
       String sqlString = "UPDATE positions SET last_tick = ?, net_asset_value = ? WHERE position_id = ?";
       PreparedStatement updatePositionSqlStatement;
       int updatedRowCount;
-      double positionLastTick = portfolioPosition.getLastTick();
+      double positionPrice = portfolioPosition.getPrice();
       updatePositionSqlStatement = dbConnection.prepareStatement(sqlString);
-      updatePositionSqlStatement.setDouble(1, positionLastTick);
+      updatePositionSqlStatement.setDouble(1, positionPrice);
       updatePositionSqlStatement.setDouble(2, portfolioPosition.calculateNetAssetValue());
       updatePositionSqlStatement.setLong(3, portfolioPosition.getPositionId());
       LOGGER.debug("Executing UPDATE positions SET last_tick = {}, net_asset_value = {} WHERE position_id = {}",
-         positionLastTick, portfolioPosition.calculateNetAssetValue(), portfolioPosition.getPositionId());
+         positionPrice, portfolioPosition.calculateNetAssetValue(), portfolioPosition.getPositionId());
       if ((updatedRowCount = updatePositionSqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
       }
@@ -772,7 +772,7 @@ public class Portfolio {
          "cost_basis, last_tick, net_asset_value, claim_against_cash, originating_order_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
       PreparedStatement newPositionSqlStatement;
       int insertedRowCount;
-      double positionLastTick = portfolioPosition.getLastTick();
+      double positionPrice = portfolioPosition.getPrice();
       newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
       newPositionSqlStatement.setString(1, name);
       newPositionSqlStatement.setLong(2, portfolioPosition.getPositionId());
@@ -787,7 +787,7 @@ public class Portfolio {
       newPositionSqlStatement.setInt(11, portfolioPosition.getNumberTransacted());
       newPositionSqlStatement.setDouble(12, portfolioPosition.getPriceAtOpen());
       newPositionSqlStatement.setDouble(13, portfolioPosition.getCostBasis());
-      newPositionSqlStatement.setDouble(14, positionLastTick);
+      newPositionSqlStatement.setDouble(14, positionPrice);
       newPositionSqlStatement.setDouble(15, portfolioPosition.calculateNetAssetValue());
       newPositionSqlStatement.setDouble(16, portfolioPosition.getClaimAgainstCash());
       newPositionSqlStatement.setDouble(17, portfolioPosition.getOriginatingOrderId());
@@ -797,7 +797,7 @@ public class Portfolio {
          name, portfolioPosition.getPositionId(), portfolioPosition.isOpen(), portfolioPosition.getTicker(), portfolioPosition.getSecType(),
          portfolioPosition.getExpiry().getMillis(), portfolioPosition.getTicker(), portfolioPosition.getStrikePrice(), portfolioPosition.getEpochOpened(),
          portfolioPosition.isLong(), portfolioPosition.getNumberTransacted(), portfolioPosition.getPriceAtOpen(), portfolioPosition.getCostBasis(),
-         positionLastTick, portfolioPosition.calculateNetAssetValue(), portfolioPosition.getClaimAgainstCash(), portfolioPosition.getOriginatingOrderId());
+         positionPrice, portfolioPosition.calculateNetAssetValue(), portfolioPosition.getClaimAgainstCash(), portfolioPosition.getOriginatingOrderId());
       if ((insertedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
          LOGGER.warn("Inserted {} rows. Should have inserted 1 row", insertedRowCount);
       }
@@ -909,6 +909,8 @@ public class Portfolio {
    }
 
    void updateOptionPositions(Stock stock) throws IOException, SQLException {
+      // TODO : Load returning options tickers into a set and only getLastTick() once
+      LOGGER.debug("Entering Portfolio.updateOptionPositions");
       for(Position optionPositionToUpdate : getListOfOpenOptionPositions()) {
          if(stock.getTicker().equals(optionPositionToUpdate.getUnderlyingTicker())) {
             optionPositionToUpdate.setPrice(Option.lastTick(optionPositionToUpdate.getTicker()));
@@ -919,6 +921,7 @@ public class Portfolio {
    }
 
    void updateStockPositions(Stock stock) throws IOException, SQLException {
+      LOGGER.debug("Entering Portfolio.updateStockPositions");
       for(Position stockPositionToUpdate : getListOfOpenStockPositions()) {
          if(stockPositionToUpdate.getTicker().equals(stock.getTicker())) {
             stockPositionToUpdate.setPrice(stock.getPrice());
