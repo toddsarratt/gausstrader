@@ -59,7 +59,6 @@ public class TradingSession {
    public void runTradingDay() {
       LOGGER.debug("Start of runTradingDay()");
       Stock stock;
-      String ticker;
       if (marketIsOpenToday()) {
          sleepUntilMarketOpen();
          Iterator<Stock> stockIterator = stockList.iterator();
@@ -79,7 +78,7 @@ public class TradingSession {
                portfolio.calculateNetAssetValue();
                portfolio.dbSummaryWrite();
             } catch(Exception e) {
-               LOGGER.info("Exception attempting to update positions");
+               LOGGER.info("Exception attempting to update portfolio");
                LOGGER.debug("Caught (Exception e)", e);
             }
             pauseBetweenCycles();
@@ -222,10 +221,10 @@ public class TradingSession {
             WatchList.updateDbPrice(stock);
             PriceBasedAction actionToTake = priceActionable(stock);
             if (actionToTake.doSomething) {
-               Option optionToSell = Option.getOption(ticker, actionToTake.optionType, 1, currentPrice);
+               Option optionToSell = Option.getOption(ticker, actionToTake.optionType, currentPrice);
                if (optionToSell == null) {
                   LOGGER.warn("Cannot find a valid option for {}", ticker);
-                  LOGGER.warn("Removing from list of tradable securities");
+                  LOGGER.warn("Removing from list of tradeable securities");
                   return -1;   // Tells caller to remove stock from iterator
                } else {
                   try {
@@ -325,29 +324,31 @@ public class TradingSession {
    private PriceBasedAction findPutAction(Stock stock) {
       LOGGER.debug("Entering TradingSession.findPutAction(Stock {})", stock.getTicker());
       double currentStockPrice = stock.getPrice();
+      int openPutShorts = portfolio.numberOfOpenPutShorts(stock);
+      int maximumContracts = (int)(portfolio.calculateNetAssetValue() * GaussTrader.STOCK_PCT_OF_PORTFOLIO / currentStockPrice);
       if (currentStockPrice <= stock.getBollingerBand(5)) {
          LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(5));
-         if (portfolio.numberOfOpenPutShorts(stock) < 20) {
-            return new PriceBasedAction(true, "PUT", 5);
+         if (openPutShorts < maximumContracts) {
+            return new PriceBasedAction(true, "PUT", maximumContracts / 4);
          }
-         LOGGER.info("Open short put {} positions exceeds 2. Taking no action.", stock.getTicker());
+         LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
          return DO_NOTHING_PRICE_BASED_ACTION;
       }
       if (currentStockPrice <= stock.getBollingerBand(4)) {
          LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(4));
-         if (portfolio.numberOfOpenPutShorts(stock) < 10) {
-            return new PriceBasedAction(true, "PUT", 5);
+         if (openPutShorts < maximumContracts / 2) {
+            return new PriceBasedAction(true, "PUT", maximumContracts / 4);
          }
-         LOGGER.info("Open short put {} positions exceeds 1. Taking no action.", stock.getTicker());
+         LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
          return DO_NOTHING_PRICE_BASED_ACTION;
       }
       /* TODO : Remove this if statement. We would not be in this method if the condition wasn't met */
       if (currentStockPrice <= stock.getBollingerBand(3)) {
          LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(3));
-         if (portfolio.numberOfOpenPutShorts(stock) < 5) {
-            return new PriceBasedAction(true, "PUT", 5);
+         if (openPutShorts < maximumContracts / 4) {
+            return new PriceBasedAction(true, "PUT", maximumContracts / 4);
          }
-         LOGGER.info("Open short put {} positions exceeds 0. Taking no action.", stock.getTicker());
+         LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
       }
       return DO_NOTHING_PRICE_BASED_ACTION;
    }

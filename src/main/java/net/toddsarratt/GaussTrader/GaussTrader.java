@@ -24,13 +24,15 @@ public class GaussTrader {
    protected static final String DB_USER = "postgres";
    protected static final String DB_PASSWORD = "b3llcurv38";
    protected static final int YAHOO_RETRIES = 5;                // Number of ties to retry Yahoo connections
+   protected static final double STOCK_PCT_OF_PORTFOLIO = 10.0;
    protected static final double STARTING_CASH = 1_000_000.00;  // Default value for new portfolio
+   // TODO : Shouldn't these all be final?
    protected static int bollBandPeriod = 20;
    protected static double bollingerSD1 = 2.0;
    protected static double bollingerSD2 = 2.5;
    protected static double bollingerSD3 = 3.0;
    protected static boolean delayedQuotes = true;   // 20min delay using quotes from Yahoo!
-   protected static int delayMs = 300_000;      // Build in delay so we're not churning tons of (not even real-time) data
+   protected static int delayMs = 60_000;          // Time between each stock price check to reduce (not even real-time) data churn
    private static PGSimpleDataSource dataSource = new PGSimpleDataSource();
    private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
 

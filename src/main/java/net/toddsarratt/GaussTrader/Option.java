@@ -260,23 +260,19 @@ public class Option extends Security {
       return tickerBuilder.toString();
    }
 
-   public static Option getOption(String stockTicker, String optionType, int monthsOut, double limitStrikePrice) {
-      LOGGER.debug("Entering Option.getOption(String {}, String {}, int {}, double {})", stockTicker, optionType, monthsOut, limitStrikePrice);
+   public static Option getOption(String stockTicker, String optionType, double limitStrikePrice) {
+      LOGGER.debug("Entering Option.getOption(String {}, String {}, double {})", stockTicker, optionType, limitStrikePrice);
       double strikePrice;
       String optionTickerToTry;
+      int expirationSaturday;
       MutableDateTime expiryMutableDateTime = new MutableDateTime(DateTimeZone.forID("America/New_York"));
-      /* TODO : The algorithm below does not work */
-      /*
-      int monthOfYear = new MutableDateTime(DateTimeZone.forID("America/New_York")).getMonthOfYear();
-      if (monthsOut == 6) {
-         expiryMutableDateTime.addMonths(6 - (monthOfYear / 6));
+      /** If today is after 7 days before this month's options expiration, go out a month */
+      if(expiryMutableDateTime.getDayOfMonth() > (expirationSaturday = (calculateFutureExpiry(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear())) - 7)) {
+         expiryMutableDateTime.addMonths(1);
+         expiryMutableDateTime.setDayOfMonth(calculateFutureExpiry(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear()));
       } else {
-      */
-         expiryMutableDateTime.addMonths(monthsOut);
-      /*
+         expiryMutableDateTime.setDayOfMonth(expirationSaturday);
       }
-       */
-      expiryMutableDateTime.setDayOfMonth(calculateFutureExpiry(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear()));
       /** Let's sell ITM options and generate some alpha */
       if (optionType.equals("CALL")) {
          LOGGER.debug("Finding call to sell");
