@@ -325,7 +325,7 @@ public class TradingSession {
       LOGGER.debug("Entering TradingSession.findPutAction(Stock {})", stock.getTicker());
       double currentStockPrice = stock.getPrice();
       int openPutShorts = portfolio.numberOfOpenPutShorts(stock);
-      int maximumContracts = (int)(portfolio.calculateNetAssetValue() * GaussTrader.STOCK_PCT_OF_PORTFOLIO / currentStockPrice);
+      int maximumContracts = (int)(portfolio.calculateNetAssetValue() * (0.01 * GaussTrader.STOCK_PCT_OF_PORTFOLIO) / (100 * currentStockPrice));
       if (currentStockPrice <= stock.getBollingerBand(5)) {
          LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(5));
          if (openPutShorts < maximumContracts) {
