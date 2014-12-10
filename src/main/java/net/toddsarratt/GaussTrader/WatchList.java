@@ -95,6 +95,8 @@ public abstract class WatchList {
    protected static void deactivateStock(String tickerToRemove) {
       PreparedStatement sqlUpdateStatement;
       try {
+         LOGGER.debug("Getting connection to {}", GaussTrader.DB_NAME);
+         dbConnection = dataSource.getConnection();
          sqlUpdateStatement = dbConnection.prepareStatement("UPDATE watchlist SET active = FALSE where ticker = ?");
          sqlUpdateStatement.setString(1, tickerToRemove);
          sqlUpdateStatement.executeUpdate();

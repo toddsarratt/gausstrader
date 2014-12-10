@@ -17,4 +17,9 @@ class WatchlistWriteTest {
         WatchList.updateDbStockMetrics(testStock)
         /* Now go check the database manually */
     }
+    @Test
+    public void testWatchlistDeactivate() {
+        WatchList.deactivateStock("XOM");
+        /* Should not throw exception */
+    }
 }
