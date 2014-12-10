@@ -265,14 +265,14 @@ public class Option extends Security {
       double strikePrice;
       String optionTickerToTry;
       int expirationSaturday;
-      MutableDateTime expiryMutableDateTime = new MutableDateTime(DateTimeZone.forID("America/New_York"));
+      MutableDateTime mutableExpiry = new MutableDateTime(DateTimeZone.forID("America/New_York"));
       /** If today is after 7 days before this month's options expiration, go out a month */
-      if(expiryMutableDateTime.getDayOfMonth() > (expirationSaturday = (calculateFutureExpiry(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear())) - 7)) {
-         expiryMutableDateTime.addMonths(1);
-         expiryMutableDateTime.setDayOfMonth(calculateFutureExpiry(expiryMutableDateTime.getMonthOfYear(), expiryMutableDateTime.getYear()));
-      } else {
-         expiryMutableDateTime.setDayOfMonth(expirationSaturday);
+      expirationSaturday = calculateFutureExpiry(mutableExpiry.getMonthOfYear(), mutableExpiry.getYear());
+      if(mutableExpiry.getDayOfMonth() > (expirationSaturday - 7)) {
+         mutableExpiry.addMonths(1);
+         expirationSaturday = calculateFutureExpiry(mutableExpiry.getMonthOfYear(), mutableExpiry.getYear());
       }
+      mutableExpiry.setDayOfMonth(expirationSaturday);
       /** Let's sell ITM options and generate some alpha */
       if (optionType.equals("CALL")) {
          LOGGER.debug("Finding call to sell");
@@ -287,7 +287,7 @@ public class Option extends Security {
          */
 	    /** While looking for an option don't go further than 10% out from current underlying security price */
          while ((strikePrice - limitStrikePrice) / limitStrikePrice < 0.1) {
-            optionTickerToTry = optionTicker(stockTicker, expiryMutableDateTime, 'C', strikePrice);
+            optionTickerToTry = optionTicker(stockTicker, mutableExpiry, 'C', strikePrice);
             LOGGER.debug("Trying option ticker {}", optionTickerToTry);
             try {
                if (optionTickerValid(optionTickerToTry)) {
@@ -313,7 +313,7 @@ public class Option extends Security {
          */
          /** While looking for an option don't go further than 10% out from current underlying security price */
          while ((strikePrice - limitStrikePrice) / limitStrikePrice > -0.1) {
-            optionTickerToTry = optionTicker(stockTicker, expiryMutableDateTime, 'P', strikePrice);
+            optionTickerToTry = optionTicker(stockTicker, mutableExpiry, 'P', strikePrice);
             try {
                if (optionTickerValid(optionTickerToTry)) {
                   LOGGER.debug("Returning new Option(\"{}\")", optionTickerToTry);

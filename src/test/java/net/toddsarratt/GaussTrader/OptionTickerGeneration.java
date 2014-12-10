@@ -10,8 +10,14 @@ import static org.testng.Assert.assertTrue;
 public class OptionTickerGeneration {
    @Test
    public void testOptionTickerGeneration() {
-      DateTime midAugustDay = new DateTime(2013, 8, 17, 0, 0, 0, 0, DateTimeZone.forID("America/New_York"));
-      assertEquals(Option.optionTicker("XOM", midAugustDay, 'C', 90.00), "XOM130817C00090000");
+      DateTime midDecemberDay = new DateTime(2014, 12, 20, 14, 0, 0, 0, DateTimeZone.forID("America/New_York"));
+      assertEquals(Option.optionTicker("XOM", midDecemberDay, 'C', 90.00), "XOM141220C00090000");
+   }
+
+   @Test
+   public void testExpiryCalc() {
+      Option calculatedOption = Option.getOption("KO", "PUT", 42.01);
+      assertEquals(calculatedOption.getExpiry(), new DateTime(2014, 12, 20, 0, 0, 0, 0, DateTimeZone.forID("America/New_York")));
    }
 
    @Test
