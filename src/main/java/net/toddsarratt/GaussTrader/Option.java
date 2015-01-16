@@ -234,13 +234,14 @@ public class Option extends Security {
 
    /**
     * This method replaces deprecated method getExpirySaturday()
-    * Expiration date is the Saturday that follows the third Friday of the month
+    * As of 2/2015 options expire on Friday instead of Saturday
+    * http://www.cboe.com/aboutcboe/xcal2015.pdf
+    * Expiration date is now the third Friday of the month
     * This function returns the expiration date's day of the month [15th - 21st]
     */
    public static int calculateFutureExpiry(int month, int year) {
       MutableDateTime expiryDate = new MutableDateTime(year, month, 2, 16, 20, 0, 0, DateTimeZone.forID("America/New_York"));
       expiryDate.setDayOfMonth(21 - (expiryDate.getDayOfWeek() % 7));   // Calculate third friday
-      expiryDate.addDays(1);                                            // Add one for Saturday
       return expiryDate.getDayOfMonth();
    }
 

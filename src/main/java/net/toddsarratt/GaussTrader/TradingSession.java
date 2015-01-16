@@ -138,15 +138,15 @@ public class TradingSession {
          LOGGER.info("Market closes at usual 4pm New York time");
          marketCloseEpoch = todaysDateTime.withTime(16, 0, 0, 0).getMillis();
          LOGGER.debug("marketCloseEpoch = {} ({})", marketCloseEpoch, todaysDateTime.withHourOfDay(16));
-       /* If using Yahoo! quotes, account for 20min delay */
-         LOGGER.debug("GaussTrader.delayedQuotes == {}", GaussTrader.delayedQuotes);
-         if (GaussTrader.delayedQuotes) {
-            LOGGER.debug("Adding Yahoo! quote delay of 20 minutes to market open and close times");
-            marketOpenEpoch += (20 * 60 * 1000);
-            LOGGER.debug("Updated marketOpenEpoch == {} ({})", marketOpenEpoch, new MutableDateTime(marketOpenEpoch));
-            marketCloseEpoch += (20 * 60 * 1000);
-            LOGGER.debug("Updated marketCloseEpoch == {} ({})", marketCloseEpoch, new MutableDateTime(marketCloseEpoch));
-         }
+      }
+      /* If using Yahoo! quotes, account for 20min delay */
+      LOGGER.debug("GaussTrader.delayedQuotes == {}", GaussTrader.delayedQuotes);
+      if (GaussTrader.delayedQuotes) {
+         LOGGER.debug("Adding Yahoo! quote delay of 20 minutes to market open and close times");
+         marketOpenEpoch += (20 * 60 * 1000);
+         LOGGER.debug("Updated marketOpenEpoch == {} ({})", marketOpenEpoch, new MutableDateTime(marketOpenEpoch));
+         marketCloseEpoch += (20 * 60 * 1000);
+         LOGGER.debug("Updated marketCloseEpoch == {} ({})", marketCloseEpoch, new MutableDateTime(marketCloseEpoch));
       }
       return true;
    }
