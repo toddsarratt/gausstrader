@@ -329,7 +329,7 @@ public class TradingSession {
       if (currentStockPrice <= stock.getBollingerBand(5)) {
          LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(5));
          if (openPutShorts < maximumContracts) {
-            return new PriceBasedAction(true, "PUT", maximumContracts / 4);
+            return new PriceBasedAction(true, "PUT", Math.max(maximumContracts / 4, 1));
          }
          LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
          return DO_NOTHING_PRICE_BASED_ACTION;
@@ -337,7 +337,7 @@ public class TradingSession {
       if (currentStockPrice <= stock.getBollingerBand(4)) {
          LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(4));
          if (openPutShorts < maximumContracts / 2) {
-            return new PriceBasedAction(true, "PUT", maximumContracts / 4);
+            return new PriceBasedAction(true, "PUT", Math.max(maximumContracts / 4, 1));
          }
          LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
          return DO_NOTHING_PRICE_BASED_ACTION;
@@ -346,7 +346,7 @@ public class TradingSession {
       if (currentStockPrice <= stock.getBollingerBand(3)) {
          LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), currentStockPrice, stock.getBollingerBand(3));
          if (openPutShorts < maximumContracts / 4) {
-            return new PriceBasedAction(true, "PUT", maximumContracts / 4);
+            return new PriceBasedAction(true, "PUT", Math.max(maximumContracts / 4, 1));
          }
          LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
       }
@@ -431,7 +431,7 @@ public class TradingSession {
 	 * Removing yahoo quote delay from previous market close calculation in TradingSession.marketIsOpenToday() 
 	 */
       long earliestAcceptableLastPriceUpdateEpoch = GaussTrader.delayedQuotes ? (marketCloseEpoch - (20 * 60 * 1000)) : marketCloseEpoch;
-	/* Default all closing epochs to 420pm of the closing day, to keep consistant, and because epoch is the key value, not the date (epoch is much more granular)*/
+	/* Default all closing epochs to 420pm of the closing day, to keep consistent, and because epoch is the key value, not the date (epoch is much more granular)*/
       long closingEpoch = new DateTime(DateTimeZone.forID("America/New_York")).withTime(16, 20, 0, 0).getMillis();
       for (Stock stock : stockList) {
          closingPrice = stock.lastTick();
