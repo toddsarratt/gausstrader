@@ -89,7 +89,7 @@ public class TradingSession {
          LOGGER.info("Market is closed today.");
       }
       reconcileExpiringOptions();
-      // portfolio.updatePositionsNetAssetValues() or something similar needs to be written and called here
+      // TODO : portfolio.updatePositionsNetAssetValues() or something similar needs to be written and called here
       portfolio.calculateNetAssetValue();
       writePortfolioToDb();
       LOGGER.info("End of trading day.");
@@ -361,18 +361,18 @@ public class TradingSession {
    private void reconcileExpiringOptions() {
       LOGGER.debug("Entering TradingSession.reconcileExpiringOptions()");
       LOGGER.info("Checking for expiring options");
-      MutableDateTime thisSaturday = new MutableDateTime(todaysDateTime, DateTimeZone.forID("America/New_York"));
-      thisSaturday.setDayOfWeek(DateTimeConstants.SATURDAY);
-      int thisSaturdayJulian = thisSaturday.getDayOfYear();
-      int thisSaturdayYear = thisSaturday.getYear();
+      MutableDateTime thisFriday = new MutableDateTime(todaysDateTime, DateTimeZone.forID("America/New_York"));
+      thisFriday.setDayOfWeek(DateTimeConstants.FRIDAY);
+      int thisFridayJulian = thisFriday.getDayOfYear();
+      int thisFridayYear = thisFriday.getYear();
       if (dayToday == DateTimeConstants.FRIDAY) {
          LOGGER.debug("Today is Friday, checking portfolio.getListOfOpenOptionPositions() for expiring options");
          for (Position openOptionPosition : portfolio.getListOfOpenOptionPositions()) {
             LOGGER.debug("Examining positionId {} for option ticker {}", openOptionPosition.getPositionId(), openOptionPosition.getTicker());
-            LOGGER.debug("Comparing Saturday Julian {} to {} and year {} to {}",
-               openOptionPosition.getExpiry().getDayOfYear(), thisSaturdayJulian, openOptionPosition.getExpiry().getYear(), thisSaturdayYear);
-            if ((openOptionPosition.getExpiry().getDayOfYear() == thisSaturdayJulian) &&
-               (openOptionPosition.getExpiry().getYear() == thisSaturdayYear)) {
+            LOGGER.debug("Comparing Friday Julian {} to {} and year {} to {}",
+               openOptionPosition.getExpiry().getDayOfYear(), thisFridayJulian, openOptionPosition.getExpiry().getYear(), thisFridayYear);
+            if ((openOptionPosition.getExpiry().getDayOfYear() == thisFridayJulian) &&
+               (openOptionPosition.getExpiry().getYear() == thisFridayYear)) {
                LOGGER.debug("Option expires tomorrow, checking moneyness");
                try {
                   double stockLastTick = Stock.lastTick(openOptionPosition.getUnderlyingTicker());

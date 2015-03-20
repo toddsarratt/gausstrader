@@ -17,7 +17,7 @@ public class OptionTickerGeneration {
    @Test
    public void testExpiryCalc() {
       Option calculatedOption = Option.getOption("KO", "PUT", 42.01);
-      assertEquals(calculatedOption.getExpiry(), new DateTime(2014, 12, 20, 0, 0, 0, 0, DateTimeZone.forID("America/New_York")));
+      assertEquals(calculatedOption.getExpiry(), new DateTime(2015, 4, 17, 0, 0, 0, 0, DateTimeZone.forID("America/New_York")));
    }
 
    @Test

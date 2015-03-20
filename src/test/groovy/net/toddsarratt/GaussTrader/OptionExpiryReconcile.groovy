@@ -15,9 +15,9 @@ public class OptionExpiryReconcile {
         Stock cisco = new Stock("CSCO")
         Portfolio expiringOptionsPort = new Portfolio("expiringOptionsPort", 1_000_000.00)
         /* Adjust the prices in the new Positions below against the current price of CSCO */
-        Position expiringItmShortPut = new Position(ticker: "CSCO131116P00030000", expiry: new DateTime(1384578000000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 30)
-        Position expiringOtmShortPut = new Position(ticker: "CSCO131116P00021000", expiry: new DateTime(1384578000000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 21)
-        Position nonExpiringShortPut = new Position(ticker: "CSCO131221P00200000", expiry: new DateTime(1387602000000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 20)
+        Position expiringItmShortPut = new Position(ticker: "CSCO150320P00030000", expiry: new DateTime(1426885200000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 30)
+        Position expiringOtmShortPut = new Position(ticker: "CSCO150320P00021000", expiry: new DateTime(1426885200000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 21)
+        Position nonExpiringShortPut = new Position(ticker: "CSCO160115P00020000", expiry: new DateTime(1452895200000, DateTimeZone.forID("America/New_York")), underlyingTicker: "CSCO", strikePrice: 20)
         expiringOptionsPort.portfolioPositions.add(expiringItmShortPut)
         expiringOptionsPort.portfolioPositions.add(expiringOtmShortPut)
         expiringOptionsPort.portfolioPositions.add(nonExpiringShortPut)
@@ -28,7 +28,7 @@ public class OptionExpiryReconcile {
         assertEquals(expiringOptionsPort.numberOfOpenStockLongs(cisco), 0)
 
         TradingSession expiryFridaySession = new TradingSession(expiringOptionsPort, new ArrayList<Stock>())
-        expiryFridaySession.todaysDateTime = new DateTime(1384534800000, DateTimeZone.forID("America/New_York"))
+        expiryFridaySession.todaysDateTime = new DateTime(1426867200, DateTimeZone.forID("America/New_York"))
         expiryFridaySession.dayToday = expiryFridaySession.todaysDateTime.getDayOfWeek()
         expiryFridaySession.reconcileExpiringOptions()
 
@@ -43,7 +43,7 @@ public class OptionExpiryReconcile {
         Portfolio expiredOptionsPortfolio = new Portfolio("expiredOptionsPortfolio", 1_000_000.00)
         Position nonExpiredShortCall = new Position(
                 ticker: "CSCO200118C00022000",
-                expiry: new DateTime(2020, 1, 18, 16, 20, DateTimeZone.forID("America/New_York")),
+                expiry: new DateTime(2020, 1, 18, 17, 00, DateTimeZone.forID("America/New_York")),
                 underlyingTicker: "CSCO",
                 secType: "CALL",
                 strikePrice: 22)
@@ -199,11 +199,11 @@ public class OptionExpiryReconcile {
         assertEquals(expiredUnderCoveredShortCallPortfolio.numberOfOpenCallShorts(catStock), 0)
         assertEquals(expiredUnderCoveredShortCallPortfolio.numberOfOpenStockLongs(catStock), 0)
         /* All 500 shares called away @ $80. Up $40,000
-        Had to buy 100 shares in the market to deliver @ $80. CAT = $101.58 on 8/6/14
-        100 * ($80 - $101.58) = -$2,158
-        $40,000 - $2,158 = $37,842
+        Had to buy 100 shares in the market to deliver @ $80. CAT = $80.09 on 3/19/15
+        100 * ($80 - $80.09) = -$9
+        $40,000 - $9 = $39,991
          */
-        assertEquals(expiredUnderCoveredShortCallPortfolio.freeCash.doubleValue(), 1_037_842.0, 500)
+        assertEquals(expiredUnderCoveredShortCallPortfolio.freeCash.doubleValue(), 1_039_991.0, 500)
         assertEquals(expiredUnderCoveredShortCallPortfolio.reservedCash.doubleValue(), 0.0, 0.01)
     }
 

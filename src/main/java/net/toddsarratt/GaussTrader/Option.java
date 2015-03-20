@@ -44,8 +44,8 @@ public class Option extends Security {
       p = Pattern.compile("\\d{6}");
       m = p.matcher(optionTickerArg);
       if (m.find()) {
-         DateTimeFormatter expiryFormat = DateTimeFormat.forPattern("yyMMdd");
-         expiry = expiryFormat.parseDateTime(m.group(0));
+         DateTimeFormatter expiryFormat = DateTimeFormat.forPattern("yyMMddHH");
+         expiry = expiryFormat.parseDateTime(m.group(0) + "17");
       }
       p = Pattern.compile("\\d[CP]\\d");
       m = p.matcher(optionTickerArg);
