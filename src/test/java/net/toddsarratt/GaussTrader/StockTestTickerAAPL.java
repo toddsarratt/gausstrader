@@ -7,6 +7,8 @@ import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertTrue;
 
+@Deprecated
+/* Better unit testing coming in v0.2 */
 public class StockTestTickerAAPL {
    @Test(enabled = true)
    public void testRetrieveAAPLFromYahoo() {

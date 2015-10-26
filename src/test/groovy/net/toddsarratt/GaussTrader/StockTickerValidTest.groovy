@@ -8,6 +8,9 @@ import static org.testng.Assert.assertTrue
  * User: tsarratt
  * Date: 1/21/14
  */
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class StockTickerValidTest {
     Stock stockInDb = new Stock(ticker: "XOM")
     Stock stockAtYahoo = new Stock(ticker: "ARRS")

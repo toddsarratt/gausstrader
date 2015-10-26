@@ -1,112 +1,47 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTime;
-import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sql.DataSource;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.time.Instant;
 
 /**
- * http://www.gummy-stuff.org/Yahoo-data.htm
+ * Class {@code GaussTrader} is the entry class for the GaussTrader application.
+ * <p>
+ * GaussTrader (abbreviated "GT") is an an algorithm driven security trading simulator. GT monitors blue chip equities
+ * and attempts to identify mispriced stocks.
+ * <p>
+ * GaussTrader is intended to track the DOW 30 and Apple. These are large cap companies which, because of their size,
+ * should not have large share price changes. When a share price makes a large move an option is sold against the stock.
+ * The option is held until maturity. If the option expires out of the money then GT pockets the premium. If the option
+ * expires in the money, then the stock is purchased against the short put or sold against the short call, as
+ * appropriate.
+ * <p>
+ * On initialization
+ * <p>
  *
- * @author tsarratt
+ * @author Todd Sarratt todd.sarratt@gmail.com
+ * @since GaussTrader v0.1
  */
 
 public class GaussTrader {
-
-   protected static String portfolioName = "shortStrat2014Aug07";
-   protected static final String DB_IP = "localhost";
-   protected static final String DB_NAME = "postgres";
-   protected static final String DB_USER = "postgres";
-   protected static final String DB_PASSWORD = "b3llcurv38";
-   protected static final int YAHOO_RETRIES = 5;                // Number of ties to retry Yahoo connections
-   protected static final double STOCK_PCT_OF_PORTFOLIO = 10.0;
-   protected static final double STARTING_CASH = 1_000_000.00;  // Default value for new portfolio
-   // TODO : Shouldn't these all be final?
-   protected static int bollBandPeriod = 20;
-   protected static double bollingerSD1 = 2.0;
-   protected static double bollingerSD2 = 2.5;
-   protected static double bollingerSD3 = 3.0;
-   protected static boolean delayedQuotes = true;   // 20min delay using quotes from Yahoo!
-   protected static int delayMs = 60_000;          // Time between each stock price check to reduce (not even real-time) data churn
-   private static PGSimpleDataSource dataSource = new PGSimpleDataSource();
    private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
-
-   static {
-      LOGGER.info("*** START PROGRAM ***");
-      LOGGER.info("Starting GaussTrader at {}", new DateTime());
-      /** Set up DB connection. Package classes that need DB access can call GaussTrader.getDataSource() */
-      LOGGER.debug("Entering GaussTrader.prepareDatabaseConnection()");
-      LOGGER.debug("dataSource.setServerName({})", DB_IP);
-      dataSource.setServerName(DB_IP);
-      LOGGER.debug("dataSource.setDatabaseName({})", DB_NAME);
-      dataSource.setDatabaseName(DB_NAME);
-      LOGGER.debug("dataSource.setUser({})", DB_USER);
-      dataSource.setUser(DB_USER);
-      LOGGER.debug("dataSource.setPassword({})", DB_PASSWORD);
-      dataSource.setPassword(DB_PASSWORD);
-   }
-
-   /** Returns current epoch time + least significant nano seconds to generate unique order and position ids */
-   static long getNewId() {
-      return ((System.currentTimeMillis() << 20) & 0x7FFFFFFFFFF00000l) | (System.nanoTime() & 0x00000000000FFFFFl);
-   }
-
-   static DataSource getDataSource() {
-      return dataSource;
-   }
-
-   private static void addTickerlistToTradeableList(ArrayList<String> tickerList, ArrayList<Stock> tradeableStockList) {
-      LOGGER.debug("Entering GaussTrader.addTickerlistToTradeableList(ArrayList<String> {}, ArrayList<Stock> {})", tickerList.toString(), tradeableStockList.toString());
-      Stock stockToAdd;
-      for(String candidateTicker : tickerList) {
-         try {
-            stockToAdd = new Stock(candidateTicker);
-            if (!stockToAdd.tickerValid()) {
-               LOGGER.warn("Ticker {} invalid. Removing from candidate ticker list.", candidateTicker);
-            } else if (stockToAdd.getBollingerBand(0) <= 0.00) {
-               LOGGER.warn("Failed to calculate valid Bollinger Bands for {}. Removing from candidate ticker list.", candidateTicker);
-            } else {
-               tradeableStockList.add(stockToAdd);
-               WatchList.updateDbStockMetrics(stockToAdd);
-               LOGGER.info("Adding {} to tradeableStockList", candidateTicker);
-            }
-         } catch (IOException ioe) {
-            LOGGER.error("Cannot connect to Yahoo!");
-            LOGGER.error("IOException ioe", ioe);
-         } catch (NumberFormatException nfe) {
-            LOGGER.warn("Bad data from Yahoo! for ticker {}", candidateTicker);
-            LOGGER.debug("Caught (NumberFormatException nfe)", nfe);
-         }
-      }
-   }
+   public static WatchList watchList = new WatchList();
+   public static DataStore dataStore = new PostgresStore();
 
    public static void main(String[] args) {
-      try {
-         ArrayList<String> tickerList = new ArrayList<>();
-         ArrayList<Stock> tradeableStockList = new ArrayList<>();
-       /* Add DJIA to list of stocks to track */
-         String[] tickerArray = {"MMM", "NKE", "AXP", "T", "GS", "BA", "CAT", "CVX", "CSCO", "KO", "DD", "XOM", "GE", "V", "HD", "INTC",
-            "IBM", "JNJ", "JPM", "MCD", "MRK", "MSFT", "PFE", "PG", "TRV", "UNH", "UTX", "VZ", "WMT", "DIS"};
-         tickerList.addAll(Arrays.asList(tickerArray));
-	    /* Adding AAPL for Bill */
-         tickerList.add("AAPL");
-         LOGGER.debug("tickerList.size() = {}", tickerList.size());
-         WatchList.resetWatchList();
-         addTickerlistToTradeableList(tickerList, tradeableStockList);
-         LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolioName);
-         TradingSession todaysSession = new TradingSession(new Portfolio(portfolioName), tradeableStockList);
-         todaysSession.runTradingDay();
-         LOGGER.info("*** END PROGRAM ***");
-      } catch (Exception e) {
-         LOGGER.error("ENCOUNTERED UNEXPECTED FATAL ERROR");
-         LOGGER.error("Caught (Exception e)", e);
-         LOGGER.error("*** END PROGRAM ***");
-         System.exit(1);
-      }
+      Instant programStartTime = Instant.now();
+      LOGGER.info("*** START PROGRAM ***");
+      LOGGER.info("Starting GaussTrader at {}", programStartTime);
+      /* Add DJIA and Apple to list of securities to watch */
+      watchList.watch(Constants.DOW_JONES_TICKERS);
+      watchList.watch("AAPL");
+      dataStore.updateStockMetricsToStorage(watchList.getTickers());
+      LOGGER.debug("watchList.getTickerCount() = {}", watchList.getTickerCount());
+      watchList.reset();
+      LOGGER.debug("Creating new TradingSession() with new Portfolio({})", Constants.PORTFOLIO_NAME);
+      TradingSession todaysSession = new TradingSession(new Portfolio(Constants.PORTFOLIO_NAME), watchList);
+      todaysSession.runTradingDay();
+      LOGGER.info("*** END PROGRAM ***");
    }
 }

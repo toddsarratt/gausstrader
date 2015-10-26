@@ -32,14 +32,14 @@ public class Position {
 
    Position() {
       LOGGER.debug("Entering Position default constructor");
-      positionId = GaussTrader.getNewId();
+      positionId = getNewId();
       epochOpened = System.currentTimeMillis();
       open = true;
    }
 
    Position(Order orderToFill, double priceAtOpen) {
       LOGGER.debug("Entering Position constructor Position(Order {}, price {})", orderToFill.getOrderId(), priceAtOpen);
-      positionId = GaussTrader.getNewId();
+      positionId = getNewId();
       originatingOrderId = orderToFill.getOrderId();
       open = true;
       ticker = orderToFill.getTicker();
@@ -90,6 +90,15 @@ public class Position {
          newStockPosition.setNetAssetValue(newStockPosition.getNumberTransacted() * lastTick);
       }
       return newStockPosition;
+   }
+
+   /**
+    * Returns current epoch time + least significant nano seconds to generate unique order and position ids
+    *
+    * @return
+    */
+   static long getNewId() {
+      return ((System.currentTimeMillis() << 20) & 0x7FFFFFFFFFF00000l) | (System.nanoTime() & 0x00000000000FFFFFl);
    }
 
    public void close(double closePrice) {

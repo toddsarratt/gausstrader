@@ -6,6 +6,8 @@ import org.testng.annotations.Test;
 
 import static org.testng.Assert.*;
 
+@Deprecated
+/* Better unit testing coming in v0.2 */
 public class TestNewOrderGettersAndSetters {
    Order testOrder = new Order();
    Order testOrderFilled;

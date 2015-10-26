@@ -8,6 +8,9 @@ import static org.testng.Assert.*
 /**
  * Created by tsarratt on 5/16/2014.
  */
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class PositionPandL {
     @Test
     public void testPandL() {

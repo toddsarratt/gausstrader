@@ -3,6 +3,9 @@ package net.toddsarratt.GaussTrader;
 import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 public class CashFlowTestForNewOrder {
    Portfolio testPortfolio = new Portfolio();
    Order sellPutOrder = new Order();

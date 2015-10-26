@@ -7,6 +7,9 @@ import static org.testng.Assert.assertTrue
  * User: tsarratt
  * Date: 11/4/13
  */
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class FillShortPutOrderTest {
 
     @Test

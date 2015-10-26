@@ -10,6 +10,9 @@ import static org.testng.Assert.*
  */
 
 /* Long dated option MSFT160115C00030000 should be good through 2016 */
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class OptionPriceTest {
     @Test
     public void testOptionLastBid() {

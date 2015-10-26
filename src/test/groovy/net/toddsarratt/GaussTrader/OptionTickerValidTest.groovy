@@ -8,6 +8,8 @@ import org.testng.annotations.Test
 
 import static org.testng.Assert.*
 
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class OptionTickerValidTest {
     /**
      * Yahoo! changed the web response on 11/25/13 when an option is not found on their site

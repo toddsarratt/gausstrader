@@ -5,6 +5,9 @@ import org.testng.annotations.Test
 /**
  * Created by tsarratt on 11/24/2014.
  */
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class OptionContractCountTest {
     @Test
     public void testOptionLastBid() {

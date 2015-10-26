@@ -7,6 +7,8 @@ import org.testng.annotations.Test
 
 import static org.testng.Assert.*
 
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class PortfolioDbTests {
     /**
      * Do not specify a name because name is a key value. 

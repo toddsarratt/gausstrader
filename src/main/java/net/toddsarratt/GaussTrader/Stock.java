@@ -18,10 +18,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.*;
 
 public class Stock extends Security {
@@ -38,43 +35,61 @@ public class Stock extends Security {
    private double fiftyDma = 0.00;
    private double twoHundredDma = 0.00;
    private LinkedHashMap<Long, Double> historicalPriceMap = new LinkedHashMap<>(PRICE_TRACKING_MAP);
-   Boolean tickerValid = null;
+   private Boolean tickerValid;
    //	public LinkedList<Dividend> dividendsPaid = null;
    private double[] bollingerBand = new double[6];
-   private static final int PRICES_NEEDED = GaussTrader.bollBandPeriod;
+   private static Market market = new YahooMarket();
    private static final DateTimeFormatter LAST_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyy hh:mmaa");
    private static final Logger LOGGER = LoggerFactory.getLogger(Stock.class);
    private static final Map<Long, Double> PRICE_TRACKING_MAP = new HashMap<>();
    private static final DateTime EARLIEST_PRICE_DATE = earliestHistoricalPriceNeeded();
 
-   Stock() {
-   }
-
-   Stock(String ticker) throws IOException {
+   /**
+    * Private constructor for Stock class. Use static factory method of() to create objects of this class
+    *
+    * @param ticker a String representing the ticker
+    */
+   private Stock(String ticker) {
       LOGGER.debug("Entering constructor Stock(String {})", ticker);
       this.ticker = ticker;
-      populateStockInfo();
-      populateHistoricalPricesDB();
-      addPriceMapToDB(populateHistoricalPricesYahoo());
-      calculateBollingerBands();
    }
 
-   void populateStockInfo() {
+   public static Stock of(String ticker) {
+      LOGGER.debug("Entering of(String {})", ticker);
+      Stock stock = new Stock(ticker);
+      populateStockInfo(stock);
+      populateHistoricalPricesStore(stock);
+      addPriceMapToDB(populateHistoricalPricesMarket(stock));
+      calculateBollingerBands(stock);
+   }
+
+   // TODO : Allow this to change the default market from YahooMarket()
+   boolean setMarket(String marketName) {
+      boolean setMarketSuccess = false;
+      market = null;
+      return setMarketSuccess;
+   }
+
+   /**
+    * @return
+    */
+   private static boolean populateStockInfo(Stock stock) {
       LOGGER.debug("Entering Stock.populateStockInfo()");
       String[] quoteString;
-      try {
-         quoteString = askYahoo(ticker, "l1d1t1m3m4");
-         price = Double.parseDouble(quoteString[0]);
-         lastPriceUpdateEpoch = jodaLastTickToEpoch(quoteString[1] + " " + quoteString[2]);
-         fiftyDma = Double.parseDouble(quoteString[3]);
-         twoHundredDma = Double.parseDouble(quoteString[4]);
+      quoteString = askYahoo(stock.ticker, "l1d1t1m3m4");
+      stock.price = Double.parseDouble(quoteString[0]);
+      stock.lastPriceUpdateEpoch = jodaLastTickToEpoch(quoteString[1] + " " + quoteString[2]);
+      stock.fiftyDma = Double.parseDouble(quoteString[3]);
+      stock.twoHundredDma = Double.parseDouble(quoteString[4]);
+      /* TODO : This logic needs to be closer to the Yahoo! call
       } catch (IOException ioe) {
          LOGGER.warn("Caught IOException connecting to Yahoo! to populate stock info for {}", ticker);
          LOGGER.debug("Caught (IOException ioe) ", ioe);
       }
+      */
    }
 
-   void populateHistoricalPricesDB() {
+   void populateHistoricalPricesDB(Stock stock) {
    /* Populate stock price history from DB */
       LOGGER.debug("Entering Stock.populateHistoricalPricesDB()");
       LinkedHashMap<Long, Double> priceMapFromDB = DBHistoricalPrices.getDBPrices(ticker, EARLIEST_PRICE_DATE);
@@ -92,7 +107,8 @@ public class Stock extends Security {
 
    HashMap<Long, Double> populateHistoricalPricesYahoo() {
 	/* historicalPriceMap was built from PRICE_TRACKING_MAP which contains all necessary epochs as keys and -1.0 for every value, 
-	 * which should be replaced first from the local database first and then supplemented by Yahoo!
+    * which should be replaced first from the local database first and then supplemented by Yahoo!
+	 * TODO: The incomplete statement below will not stand, man
 	 * This method returns a map of blahblahblah
 	 */
       LOGGER.debug("Entering Stock.populateHistoricalPricesYahoo()");
@@ -150,7 +166,7 @@ public class Stock extends Security {
       MutableDateTime earliestDatePriceNeeded = new MutableDateTime(DateTimeZone.forID("America/New_York"));
       earliestDatePriceNeeded.setMillisOfDay((16 * 60 + 20) * 60 * 1000);
       LOGGER.debug("Looking for valid open market dates backwards from {} ({})", earliestDatePriceNeeded.getMillis(), earliestDatePriceNeeded.toString());
-      for (int checkedDates = 0; checkedDates < PRICES_NEEDED; checkedDates++) {
+      for (int checkedDates = 0; checkedDates < Constants.BOLL_BAND_PERIOD; checkedDates++) {
          earliestDatePriceNeeded.addDays(-1);
          while (!DBHistoricalPrices.marketWasOpen(earliestDatePriceNeeded)) {
             earliestDatePriceNeeded.addDays(-1);
@@ -186,7 +202,7 @@ public class Stock extends Security {
             if (mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant())) {
                LOGGER.debug("mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant()) : ({}).isAfter({})",
                   mpdr.earliest.toString(), missingDateTimeToCheck.toString());
-               mpdr.earliest = new DateTime(missingDateTimeToCheck, DateTimeZone.forID("America/New_York")).withTime(16, (GaussTrader.delayedQuotes ? 20 : 0), 0, 0);
+               mpdr.earliest = new DateTime(missingDateTimeToCheck, DateTimeZone.forID("America/New_York")).withTime(16, (Constants.DELAYED_QUOTES ? 20 : 0), 0, 0);
                LOGGER.debug("Updating mpdr.earliest = {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
             }
             if (mpdr.latest.isBefore(missingDateTimeToCheck.toInstant())) {
@@ -229,7 +245,7 @@ public class Stock extends Security {
 
    void calculateBollingerBands() {
       LOGGER.debug("Entering Stock.calculateBollingerBands()");
-      int period = GaussTrader.bollBandPeriod;
+      int period = Constants.BOLL_BAND_PERIOD;
       Collection<Double> historicalPriceArray;
 
       if (historicalPriceMap.containsValue(-1.0)) {
@@ -260,11 +276,11 @@ public class Stock extends Security {
          currentSD = Math.sqrt(currentSDSum / period);
          LOGGER.debug("currentSD = {}", currentSD);
          bollingerBand[0] = currentSMA;
-         bollingerBand[1] = currentSMA + currentSD * GaussTrader.bollingerSD1;
-         bollingerBand[2] = currentSMA + currentSD * GaussTrader.bollingerSD2;
-         bollingerBand[3] = currentSMA - currentSD * GaussTrader.bollingerSD1;
-         bollingerBand[4] = currentSMA - currentSD * GaussTrader.bollingerSD2;
-         bollingerBand[5] = currentSMA - currentSD * GaussTrader.bollingerSD3;
+         bollingerBand[1] = currentSMA + currentSD * Constants.BOLLINGER_SD1;
+         bollingerBand[2] = currentSMA + currentSD * Constants.BOLLINGER_SD2;
+         bollingerBand[3] = currentSMA - currentSD * Constants.BOLLINGER_SD1;
+         bollingerBand[4] = currentSMA - currentSD * Constants.BOLLINGER_SD2;
+         bollingerBand[5] = currentSMA - currentSD * Constants.BOLLINGER_SD3;
       }
    }
 
@@ -288,30 +304,12 @@ public class Stock extends Security {
    //		dividendsPaid.add(dividendPayment);
    //	}
 
-   public static String[] askYahoo(String ticker, String arguments) throws IOException {
-      LOGGER.debug("Entering Stock.askYahoo(String {}, String {})", ticker, arguments);
-      for(int yahooAttempt = 1; yahooAttempt <= GaussTrader.YAHOO_RETRIES; yahooAttempt++) {
-         try {
-         final URL YAHOO_URL = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
-            BufferedReader br = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
-            String[] yahooResults = br.readLine().replaceAll("[\"+%]", "").split("[,]");
-            LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
-            return yahooResults;
-         } catch(IOException ioe) {
-            LOGGER.warn("Attempt {} : Caught IOException in .askYahoo() with args {} for ticker {}", yahooAttempt, arguments, ticker);
-            LOGGER.debug("Caught (IOException ioe)", ioe);
-         } catch(NullPointerException npe) {                            /* Found 3/10/14 */
-            LOGGER.warn("Attempt {} : Caught NullPointerException in .askYahoo() with args {} for ticker {}", yahooAttempt, arguments, ticker);
-            LOGGER.debug("Caught (NullPointerException)", npe);
-         }
-      }
-      throw new IOException();
-   }
+
 
    double lastTick() {
       LOGGER.debug("Entering Stock.lastTick()");
       try {
-         String[] tickString = askYahoo(ticker, "sl1d1t1");
+         InstantPrice instantPrice = market.lastTick(ticker);
          if (ticker.equals(tickString[0])) {
             price = Double.parseDouble(tickString[1]);
             lastPriceUpdateEpoch = jodaLastTickToEpoch(tickString[2] + " " + tickString[3]);
@@ -389,13 +387,15 @@ public class Stock extends Security {
       return lastPriceUpdateEpoch;
    }
 
-   public boolean tickerValidDb() {
+   public boolean tickerValidStore() {
       LOGGER.debug("Entering Stock.tickerValidDb()");
-      return DBHistoricalPrices.tickerPriceInDb(ticker);
+      return DataStore.tickerPriceInDb(ticker);
    }
-   public boolean tickerValidYahoo() {
+
+   public boolean tickerValidMarket() {
       LOGGER.debug("Entering Stock.tickerValidYahoo()");
       try {
+         return Market.tickerValid
          return askYahoo(ticker, "e1")[0].equals("N/A");
       } catch(IOException ioe) {
          LOGGER.warn("Could not connect to Yahoo! to verify ticker {} validity", ticker);

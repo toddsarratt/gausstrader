@@ -5,6 +5,9 @@ import org.testng.annotations.Test
 /**
  * Created by tsarratt on 10/7/2014.
  */
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class WatchlistWriteTest {
     /* This just checks to make sure the method executes
     It make no guarantee that its logical performance is correct

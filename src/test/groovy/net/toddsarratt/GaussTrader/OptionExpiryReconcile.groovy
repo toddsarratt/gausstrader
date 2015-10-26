@@ -9,6 +9,9 @@ import static org.testng.Assert.*
  * User: tsarratt
  * Date: 11/13/13
  */
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 public class OptionExpiryReconcile {
     @Test
     public void testPortfolioExerciseLongPut() {

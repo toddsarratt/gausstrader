@@ -5,6 +5,9 @@ import org.testng.annotations.Test
  * User: tsarratt
  * Date: 2/26/14
  */
+
+@Deprecated
+/* Better unit testing coming in v0.2 */
 class PauseBetweenCyclesTest {
     @Test
     public void testNegativeSleepValue() {
