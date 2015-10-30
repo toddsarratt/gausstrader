@@ -1,11 +1,11 @@
 package net.toddsarratt.GaussTrader;
 
-import com.sun.xml.internal.bind.v2.TODO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -18,14 +18,10 @@ import java.util.stream.Collectors;
 public class WatchList {
    private static final Logger LOGGER = LoggerFactory.getLogger(DBHistoricalPrices.class);
    private static DataStore dataStore = new PostgresStore();
-   /* tickerList<String> is created from data passed into the watch() method. Each ticker is verified and stored in
-    * tradeableStockList<Stock>
-    */
-   private ArrayList<String> tickerList = new ArrayList<>();
-   /* tradeableStockList<Stock> contains the Stock objects representing the securities watched by this WatchList object.
-      The Stock objects are created based on the tickers passed into tickerList<String>
-    */
-   private ArrayList<Stock> tradeableStockList = new ArrayList<>();
+   /* tickerSet<String> is created from data passed into the watch() method. A Set is used to prevent duplicate tickers.
+    * Each ticker is used to create a Stock object which is stored in tradeableStockSet<Stock> */
+   private Set<String> tickerSet = new HashSet<>();
+   private Set<Stock> tradeableStockSet = new HashSet<>();
 
    /**
     * Adds a ticker or tickers to the list of securities for the application to watch.
@@ -33,25 +29,39 @@ public class WatchList {
     * @param tickers String vararg representing tickers to watch
     */
    public void watch(String... tickers) {
-      Arrays.stream(tickers).forEach(tickerList::add);
-      addTickerlistToTradeableList();
+      Arrays.stream(tickers).forEach(tickerSet::add);
+      addTickerSetToTradeableSet();
    }
 
    /**
-    * Used to exist in GaussTrader class.
+    * Uses map to create a Stock object for each ticker. Clears tickerSet.
     */
-   private void addTickerlistToTradeableList() {
+   private void addTickerSetToTradeableSet() {
       LOGGER.debug("Entering addTickerlistToTradeableList()");
-      tradeableStockList.addAll(
-              tickerList.stream()
+      tradeableStockSet.addAll(
+              tickerSet.parallelStream()
                       .map(Stock::of)
                       .filter(Stock::tickerValid)
                       .filter(stock -> stock.getBollingerBand(0) > 0.00)
                       .collect(Collectors.toList())
       );
-      tickerList.clear();
-               /* Past price history is collected from the network when Stock object is created. Save this to the
-               dataStore for cheaper future retrieval */
+      tickerSet.clear();
+   }
+
+   /**
+    * @return a Set<String> containing all the tickers in the watchlist
+    */
+   public Set<String> getTickerSet() {
+      return tradeableStockSet.parallelStream()
+              .map(Stock::getTicker)
+              .collect(Collectors.toSet());
+   }
+
+   /**
+    * @return a Set<Stock> containing all the Stock objects in the watchlist
+    */
+   public Set<Stock> getStockSet() {
+      return tradeableStockSet;
    }
 
    // TODO : What the hell did this do? Why don't I document better?
@@ -59,13 +69,5 @@ public class WatchList {
       LOGGER.debug("Entering reset()");
       DataStore dataStore = new PostgresStore();
       dataStore.resetWatchList();
-   }
-
-   /* TODO: Allow a change of data store. Currently there is only one class that implements DataStore so this is just
-      a stub
-   */
-   boolean setDataStore(String dataStoreName) {
-      boolean dataStoreSuccessfullySet = false;
-      return dataStoreSuccessfullySet;
    }
 }

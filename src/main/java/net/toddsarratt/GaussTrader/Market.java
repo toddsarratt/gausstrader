@@ -1,5 +1,6 @@
 package net.toddsarratt.GaussTrader;
 
+import org.joda.time.MutableDateTime;
 import org.joda.time.ReadableDateTime;
 
 import java.io.IOException;
@@ -13,9 +14,13 @@ import java.io.IOException;
  */
 public interface Market {
 
+   boolean isOpenToday();
+
    InstantPrice lastTick(String ticker) throws IOException;
 
    boolean marketPricesCurrent();
+
+   boolean wasOpen(MutableDateTime histDateTime);
 
    boolean isHoliday(int julianDay, int year);
 

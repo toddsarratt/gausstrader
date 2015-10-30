@@ -1,9 +1,6 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeConstants;
-import org.joda.time.MutableDateTime;
-import org.joda.time.ReadableDateTime;
+import org.joda.time.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +19,10 @@ import java.util.Arrays;
  * @since v0.2
  */
 public class YahooMarket implements Market {
+   private static DateTime todaysDateTime = new DateTime(DateTimeZone.forID("America/New_York"));
+   private static int dayToday = todaysDateTime.getDayOfWeek();
+   private static long marketOpenEpoch;
+   private static long marketCloseEpoch;
    private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
 
    @Override
@@ -72,6 +73,13 @@ public class YahooMarket implements Market {
    }
 
    @Override
+   public boolean wasOpen(MutableDateTime histDateTime) {
+      return !(isHoliday(histDateTime) ||
+              (histDateTime.getDayOfWeek() == DateTimeConstants.SATURDAY) ||
+              (histDateTime.getDayOfWeek() == DateTimeConstants.SUNDAY));
+   }
+
+   @Override
    public boolean isHoliday(int julianDay, int year) {
       return Constants.HOLIDAY_MAP.get(year).contains(julianDay);
    }
@@ -94,11 +102,12 @@ public class YahooMarket implements Market {
    /**
     * This method contains DateTime constructors without TZ arguments to display local time in DEBUG logs
     */
-   private static boolean isOpenToday() {
+   @Override
+   public boolean isOpenToday() {
       LOGGER.debug("Entering TradingSession.marketIsOpenToday()");
       LOGGER.debug("julianToday = {}", todaysDateTime.getDayOfYear());
       LOGGER.debug("Comparing to list of holidays {}", Constants.HOLIDAY_MAP.entrySet());
-      if (isMarketHoliday(todaysDateTime)) {
+      if (isHoliday(todaysDateTime)) {
          LOGGER.debug("Market is on holiday.");
          return false;
       }
@@ -109,7 +118,8 @@ public class YahooMarket implements Market {
       }
       marketOpenEpoch = todaysDateTime.withTime(9, 30, 0, 0).getMillis();
       LOGGER.debug("marketOpenEpoch = {} ({})", marketOpenEpoch, new DateTime(marketOpenEpoch));
-      LOGGER.debug("Checking to see if today's julian date {} matches early close list {}", todaysDateTime.getDayOfYear(), EARLY_CLOSE_MAP.entrySet());
+      LOGGER.debug("Checking to see if today's julian date {} matches early close list {}",
+              todaysDateTime.getDayOfYear(), Constants.EARLY_CLOSE_MAP.entrySet());
       if (isEarlyClose(todaysDateTime)) {
          LOGGER.info("Today the market closes at 1pm New York time");
          marketCloseEpoch = todaysDateTime.withTime(13, 0, 0, 0).getMillis();
@@ -144,14 +154,14 @@ public class YahooMarket implements Market {
       return false;
    }
 
+   /* TODO: NEVER RETURN NULL */
    @Override
    public InstantPrice lastTick(String ticker) throws IOException {
       LOGGER.debug("Entering lastTick(String {})", ticker);
       String[] tickString = askYahoo(ticker, "sl1d1t1");
       if (ticker.equals(tickString[0])) {
          return InstantPrice.of(tickString[1], System.currentTimeMillis());
-         return Double.parseDouble(tickString[1]);
       }
-      return -1;
+      return (InstantPrice) null;
    }
 }

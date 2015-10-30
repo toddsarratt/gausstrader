@@ -20,12 +20,12 @@ import java.util.List;
 public class Portfolio {
    private String name = Long.toString(System.currentTimeMillis());
    private double netAssetValue = 0.00;
-   private double freeCash = GaussTrader.STARTING_CASH;
+   private double freeCash = Constants.STARTING_CASH;
    private double reservedCash = 0.00;
    private double totalCash = 0.00;
-   private final List<Position> portfolioPositions = new ArrayList<>();
-   private final List<Order> portfolioOrders = new ArrayList<>();
-   private static final DataSource dataSource = GaussTrader.getDataSource();
+   private List<Position> portfolioPositions = new ArrayList<>();
+   private List<Order> portfolioOrders = new ArrayList<>();
+   private static final DataStore dataStore = GaussTrader.getDataStore();
    private static final Logger LOGGER = LoggerFactory.getLogger(Portfolio.class);
 
    Portfolio() {
@@ -37,7 +37,7 @@ public class Portfolio {
       name = portfolioName;
       try {
          LOGGER.info("Starting with portfolio named \"{}\"", name);
-         if (portfolioInDb()) {
+         if (portfolioInStore()) {
             getDbPortfolio();
          } else {
             LOGGER.info("Could not find portfolio \"{}\" in database", portfolioName);
@@ -57,7 +57,7 @@ public class Portfolio {
       this.name = portfolioName;
       this.freeCash = startingCash;
       try {
-         if (portfolioInDb()) {
+         if (portfolioInStore()) {
             LOGGER.error("Portfolio {} exists in database", portfolioName);
             LOGGER.error("*** END PROGRAM ***");
             System.exit(1);
@@ -68,7 +68,7 @@ public class Portfolio {
       }
    }
 
-   boolean portfolioInDb() throws SQLException {
+   boolean portfolioInStore() throws SQLException {
       LOGGER.debug("Entering Portfolio.portfolioInDb()");
       Connection dbConnection = dataSource.getConnection();
       PreparedStatement summarySqlStatement = dbConnection.prepareStatement("SELECT DISTINCT name FROM portfolios WHERE name = ?");
@@ -79,7 +79,7 @@ public class Portfolio {
       return (portfolioSummaryResultSet.next());
    }
 
-   void getDbPortfolio() throws SQLException {
+   void getPortfolioFromStore() throws SQLException {
       LOGGER.debug("Entering Portfolio.getDbPortfolio()");
       getDbPortfolioSummary();
       getDbPortfolioPositions();
@@ -692,7 +692,7 @@ public class Portfolio {
       dbConnection.close();
    }
 
-   private void updateDbSummary() throws SQLException {
+   private void updateSummaryToStore() throws SQLException {
       LOGGER.debug("Entering Portfolio.updateDbSummary()");
       Connection dbConnection = dataSource.getConnection();
       String sqlString = "UPDATE portfolios SET net_asset_value = ?, free_cash = ?, reserved_cash = ?, total_cash = ? WHERE name = ?";
@@ -712,7 +712,7 @@ public class Portfolio {
       dbConnection.close();
    }
 
-   private void insertDbSummary() throws SQLException {
+   private void insertSummaryToStore() throws SQLException {
       LOGGER.debug("Entering Portfolio.insertDbSummary()");
       Connection dbConnection = dataSource.getConnection();
       String sqlString = "INSERT INTO portfolios (name, net_asset_value, free_cash, reserved_cash, total_cash) VALUES (?, ?, ?, ?, ?)";

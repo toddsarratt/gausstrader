@@ -26,8 +26,23 @@ import java.time.Instant;
 
 public class GaussTrader {
    private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
-   public static WatchList watchList = new WatchList();
-   public static DataStore dataStore = new PostgresStore();
+   private static WatchList watchList = new WatchList();
+   private static DataStore dataStore = new PostgresStore();
+   private static Market market = new YahooMarket();
+
+   /**
+    * @return DataStore associated with the application.
+    */
+   public static DataStore getDataStore() {
+      return dataStore;
+   }
+
+   /**
+    * @return Market associated with the application.
+    */
+   public static Market getMarket() {
+      return market;
+   }
 
    public static void main(String[] args) {
       Instant programStartTime = Instant.now();
@@ -36,8 +51,11 @@ public class GaussTrader {
       /* Add DJIA and Apple to list of securities to watch */
       watchList.watch(Constants.DOW_JONES_TICKERS);
       watchList.watch("AAPL");
-      dataStore.updateStockMetricsToStorage(watchList.getTickers());
-      LOGGER.debug("watchList.getTickerCount() = {}", watchList.getTickerCount());
+      /* Past price history is collected from the network when Stock objects are created. Save to the dataStore for
+       cheaper future retrieval */
+      dataStore.updateStockMetricsToStorage(watchList.getStockSet());
+      LOGGER.debug("watchList.getTickers() = {}", watchList.getTickerSet());
+      /** This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? **/
       watchList.reset();
       LOGGER.debug("Creating new TradingSession() with new Portfolio({})", Constants.PORTFOLIO_NAME);
       TradingSession todaysSession = new TradingSession(new Portfolio(Constants.PORTFOLIO_NAME), watchList);

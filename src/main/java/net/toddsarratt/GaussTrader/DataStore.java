@@ -1,5 +1,10 @@
 package net.toddsarratt.GaussTrader;
 
+import org.joda.time.DateTime;
+
+import java.util.LinkedHashMap;
+import java.util.Set;
+
 /**
  * The {@code DataStore} class provides
  *
@@ -11,5 +16,15 @@ public interface DataStore {
 
    void resetWatchList();
 
+   LinkedHashMap<Long, Double> getStoredPrices(String ticker, DateTime earliestCloseDate);
+
    void updateStockMetricsToStorage(Stock stockToUpdate);
+
+   void updateStockMetricsToStorage(Set<Stock> stockSetToUpdate);
+
+   void addStockPriceToStore(String ticker, long dateEpoch, double adjClose);
+
+   boolean tickerPriceInStore(String ticker);
+
+   void deactivateStock(String tickerToRemove);
 }

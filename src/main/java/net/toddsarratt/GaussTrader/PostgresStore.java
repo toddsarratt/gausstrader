@@ -1,5 +1,6 @@
 package net.toddsarratt.GaussTrader;
 
+import org.joda.time.DateTime;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Set;
 
 /**
  * The {@code PostgresStore} class implements the DataStore interface
@@ -87,6 +91,41 @@ public class PostgresStore implements DataStore {
    }
 
    @Override
+   public LinkedHashMap<Long, Double> getStoredPrices(String ticker, DateTime earliestCloseDate) {
+      LOGGER.debug("Entering getDBPrices(String {}, DateTime {} ({})",
+              ticker, earliestCloseDate.getMillis(), earliestCloseDate.toString());
+      LinkedHashMap<Long, Double> queriedPrices = new LinkedHashMap<>();
+      int pricesNeeded = Constants.BOLL_BAND_PERIOD;
+      int dbPricesFound = 0;
+      try {
+         LOGGER.debug("Getting connection to {}", Constants.DB_NAME);
+         Connection dbConnection = pgDataSource.getConnection();
+         PreparedStatement sqlStatement = dbConnection.prepareStatement("SELECT * FROM prices WHERE ticker = ? AND close_epoch >= ?");
+         sqlStatement.setString(1, ticker);
+         sqlStatement.setLong(2, earliestCloseDate.getMillis());
+         LOGGER.debug("SELECT * FROM prices WHERE ticker = {} AND close_epoch >= {}", ticker, earliestCloseDate.getMillis());
+         ResultSet historicalPriceResultSet = sqlStatement.executeQuery();
+         while (historicalPriceResultSet.next() && (dbPricesFound < pricesNeeded)) {
+            long closeEpoch = historicalPriceResultSet.getLong("close_epoch");
+            double adjClose = historicalPriceResultSet.getDouble("adj_close");
+            LOGGER.debug("Adding {}, {}", closeEpoch, adjClose);
+            queriedPrices.put(closeEpoch, adjClose);
+            dbPricesFound++;
+         }
+         dbConnection.close();
+      } catch (SQLException sqle) {
+         LOGGER.info("Unable to get connection to {}", Constants.DB_NAME);
+         LOGGER.debug("Caught (SQLException sqle)", sqle);
+      }
+      LOGGER.debug("Found {} prices in db", dbPricesFound);
+      LOGGER.debug("Returning from database LinkedHashMap of size {}", queriedPrices.size());
+      if (dbPricesFound != queriedPrices.size()) {
+         LOGGER.warn("Mismatch between prices found {} and number returned {}, possible duplication?", dbPricesFound, queriedPrices.size());
+      }
+      return queriedPrices;
+   }
+
+   @Override
    public void updateStockMetricsToStorage(Stock stockToUpdate) {
       LOGGER.debug("Entering WatchList.updateDb(Stock {})", stockToUpdate.getTicker());
       PreparedStatement sqlUniquenessStatement;
@@ -123,7 +162,56 @@ public class PostgresStore implements DataStore {
       }
    }
 
-   void deactivateStock(String tickerToRemove) {
+   @Override
+   public void updateStockMetricsToStorage(Set<Stock> stockSet) {
+      stockSet.parallelStream().forEach(this::updateStockMetricsToStorage);
+   }
+
+   @Override
+   public void addStockPriceToStore(String ticker, long dateEpoch, double adjClose) {
+      LOGGER.debug("Entering DBHistoricalPrices.addStockPrice(String {}, long {}, double {})", ticker, dateEpoch, adjClose);
+      Connection dbConnection;
+      int insertedRowCount;
+      try {
+         LOGGER.debug("Getting connection to {}", Constants.DB_NAME);
+         LOGGER.debug("Inserting historical stock price data for ticker {} into the database.", ticker);
+         dbConnection = pgDataSource.getConnection();
+         PreparedStatement sqlStatement = dbConnection.prepareStatement("INSERT INTO prices (ticker, adj_close, close_epoch) VALUES (?, ?, ?)");
+         sqlStatement.setString(1, ticker);
+         sqlStatement.setDouble(2, adjClose);
+         sqlStatement.setLong(3, dateEpoch);
+         LOGGER.debug("Executing INSERT INTO prices (ticker, adj_close, close_epoch) VALUES ({}, {}, {})", ticker, adjClose, dateEpoch);
+         if ((insertedRowCount = sqlStatement.executeUpdate()) != 1) {
+            LOGGER.warn("Inserted {} rows. Should have inserted 1 row.", insertedRowCount);
+         }
+         dbConnection.close();
+      } catch (SQLException sqle) {
+         LOGGER.info("Unable to get connection to {}", Constants.DB_NAME);
+         LOGGER.debug("Caught (SQLException sqle)", sqle);
+      }
+   }
+
+   @Override
+   public boolean tickerPriceInStore(String ticker) {
+      LOGGER.debug("Entering DBHistoricalPrices.tickerPriceInDb()");
+      Connection dbConnection;
+      try {
+         dbConnection = pgDataSource.getConnection();
+         PreparedStatement summarySqlStatement = dbConnection.prepareStatement("SELECT DISTINCT ticker FROM prices WHERE ticker = ?");
+         summarySqlStatement.setString(1, ticker);
+         LOGGER.debug("Executing SELECT DISTINCT ticker FROM prices WHERE ticker = {}", ticker);
+         ResultSet tickerInDbResultSet = summarySqlStatement.executeQuery();
+         dbConnection.close();
+         return (tickerInDbResultSet.next());
+      } catch (SQLException sqle) {
+         LOGGER.info("SQLException attempting to find historical price for {}", ticker);
+         LOGGER.debug("Exception", sqle);
+      }
+      return false;
+   }
+
+   @Override
+   public void deactivateStock(String tickerToRemove) {
       PreparedStatement sqlUpdateStatement;
       try {
          LOGGER.debug("Getting connection to {}", Constants.DB_NAME);
