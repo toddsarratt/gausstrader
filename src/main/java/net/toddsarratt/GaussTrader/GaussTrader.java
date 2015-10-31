@@ -29,6 +29,7 @@ public class GaussTrader {
    private static WatchList watchList = new WatchList();
    private static DataStore dataStore = new PostgresStore();
    private static Market market = new YahooMarket();
+   private static Portfolio portfolio = new Portfolio(Constants.PORTFOLIO_NAME);
 
    /**
     * @return DataStore associated with the application.
@@ -57,8 +58,8 @@ public class GaussTrader {
       LOGGER.debug("watchList.getTickers() = {}", watchList.getTickerSet());
       /** This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? **/
       watchList.reset();
-      LOGGER.debug("Creating new TradingSession() with new Portfolio({})", Constants.PORTFOLIO_NAME);
-      TradingSession todaysSession = new TradingSession(new Portfolio(Constants.PORTFOLIO_NAME), watchList);
+      LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolio.getName());
+      TradingSession todaysSession = new TradingSession(portfolio, watchList);
       todaysSession.runTradingDay();
       LOGGER.info("*** END PROGRAM ***");
    }

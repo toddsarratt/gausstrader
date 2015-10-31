@@ -27,4 +27,12 @@ public interface DataStore {
    boolean tickerPriceInStore(String ticker);
 
    void deactivateStock(String tickerToRemove);
+
+   boolean portfolioInStore(String name);
+
+   PortfolioSummary getPortfolioSummary(String portfolioName);
+
+   Set<Position> getPortfolioPositions();
+
+   Set<Order> getPortfolioOrders();
 }
