@@ -1,18 +1,12 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.joda.time.MutableDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sql.DataSource;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -24,8 +18,17 @@ public class Portfolio {
    private BigDecimal totalCash;
    private Set<Position> positions;
    private Set<Order> orders;
-   private static final DataStore dataStore = GaussTrader.getDataStore();
+   private static DataStore dataStore = GaussTrader.getDataStore();
    private static final Logger LOGGER = LoggerFactory.getLogger(Portfolio.class);
+   private static final PortfolioSummary INITIAL_SUMMARY = new PortfolioSummary(
+           "INITIAL",
+           BigDecimal.valueOf(Constants.STARTING_CASH),
+           BigDecimal.valueOf(Constants.STARTING_CASH),
+           BigDecimal.ZERO,
+           BigDecimal.valueOf(Constants.STARTING_CASH)
+   );
+   private static final Set<Position> NO_POSITIONS = Collections.EMPTY_SET;
+   private static final Set<Order> NO_ORDERS = Collections.EMPTY_SET;
 
    /**
     * Use static factory method .of() to create objects of the Portfolio class.
@@ -51,18 +54,17 @@ public class Portfolio {
       LOGGER.debug("Entering Portfolio constructor Portfolio(String {})", portfolioName);
       if (dataStore.portfolioInStore(portfolioName)) {
          LOGGER.info("Starting with portfolio named \"{}\"", portfolioName);
-         PortfolioSummary summary = dataStore.getPortfolioSummary(portfolioName);
-         Set<Position> positions = dataStore.getPortfolioPositions();
-         Set<Order> orders = dataStore.getPortfolioOrders();
+         newPortfolio = getPortfolioFromStore(portfolioName);
       } else {
          LOGGER.info("Could not find portfolio \"{}\"", portfolioName);
          newPortfolio = new Portfolio(portfolioName,
-                 BigDecimal.valueOf(Constants.STARTING_CASH),
-                 BigDecimal.valueOf(Constants.STARTING_CASH),
-                 BigDecimal.ZERO,
-                 BigDecimal.valueOf(Constants.STARTING_CASH),
-                 Collections.EMPTY_SET,
-                 Collections.EMPTY_SET);
+                 INITIAL_SUMMARY.getNetAssetValue(),
+                 INITIAL_SUMMARY.getFreeCash(),
+                 INITIAL_SUMMARY.getReservedCash(),
+                 INITIAL_SUMMARY.getTotalCash(),
+                 NO_POSITIONS,
+                 NO_ORDERS
+         );
          LOGGER.info("Created portfolio \"{}\" with ${} free cash", portfolioName, newPortfolio.getFreeCash());
          }
       newPortfolio.calculateNetAssetValue();
@@ -71,19 +73,31 @@ public class Portfolio {
       return newPortfolio;
    }
 
-   public Portfolio of(String portfolioName, double startingCash) {
-      LOGGER.debug("Entering of(String {}, double {})", portfolioName, startingCash);
+   public Portfolio of(String portfolioName, BigDecimal startingCash) {
+      LOGGER.debug("Entering of(String {}, BigDecimal {})", portfolioName, startingCash);
       if (dataStore.portfolioInStore(portfolioName)) {
          LOGGER.error("Portfolio {} already exists", portfolioName);
          throw new IllegalArgumentException("Portfolio already exists.");
       }
-
+      Portfolio newPortfolio = getPortfolioFromStore(portfolioName);
+      newPortfolio.calculateNetAssetValue();
+      LOGGER.debug("Starting portfolio \"{}\" with netAssetValue {} reservedCash {} totalCash {}",
+              portfolioName, newPortfolio.getNetAssetValue(), newPortfolio.getReservedCash(), newPortfolio.getTotalCash());
+      return newPortfolio;
    }
 
-
-   void getPortfolioFromStore() throws SQLException {
+   Portfolio getPortfolioFromStore(String portfolioName) {
       LOGGER.debug("Entering Portfolio.getDbPortfolio()");
-
+      PortfolioSummary summary = dataStore.getPortfolioSummary(portfolioName);
+      Set<Position> positions = dataStore.getPortfolioPositions();
+      Set<Order> orders = dataStore.getPortfolioOrders();
+      return new Portfolio(portfolioName,
+              summary.getNetAssetValue(),
+              summary.getFreeCash(),
+              summary.getReservedCash(),
+              summary.getTotalCash(),
+              positions,
+              orders);
    }
 
    void setName(String name) {
@@ -94,38 +108,48 @@ public class Portfolio {
       return name;
    }
 
-   @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
-   public double calculateNetAssetValue() {
-      double openPositionNavs = 0.00;
-      calculateTotalCash();
-      for (Position positionToUpdate : portfolioPositions) {
-         if (positionToUpdate.isOpen()) {
-            openPositionNavs += positionToUpdate.calculateNetAssetValue();
-         }
-      }
-      netAssetValue = totalCash + openPositionNavs;
+   public BigDecimal getNetAssetValue() {
       return netAssetValue;
    }
 
-   private void setFreeCash(double freeCash) {
+   @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
+   public BigDecimal calculateNetAssetValue() {
+      BigDecimal openPositionNavs = BigDecimal.ZERO;
+      calculateTotalCash();
+//      positions.parallelStream().map(Position::calculateNetAssetValue) TODO : When we go all BigDecimal...
+      for (Position positionToUpdate : positions) {
+         if (positionToUpdate.isOpen()) {
+            openPositionNavs = openPositionNavs.add(BigDecimal.valueOf(positionToUpdate.calculateNetAssetValue()));
+         }
+      }
+      netAssetValue = totalCash.add(openPositionNavs);
+      return netAssetValue;
+   }
+
+   private void setFreeCash(BigDecimal freeCash) {
       this.freeCash = freeCash;
    }
 
-   public double getFreeCash() {
+   public BigDecimal getFreeCash() {
       return freeCash;
    }
 
-   private void setReservedCash(double reservedCash) {
+   private void setReservedCash(BigDecimal reservedCash) {
       this.reservedCash = reservedCash;
    }
 
-   public double getReservedCash() {
+   public BigDecimal getReservedCash() {
       return reservedCash;
    }
 
-   public double calculateTotalCash() {
-      totalCash = freeCash + reservedCash;
+   public BigDecimal calculateTotalCash() {
+      totalCash = freeCash.add(reservedCash);
       return totalCash;
+   }
+
+   // TODO : This should not cause state change
+   public BigDecimal getTotalCash() {
+      return calculateTotalCash();
    }
 
    int countUncoveredLongStockPositions(Stock stock) {
@@ -134,8 +158,8 @@ public class Portfolio {
 
    public int numberOfOpenStockLongs(Security security) {
       int openLongCount = 0;
-
-      for (Position portfolioPosition : portfolioPositions) {
+      // TODO : Lamda
+      for (Position portfolioPosition : positions) {
          if ((security.getTicker().equals(portfolioPosition.getTicker())) &&
             portfolioPosition.isOpen() &&
             portfolioPosition.isLong() &&
@@ -150,8 +174,8 @@ public class Portfolio {
 
    public int numberOfOpenStockShorts(Security security) {
       int openShortCount = 0;
-
-      for (Position portfolioPosition : portfolioPositions) {
+      // TODO : Lamda
+      for (Position portfolioPosition : positions) {
          if ((security.getTicker().equals(portfolioPosition.getTicker())) && portfolioPosition.isOpen() &&
             portfolioPosition.isShort() && portfolioPosition.isStock()) {
             openShortCount += portfolioPosition.getNumberTransacted();
@@ -164,8 +188,8 @@ public class Portfolio {
 
    public int numberOfOpenCallLongs(Security security) {
       int openLongCount = 0;
-
-      for (Position portfolioPosition : portfolioPositions) {
+      // TODO : Lamda
+      for (Position portfolioPosition : positions) {
          if ((security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() &&
             portfolioPosition.isLong() && portfolioPosition.isCall()) {
             openLongCount++;
@@ -177,8 +201,8 @@ public class Portfolio {
 
    public int numberOfOpenCallShorts(Security security) {
       int openShortCount = 0;
-
-      for (Position portfolioPosition : portfolioPositions) {
+      // TODO : Lamda
+      for (Position portfolioPosition : positions) {
          if ((security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) &&
             portfolioPosition.isOpen() &&
             portfolioPosition.isShort() &&
@@ -186,7 +210,8 @@ public class Portfolio {
             openShortCount += portfolioPosition.getNumberTransacted();
          }
       }
-      for (Order portfolioOrder : portfolioOrders) {
+      // TODO : Lamda
+      for (Order portfolioOrder : orders) {
          if ((security.getTicker().equals(portfolioOrder.getUnderlyingTicker())) &&
             portfolioOrder.isOpen() &&
             portfolioOrder.isShort() &&
@@ -200,8 +225,8 @@ public class Portfolio {
 
    public int numberOfOpenPutLongs(Security security) {
       int openLongCount = 0;
-
-      for (Position portfolioPosition : portfolioPositions) {
+      // TODO : Lamda
+      for (Position portfolioPosition : positions) {
          if ((security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) &&
             portfolioPosition.isOpen() &&
             portfolioPosition.isLong() &&
@@ -209,7 +234,8 @@ public class Portfolio {
             openLongCount += portfolioPosition.getNumberTransacted();
          }
       }
-      for (Order portfolioOrder : portfolioOrders) {
+      // TODO : Lamda
+      for (Order portfolioOrder : orders) {
          if ((security.getTicker().equals(portfolioOrder.getUnderlyingTicker())) &&
             portfolioOrder.isOpen() &&
             portfolioOrder.isLong() &&
@@ -224,8 +250,8 @@ public class Portfolio {
    public int numberOfOpenPutShorts(Security security) {
       String securityTicker = security.getTicker();
       int openShortCount = 0;
-
-      for (Position portfolioPosition : portfolioPositions) {
+      // TODO : Lamda
+      for (Position portfolioPosition : positions) {
          if ((securityTicker.equals(portfolioPosition.getUnderlyingTicker())) &&
             portfolioPosition.isOpen() &&
             portfolioPosition.isShort() &&
@@ -233,7 +259,8 @@ public class Portfolio {
             openShortCount += portfolioPosition.getNumberTransacted();
          }
       }
-      for (Order portfolioOrder : portfolioOrders) {
+      // TODO : Lamda
+      for (Order portfolioOrder : orders) {
          if ((securityTicker.equals(portfolioOrder.getUnderlyingTicker())) &&
             portfolioOrder.isOpen() &&
             portfolioOrder.isShort() &&
@@ -247,49 +274,40 @@ public class Portfolio {
 
    public void addNewOrder(Order orderToAdd) throws InsufficientFundsException {
       LOGGER.debug("Entering Portfolio.addNewOrder(Order {})", orderToAdd);
-      double orderRequiredCash = orderToAdd.getClaimAgainstCash();
+      BigDecimal orderRequiredCash = BigDecimal.valueOf(orderToAdd.getClaimAgainstCash());
       LOGGER.debug("orderRequiredCash = orderToAdd.getClaimAgainstCash() = ${}", orderRequiredCash);
-      if (freeCash < orderRequiredCash) {
+      // The suggested idiom for performing these comparisons is: (x.compareTo(y) <op> 0), where <op> is one of the six comparison operators.
+      if (freeCash.compareTo(orderRequiredCash) < 0) {
          LOGGER.debug("freeCash {} < orderRequiredCash {}", freeCash, orderRequiredCash);
-         throw new InsufficientFundsException(orderToAdd.getTicker(), orderRequiredCash, freeCash);
+         throw new InsufficientFundsException(orderToAdd.getTicker(), orderRequiredCash.doubleValue(), freeCash.doubleValue());
       }
-      LOGGER.debug("reservedCash ${} += orderRequiredCash ${} == ${}", reservedCash, orderRequiredCash, (reservedCash + orderRequiredCash));
-      reservedCash += orderRequiredCash;
-      LOGGER.debug("freeCash ${} -= orderRequiredCash ${} == ${}", freeCash, orderRequiredCash, (freeCash - orderRequiredCash));
-      freeCash -= orderRequiredCash;
+      LOGGER.debug("reservedCash ${} += orderRequiredCash ${} == ${}", reservedCash, orderRequiredCash, reservedCash.add(orderRequiredCash));
+      reservedCash = reservedCash.add(orderRequiredCash);
+      LOGGER.debug("freeCash ${} -= orderRequiredCash ${} == ${}", freeCash, orderRequiredCash, freeCash.subtract(orderRequiredCash));
+      freeCash = freeCash.subtract(orderRequiredCash);
       LOGGER.info("orderRequiredCash == ${}, freeCash == ${}, reservedCash == ${}", orderRequiredCash, freeCash, reservedCash);
-      portfolioOrders.add(orderToAdd);
+      orders.add(orderToAdd);
       LOGGER.info("Added order id {} to portfolio {}", orderToAdd.getOrderId(), name);
-      try {
-         dataStore.addOrder(orderToAdd);
-      } catch (SQLException sqle) {
-         LOGGER.warn("Unable to add order {} to DB", orderToAdd.getOrderId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
+      dataStore.addOrder(orderToAdd);
    }
 
    public void addNewPosition(Position position) {
       LOGGER.debug("Entering Portfolio.addNewPosition(Position {})", position.getPositionId());
-      portfolioPositions.add(position);
-      LOGGER.debug("freeCash ${} -= position.getCostBasis() ${} == ${}", freeCash, position.getCostBasis(), (freeCash - position.getCostBasis()));
-      freeCash -= position.getCostBasis();
-      LOGGER.debug("freeCash ${} -= position.getClaimAgainstCash() ${} == ${}", freeCash, position.getClaimAgainstCash(), (freeCash - position.getClaimAgainstCash()));
-      freeCash -= position.getClaimAgainstCash();
-      LOGGER.debug("reservedCash ${} += position.getClaimAgainstCash() ${} == ${}", reservedCash, position.getClaimAgainstCash(), (reservedCash + position.getClaimAgainstCash()));
-      reservedCash += position.getClaimAgainstCash();
-      try {
-         insertDbPosition(position);
-      } catch (SQLException sqle) {
-         LOGGER.warn("Unable to add position {} to DB", position.getPositionId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
+      positions.add(position);
+      LOGGER.debug("freeCash ${} -= position.getCostBasis() ${} == ${}", freeCash, position.getCostBasis(), freeCash.subtract(BigDecimal.valueOf(position.getCostBasis())));
+      freeCash = freeCash.subtract(BigDecimal.valueOf(position.getCostBasis()));
+      LOGGER.debug("freeCash ${} -= position.getClaimAgainstCash() ${} == ${}", freeCash, position.getClaimAgainstCash(), freeCash.subtract(BigDecimal.valueOf(position.getClaimAgainstCash())));
+      freeCash = freeCash.subtract(BigDecimal.valueOf(position.getClaimAgainstCash()));
+      LOGGER.debug("reservedCash ${} += position.getClaimAgainstCash() ${} == ${}", reservedCash, position.getClaimAgainstCash(), reservedCash.add(BigDecimal.valueOf(position.getClaimAgainstCash())));
+      reservedCash = reservedCash.add(BigDecimal.valueOf(position.getClaimAgainstCash()));
+      dataStore.addPosition(position);
       /** TODO : Move try catch to called method which should write to a file if dbwrite fails */
    }
 
    public List<Order> getListOfOpenOrders() {
       LOGGER.debug("Entering Portfolio.getListOfOpenOrders()");
       List<Order> openOrderList = new ArrayList<>();
-      for (Order portfolioOrder : portfolioOrders) {
+      for (Order portfolioOrder : orders) {
          if (portfolioOrder.isOpen()) {
             openOrderList.add(portfolioOrder);
          }
@@ -302,7 +320,7 @@ public class Portfolio {
    public List<Position> getListOfOpenPositions() {
       LOGGER.debug("Entering Portfolio.getListOfOpenPositions()");
       List<Position> openPositionList = new ArrayList<>();
-      for (Position portfolioPosition : portfolioPositions) {
+      for (Position portfolioPosition : positions) {
          if (portfolioPosition.isOpen()) {
             openPositionList.add(portfolioPosition);
          }
@@ -314,7 +332,7 @@ public class Portfolio {
    public List<Position> getListOfOpenOptionPositions() {
       LOGGER.debug("Entering Portfolio.getListOfOpenOptionPositions()");
       List<Position> openOptionPositionList = new ArrayList<>();
-      for (Position portfolioPosition : portfolioPositions) {
+      for (Position portfolioPosition : positions) {
          if (portfolioPosition.isOpen() && portfolioPosition.isOption()) {
             openOptionPositionList.add(portfolioPosition);
          }
@@ -326,7 +344,7 @@ public class Portfolio {
    public List<Position> getListOfOpenStockPositions() {
       LOGGER.debug("Entering Portfolio.getListOfOpenStockPositions()");
       List<Position> openStockPositionList = new ArrayList<>();
-      for (Position portfolioPosition : portfolioPositions) {
+      for (Position portfolioPosition : positions) {
          if (portfolioPosition.isOpen() && portfolioPosition.isStock()) {
             openStockPositionList.add(portfolioPosition);
          }
@@ -335,59 +353,42 @@ public class Portfolio {
       return openStockPositionList;
    }
 
-   public void fillOrder(Order orderToFill, double fillPrice) {
-      LOGGER.debug("Entering Portfolio.fillOrder(Order {}, double {})", orderToFill.getOrderId(), fillPrice);
-      Position positionTakenByOrder = new Position(orderToFill, fillPrice);
-      portfolioPositions.add(positionTakenByOrder);
+   public void fillOrder(Order orderToFill, BigDecimal fillPrice) {
+      LOGGER.debug("Entering Portfolio.fillOrder(Order {}, BigDecimal {})", orderToFill.getOrderId(), fillPrice);
+      Position positionTakenByOrder = new Position(orderToFill, fillPrice.doubleValue());
+      positions.add(positionTakenByOrder);
    /* Unreserve cash to fill order */
-      LOGGER.debug("freeCash ${} += orderToFill.getClaimAgainstCash() ${} == ${}", freeCash, orderToFill.getClaimAgainstCash(), (freeCash + orderToFill.getClaimAgainstCash()));
-      freeCash += orderToFill.getClaimAgainstCash();
-      LOGGER.debug("reservedCash ${} -= orderToFill.getClaimAgainstCash() ${} == ${}", reservedCash, orderToFill.getClaimAgainstCash(), (reservedCash - orderToFill.getClaimAgainstCash()));
-      reservedCash -= orderToFill.getClaimAgainstCash();
-	/* Reserve cash if position creates liability (selling an option or shorting a stock) */
-      LOGGER.debug("freeCash ${} -= positionTakenByOrder.getClaimAgainstCash() ${} == ${}", freeCash, positionTakenByOrder.getClaimAgainstCash(), (freeCash - positionTakenByOrder.getClaimAgainstCash()));
-      freeCash -= positionTakenByOrder.getClaimAgainstCash();
-      LOGGER.debug("reservedCash ${} -= positionTakenByOrder.getClaimAgainstCash() ${} == ${}", reservedCash, positionTakenByOrder.getClaimAgainstCash(), (reservedCash - positionTakenByOrder.getClaimAgainstCash()));
-      reservedCash += positionTakenByOrder.getClaimAgainstCash();
-	/* Adjust free cash based on position cost basis */
-      LOGGER.debug("freeCash ${} -= positionTakenByOrder.getCostBasis() ${} == ${}", freeCash, positionTakenByOrder.getCostBasis(), (freeCash - positionTakenByOrder.getCostBasis()));
-      freeCash -= positionTakenByOrder.getCostBasis();
+      LOGGER.debug("freeCash ${} += orderToFill.getClaimAgainstCash() ${} == ${}", freeCash, orderToFill.getClaimAgainstCash(), freeCash.add(BigDecimal.valueOf(orderToFill.getClaimAgainstCash())));
+      freeCash = freeCash.add(BigDecimal.valueOf(orderToFill.getClaimAgainstCash()));
+      LOGGER.debug("reservedCash ${} -= orderToFill.getClaimAgainstCash() ${} == ${}", reservedCash, orderToFill.getClaimAgainstCash(), reservedCash.subtract(BigDecimal.valueOf(orderToFill.getClaimAgainstCash())));
+      reservedCash = reservedCash.subtract(BigDecimal.valueOf(orderToFill.getClaimAgainstCash()));
+   /* Reserve cash if position creates liability (selling an option or shorting a stock) */
+      LOGGER.debug("freeCash ${} -= positionTakenByOrder.getClaimAgainstCash() ${} == ${}", freeCash, positionTakenByOrder.getClaimAgainstCash(), freeCash.subtract(BigDecimal.valueOf(positionTakenByOrder.getClaimAgainstCash())));
+      freeCash = freeCash.subtract(BigDecimal.valueOf(positionTakenByOrder.getClaimAgainstCash()));
+      LOGGER.debug("reservedCash ${} -= positionTakenByOrder.getClaimAgainstCash() ${} == ${}", reservedCash, positionTakenByOrder.getClaimAgainstCash(), reservedCash.add(BigDecimal.valueOf(positionTakenByOrder.getClaimAgainstCash())));
+      reservedCash = reservedCash.add(BigDecimal.valueOf(positionTakenByOrder.getClaimAgainstCash()));
+   /* Adjust free cash based on position cost basis */
+      LOGGER.debug("freeCash ${} -= positionTakenByOrder.getCostBasis() ${} == ${}", freeCash, positionTakenByOrder.getCostBasis(), freeCash.subtract(BigDecimal.valueOf(positionTakenByOrder.getCostBasis())));
+      freeCash = freeCash.subtract(BigDecimal.valueOf(positionTakenByOrder.getCostBasis()));
       calculateTotalCash();
-      orderToFill.fill(fillPrice);
-      try {
-         insertDbPosition(positionTakenByOrder);
-         closeDbOrder(orderToFill);
-      } catch (SQLException sqle) {
-         LOGGER.warn("Error writing to database filling order {} with position {}", orderToFill.getOrderId(), positionTakenByOrder.getPositionId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
+      orderToFill.fill(fillPrice.doubleValue());
+      dataStore.insertPosition(positionTakenByOrder);
+      dataStore.closeOrder(orderToFill);
    }
 
    private void reconcileExpiredOptionPosition(Position expiredOptionPosition) {
       MutableDateTime expiryFriday = new MutableDateTime(expiredOptionPosition.getExpiry());
       expiryFriday.addDays(-1);
       expiryFriday.setMillisOfDay((16 * 60 + 20) * 60 * 1000);
-      for(int attempts = 1; attempts <= GaussTrader.YAHOO_RETRIES; attempts++) {
-         try {
-            double expirationPrice = YahooFinance.getHistoricalClosingPrice(expiredOptionPosition.getUnderlyingTicker(), expiryFriday);
-            if (expiredOptionPosition.isPut() &&
-               (expirationPrice <= expiredOptionPosition.getStrikePrice())) {
-               exerciseOption(expiredOptionPosition);
-            } else if (expiredOptionPosition.isCall() &&
-               (expirationPrice >= expiredOptionPosition.getStrikePrice())) {
-               exerciseOption(expiredOptionPosition);
-            } else {
-               expireOptionPosition(expiredOptionPosition);
-            }
-            return;
-         } catch(FileNotFoundException fnfe) {
-            LOGGER.warn("File not found exception from Yahoo! indicating invalid ticker. Returning from method.");
-            LOGGER.debug("Caught exception", fnfe);
-            return;
-         } catch(IOException ioe) {
-            LOGGER.warn("Attempt {} to get historical price for expired option position {} failed", attempts, expiredOptionPosition.getPositionId());
-            LOGGER.debug("Caught exception", ioe);
-         }
+      BigDecimal expirationPrice = BigDecimal.valueOf(YahooFinance.getHistoricalClosingPrice(expiredOptionPosition.getUnderlyingTicker(), expiryFriday));
+      if (expiredOptionPosition.isPut() &&
+              (expirationPrice.compareTo(BigDecimal.valueOf(expiredOptionPosition.getStrikePrice())) <= 0)) {
+         exerciseOption(expiredOptionPosition);
+      } else if (expiredOptionPosition.isCall() &&
+              (expirationPrice.compareTo(BigDecimal.valueOf(expiredOptionPosition.getStrikePrice())) >= 0)) {
+         exerciseOption(expiredOptionPosition);
+      } else {
+         expireOptionPosition(expiredOptionPosition);
       }
    }
 
@@ -412,26 +413,18 @@ public class Portfolio {
          }
       }
       optionPositionToExercise.close(0.00);
-      try {
-         closeDbPosition(optionPositionToExercise);
-      } catch (SQLException sqle) {
-         LOGGER.warn("Error writing to database position {}", optionPositionToExercise.getPositionId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
-       LOGGER.debug("reservedCash ${} -= optionPositionToExercise.getClaimAgainstCash() ${} == ${}", reservedCash, optionPositionToExercise.getClaimAgainstCash(), (reservedCash - optionPositionToExercise.getClaimAgainstCash()));
-       reservedCash -= optionPositionToExercise.getClaimAgainstCash();
+      dataStore.closePosition(optionPositionToExercise);
+      LOGGER.debug("reservedCash ${} -= optionPositionToExercise.getClaimAgainstCash() ${} == ${}",
+              reservedCash, optionPositionToExercise.getClaimAgainstCash(),
+              reservedCash.subtract(BigDecimal.valueOf(optionPositionToExercise.getClaimAgainstCash())));
+      reservedCash = reservedCash.subtract(BigDecimal.valueOf(optionPositionToExercise.getClaimAgainstCash()));
    }
 
    private void exerciseShortPut(Position optionPositionToExercise) {
       LOGGER.debug("Entering Portfolio.exerciseShortPut(Position {})", optionPositionToExercise.getPositionId());
       Position optionToStockPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-      portfolioPositions.add(optionToStockPosition);
-      try {
-         insertDbPosition(optionToStockPosition);
-      } catch (SQLException sqle) {
-         LOGGER.warn("Error writing to database position {}", optionToStockPosition.getPositionId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
+      positions.add(optionToStockPosition);
+      dataStore.insertPosition(optionToStockPosition);
    }
 
    private void exerciseShortCall(Position optionPositionToExercise) {
@@ -444,8 +437,9 @@ public class Portfolio {
                /* Exercise 100 shares / 1 contract per loop */
                calledAwayStockPosition.setNumberTransacted(calledAwayStockPosition.getNumberTransacted() - 100);
                contractsToHonor--;
-               LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100", freeCash, optionPositionToExercise.getStrikePrice());
-               freeCash += optionPositionToExercise.getStrikePrice() * 100;
+               LOGGER.debug("freeCash {} += optionPositionToExercise.getStrikePrice() {} * 100",
+                       freeCash, optionPositionToExercise.getStrikePrice());
+               freeCash = freeCash.add(BigDecimal.valueOf(optionPositionToExercise.getStrikePrice() * 100));
                LOGGER.debug("freeCash == {}", freeCash);
             }
             if(calledAwayStockPosition.getNumberTransacted() == 0) {
@@ -455,15 +449,15 @@ public class Portfolio {
 		/* Buy the stock at market price and deliver it */
             optionPositionToExercise.setNumberTransacted(contractsToHonor);
             Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-            double positionLastTick = buyStockToDeliverPosition.getLastTick();
+            BigDecimal positionLastTick = BigDecimal.valueOf(buyStockToDeliverPosition.getLastTick());
             LOGGER.debug("freeCash ${} -= buyStockToDeliverPosition.getLastTick() ${} * buyStockToDeliverPosition.getNumberTransacted() ${}",
                freeCash, positionLastTick, buyStockToDeliverPosition.getNumberTransacted());
-            freeCash -= positionLastTick * buyStockToDeliverPosition.getNumberTransacted();
+            freeCash = freeCash.subtract(positionLastTick).multiply(BigDecimal.valueOf(buyStockToDeliverPosition.getNumberTransacted()));
             LOGGER.debug("freeCash == ${}", freeCash);
             buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
             contractsToHonor--;
             LOGGER.debug("freeCash ${} += optionPositionToExercise.getStrikePrice() ${} * 100.00", freeCash, optionPositionToExercise.getStrikePrice());
-            freeCash += optionPositionToExercise.getStrikePrice() * 100.00;
+            freeCash = freeCash.add(BigDecimal.valueOf(optionPositionToExercise.getStrikePrice()).multiply(BigDecimal.valueOf(100.00)));
             LOGGER.debug("freeCash == ${}", freeCash);
          }
       }
@@ -475,41 +469,36 @@ public class Portfolio {
          Position puttingToStockPosition = findStockPositionToDeliver(optionPositionToExercise.getUnderlyingTicker());
          if (puttingToStockPosition != null) {
             puttingToStockPosition.close(optionPositionToExercise.getStrikePrice());
-            try {
-               closeDbPosition(puttingToStockPosition);
-            } catch (SQLException sqle) {
-               LOGGER.warn("Unable to update closed position {} in DB", puttingToStockPosition.getPositionId());
-               LOGGER.debug("Caught (SQLException sqle)", sqle);
-            }
+            dataStore.closePosition(puttingToStockPosition);
+            BigDecimal newFreeCash = freeCash.add(BigDecimal.valueOf(optionPositionToExercise.getStrikePrice() * optionPositionToExercise.getNumberTransacted() * 100.0));
             LOGGER.debug("freeCash ${} += optionPositionToExercise.getStrikePrice() ${} * optionPositionToExercise.getNumberTransacted() ${} * 100.0== ${}",
                     freeCash, optionPositionToExercise.getStrikePrice(), optionPositionToExercise.getNumberTransacted(),
-                    (freeCash + (optionPositionToExercise.getStrikePrice() * optionPositionToExercise.getNumberTransacted() * 100)));
-            freeCash += optionPositionToExercise.getStrikePrice() * optionPositionToExercise.getNumberTransacted() * 100.0;
+                    newFreeCash);
+            freeCash = newFreeCash;
          } else {
                 /* Buy the stock at market price and deliver it */
             Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
+            BigDecimal newFreeCash = freeCash.subtract(BigDecimal.valueOf(buyStockToDeliverPosition.getCostBasis()));
             LOGGER.debug("freeCash ${} -= buyStockToDeliverPosition.getCostBasis() ${} = ${}", freeCash, buyStockToDeliverPosition.getCostBasis());
-            freeCash -= buyStockToDeliverPosition.getCostBasis();
+            freeCash = newFreeCash;
             buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
+            newFreeCash = BigDecimal.valueOf(buyStockToDeliverPosition.getPriceAtOpen() * buyStockToDeliverPosition.getNumberTransacted());
             LOGGER.debug("freeCash ${} += buyStockToDeliverPosition.getPriceAtOpen() ${} * buyStockToDeliverPosition.getNumberTransacted() ${} = ${}",
-                    freeCash, buyStockToDeliverPosition.getPriceAtOpen(), buyStockToDeliverPosition.getNumberTransacted(), freeCash + buyStockToDeliverPosition.getPriceAtOpen() * buyStockToDeliverPosition.getNumberTransacted());
-            freeCash += buyStockToDeliverPosition.getPriceAtOpen() * buyStockToDeliverPosition.getNumberTransacted();
+                    freeCash, buyStockToDeliverPosition.getPriceAtOpen(), buyStockToDeliverPosition.getNumberTransacted(), newFreeCash);
+            freeCash = newFreeCash;
          }
       }
    }
 
    private void exerciseLongCall(Position optionPositionToExercise) {
-      LOGGER.debug("Entering Portfolio.exerciseLongCall(Position {})", optionPositionToExercise.getPositionId());
+      LOGGER.debug("Entering exerciseLongCall(Position {})", optionPositionToExercise.getPositionId());
       Position optionToStockPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-      portfolioPositions.add(optionToStockPosition);
-      LOGGER.debug("freeCash ${} -= optionToStockPosition.getCostBasis() ${} = ${}", freeCash, optionToStockPosition.getCostBasis(), (freeCash - optionToStockPosition.getCostBasis()));
-      freeCash -= optionToStockPosition.getCostBasis();
-      try {
-         insertDbPosition(optionToStockPosition);
-      } catch (SQLException sqle) {
-         LOGGER.warn("Error writing to database position {} ", optionToStockPosition.getPositionId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
+      positions.add(optionToStockPosition);
+      BigDecimal newFreeCash = freeCash.subtract(BigDecimal.valueOf(optionToStockPosition.getCostBasis()));
+      LOGGER.debug("freeCash ${} -= optionToStockPosition.getCostBasis() ${} = ${}",
+              freeCash, optionToStockPosition.getCostBasis(), newFreeCash);
+      freeCash = newFreeCash;
+      dataStore.insertPosition(optionToStockPosition);
    }
 
    void expireOptionPosition(Position optionPositionToExercise) {
@@ -525,12 +514,7 @@ public class Portfolio {
               reservedCash, optionPositionToExercise.getClaimAgainstCash(), (reservedCash - optionPositionToExercise.getClaimAgainstCash()));
       reservedCash -= optionPositionToExercise.getClaimAgainstCash();
       optionPositionToExercise.close(0.00);
-      try {
-         closeDbPosition(optionPositionToExercise);
-      } catch (SQLException sqle) {
-         LOGGER.warn("Unable to update closed position {} in DB", optionPositionToExercise.getPositionId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
+      dataStore.closePosition(optionPositionToExercise);
    }
 
    /* When exercising a short call this method returns a position that can fulfill delivery
@@ -539,7 +523,7 @@ public class Portfolio {
     */
    Position findStockPositionToDeliver(String tickerToDeliver) {
       LOGGER.debug("Entering Portfolio.findStockPositionToDeliver(String {})", tickerToDeliver);
-      double lowestCostBasis = Double.MAX_VALUE;
+      BigDecimal lowestCostBasis = BigDecimal.ZERO;
       Position positionToDeliver = null;
       for (Position openPosition : getListOfOpenPositions()) {
          if (openPosition.isStock() &&
@@ -574,13 +558,6 @@ public class Portfolio {
          insertDbSummary();
       }
    }
-
-
-
-
-
-
-
 
    public void expireOrder(Order expiredOrder) {
       LOGGER.debug("Entering Portfolio.expireOrder(Order {}) with freeCash {} and reservedCash {}",

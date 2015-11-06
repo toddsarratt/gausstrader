@@ -492,7 +492,7 @@ public class PostgresStore implements DataStore {
    }
 
    @Override
-   void getDbPortfolioPositions() throws SQLException {
+   public Set<Position> getPortfolioPositions() throws SQLException {
       LOGGER.debug("Entering Portfolio.getDbPortfolioPositions()");
       Connection dbConnection = dataSource.getConnection();
       Position portfolioPositionEntry;
@@ -511,6 +511,26 @@ public class PostgresStore implements DataStore {
          }
       }
       dbConnection.close();
+   }
+
+   @Override
+   public void addOrder(Order order) {
+      try {
+         throw new SQLException();
+      } catch (SQLException sqle) {
+         LOGGER.warn("Unable to add order {} to DB", order.getOrderId());
+         LOGGER.debug("Caught (SQLException sqle)", sqle);
+      }
+   }
+
+   @Override
+   public void addPosition(Position position) {
+      try {
+         throw new SQLException();
+      } catch (SQLException sqle) {
+         LOGGER.warn("Unable to add position {} to DB", position.getPositionId());
+         LOGGER.debug("Caught (SQLException sqle)", sqle);
+      }
    }
 
    public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {

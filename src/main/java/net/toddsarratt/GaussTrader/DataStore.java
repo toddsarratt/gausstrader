@@ -35,4 +35,14 @@ public interface DataStore {
    Set<Position> getPortfolioPositions();
 
    Set<Order> getPortfolioOrders();
+
+   void addOrder(Order orderToAdd);
+
+   void addPosition(Position position);
+
+   void insertPosition(Position positionTakenByOrder);
+
+   void closeOrder(Order orderToFill);
+
+   void closePosition(Position optionPositionToExercise);
 }
