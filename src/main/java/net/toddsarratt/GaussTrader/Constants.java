@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -24,12 +25,12 @@ public class Constants {
    static final String DB_USER = "postgres";
    static final String DB_PASSWORD = "b3llcurv38";
    static final int YAHOO_RETRIES = 5;                // Number of tiMes to retry Yahoo connections
-   static final double STOCK_PCT_OF_PORTFOLIO = 10.0;
-   static final double STARTING_CASH = 1_000_000.00;  // Default value for new portfolio
+   static final BigDecimal STOCK_PCT_OF_PORTFOLIO = BigDecimal.valueOf(10.0);
+   static final BigDecimal STARTING_CASH = BigDecimal.valueOf(1_000_000.00);  // Default value for new portfolio
    static final int BOLL_BAND_PERIOD = 20;
-   static final double BOLLINGER_SD1 = 2.0;
-   static final double BOLLINGER_SD2 = 2.5;
-   static final double BOLLINGER_SD3 = 3.0;
+   static final BigDecimal BOLLINGER_SD1 = BigDecimal.valueOf(2.0);
+   static final BigDecimal BOLLINGER_SD2 = BigDecimal.valueOf(2.5);
+   static final BigDecimal BOLLINGER_SD3 = BigDecimal.valueOf(3.0);
    static final boolean DELAYED_QUOTES = true;   // 20min delay using quotes from Yahoo!
    static final int DELAY_MS = 60_000;          // Time between each stock price check to reduce (not even real-time) data churn
    static final Integer[] JULIAN_HOLIDAYS_2014 = {1, 20, 48, 108, 146, 185, 244, 331, 359};
