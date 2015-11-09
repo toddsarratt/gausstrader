@@ -111,7 +111,7 @@ public class Option extends Security {
    }
 
       @Override
-      double lastTick() {
+      InstantPrice lastTick() {
       /** reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
       String input;
       try {

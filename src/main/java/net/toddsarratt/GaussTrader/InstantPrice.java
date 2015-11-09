@@ -14,6 +14,7 @@ import java.time.Instant;
 public class InstantPrice {
    private final BigDecimal price;
    private final Instant instant;
+   static final InstantPrice NO_PRICE = new InstantPrice(BigDecimal.ZERO, Instant.MIN);
 
    /**
     * Private constructor for InstantPrice class. Use static factory method of() to create objects of this class
@@ -83,6 +84,24 @@ public class InstantPrice {
       }
       BigDecimal price = new BigDecimal(priceString);
       Instant instant = Instant.ofEpochMilli(epoch);
+      return new InstantPrice(price, instant);
+   }
+
+   /**
+    * Static factory method for creating InstantPrice objects.
+    *
+    * @param priceString string representing the price value of the quote
+    * @param instant     Instant representing the moment the price quote was assumed to be valid
+    * @return InstantPrice object
+    */
+   public static InstantPrice of(String priceString, Instant instant) {
+      if (priceString == null) {
+         throw new IllegalArgumentException("priceString may not be null");
+      }
+      if (instant == null) {
+         throw new IllegalArgumentException("epoch may not be null");
+      }
+      BigDecimal price = new BigDecimal(priceString);
       return new InstantPrice(price, instant);
    }
 

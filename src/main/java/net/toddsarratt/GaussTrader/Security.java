@@ -1,20 +1,20 @@
 package net.toddsarratt.GaussTrader;
 
-import java.io.IOException;
+import java.math.BigDecimal;
 
-public abstract class Security {
+public interface Security {
 
-   abstract double lastTick() throws IOException;
+   InstantPrice lastTick();
 
    //    public abstract static double lastTick(String ticker) throws IOException;
 
-   abstract double lastBid() throws IOException;
+   InstantPrice lastBid();
 
-   abstract double lastAsk() throws IOException;
+   InstantPrice lastAsk();
 
-   abstract String getTicker();
+   String getTicker();
 
-   abstract double getPrice();
+   BigDecimal getPrice();
 
-   abstract String getSecType();
+   String getSecType();
 }

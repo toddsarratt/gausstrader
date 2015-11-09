@@ -16,7 +16,9 @@ public interface Market {
 
    boolean isOpenToday();
 
-   InstantPrice lastTick(String ticker) throws IOException;
+   InstantPrice lastTick(String ticker);
+
+   boolean tickerValid(String ticker);
 
    boolean marketPricesCurrent();
 
@@ -29,4 +31,10 @@ public interface Market {
    boolean isEarlyClose(int julianDay, int year);
 
    boolean isEarlyClose(ReadableDateTime date);
+
+   InstantPrice lastBid(String ticker);
+
+   InstantPrice lastAsk(String ticker);
+
+   String[] priceMovingAvgs(String ticker);
 }
