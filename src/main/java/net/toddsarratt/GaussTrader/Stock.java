@@ -18,10 +18,10 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Stock implements Security {
 
@@ -63,21 +63,21 @@ public class Stock implements Security {
       newStock.tickerValid = market.tickerValid(newStock.ticker);
       if (newStock.tickerValid) {
          fetchPriceMovingAvgs(newStock);
-         fetchHistoricalPrices(newStock);
-
-         // Get missing prices from market (formerly Stock.populateHistoricalPricesYahoo())
-         market.readHistoricalPrices(newStock);
-         // Update dataStore with price map (formerly Stock.addPriceMapToDB()
-         dataStore.writePriceMap(newStock.historicalPriceMap);
+         dataStore.writeStockMetrics(newStock);
+         fetchStoredHistoricalPrices(newStock);
+         if (newStock.historicalPriceMap.containsValue(Constants.BIGDECIMAL_MINUS_ONE)) {
+            Set<Long> missingPriceEpochs = newStock.historicalPriceMap.keySet().stream()
+                    .filter(epoch -> newStock.historicalPriceMap.get(epoch).equals(Constants.BIGDECIMAL_MINUS_ONE))
+                    .collect(Collectors.toSet());
+            fetchMissingPricesFromMarket(newStock);
+            updateStoreMissingPrices(newStock, missingPriceEpochs);
+         }
          // Calculate BollingerBands
          calculateBollingerBands(newStock);
       }
       return newStock;
    }
 
-   /**
-    *
-    */
    private static void fetchPriceMovingAvgs(Stock stock) {
       LOGGER.debug("Entering Stock.populateStockInfo()");
       String[] priceMovingAvgs;
@@ -88,30 +88,32 @@ public class Stock implements Security {
       stock.twoHundredDma = new BigDecimal(priceMovingAvgs[4]);
    }
 
-   private static void fetchHistoricalPrices(Stock stock) {
+   private static void fetchStoredHistoricalPrices(Stock stock) {
       // Build price map (formerly Stock.populateHistoricalPricesDB -> DBHistoricalPrices.getDBPrices)
       LinkedHashMap<Long, BigDecimal> priceMapFromStore = dataStore.readHistoricalPrices(stock.ticker, EARLIEST_PRICE_DATE);
       priceMapFromStore.keySet().stream()
               .forEach(epochInStore -> {
-                 stock.historicalPriceMap.put(epochInStore, priceMapFromStore.get(epochInStore));
                  LOGGER.debug("Required price from epoch {} returned from db, updating price in historicalPriceMap", epochInStore);
+                 stock.historicalPriceMap.replace(epochInStore, priceMapFromStore.get(epochInStore));
               });
-      if (stock.historicalPriceMap.containsValue(BigDecimal.valueOf(-1.0))) {
+   }
+
+   private static void fetchMissingPricesFromMarket(Stock stock) {
          LOGGER.debug("Calculating date range for missing stock prices.");
          MissingPriceDateRange priceRangeToDownload = getMissingPriceDateRange(stock);
-         LinkedHashMap<> retrievedYahooPriceMap = YahooFinance.retrieveYahooHistoricalPrices(stock.ticker, priceRangeToDownload);
-         for (long epochToCheck : historicalPriceMap.keySet()) {
-            if (historicalPriceMap.get(epochToCheck).compareTo(BigDecimal.ZERO) < 0) {
-               if (retrievedYahooPriceMap.containsKey(epochToCheck)) {
-                  historicalPriceMap.put(epochToCheck, retrievedYahooPriceMap.get(epochToCheck));
-                  pricesMissingFromDB.put(epochToCheck, retrievedYahooPriceMap.get(epochToCheck));
-               } else {
-                  LOGGER.warn("historicalPriceMap requires price for epoch {} but data missing from both DB and yahoo!", epochToCheck);
-               }
-            }
-         }
-      }
+      LinkedHashMap<Long, BigDecimal> priceMapFromMarket =
+              market.readHistoricalPrices(stock.ticker, priceRangeToDownload);
+      priceMapFromMarket.keySet().stream()
+              .forEach(epochInMarket -> {
+                 LOGGER.debug("Required price from epoch {} returned from db, updating price in historicalPriceMap", epochInMarket);
+                 stock.historicalPriceMap.replace(epochInMarket, Constants.BIGDECIMAL_MINUS_ONE, priceMapFromMarket.get(epochInMarket));
+              });
+   }
 
+   private static void updateStoreMissingPrices(Stock newStock, Set<Long> missingPriceEpochs) {
+      missingPriceEpochs.stream()
+              .forEach(epoch -> dataStore.writeStockPrice(newStock.ticker, epoch, newStock.historicalPriceMap.get(epoch)));
+   }
 
    private static DateTime earliestHistoricalPriceNeeded() {
 	/* 
@@ -127,10 +129,10 @@ public class Stock implements Security {
       LOGGER.debug("Looking for valid open market dates backwards from {} ({})", earliestDatePriceNeeded.getMillis(), earliestDatePriceNeeded.toString());
       for (int checkedDates = 0; checkedDates < Constants.BOLL_BAND_PERIOD; checkedDates++) {
          earliestDatePriceNeeded.addDays(-1);
-         while (!DBHistoricalPrices.marketWasOpen(earliestDatePriceNeeded)) {
+         while (!market.wasOpen(earliestDatePriceNeeded)) {
             earliestDatePriceNeeded.addDays(-1);
          }
-         PRICE_TRACKING_MAP.put(earliestDatePriceNeeded.getMillis(), BigDecimal.valueOf(-1.0));
+         PRICE_TRACKING_MAP.put(earliestDatePriceNeeded.getMillis(), Constants.BIGDECIMAL_MINUS_ONE);
          LOGGER.debug("PRICE_TRACKING_MAP.put({}, {}) == {}", earliestDatePriceNeeded.getMillis(), -1.0, earliestDatePriceNeeded.toString());
       }
       LOGGER.debug("Returning earliest date required for adjusted close {} ({})", earliestDatePriceNeeded.getMillis(), earliestDatePriceNeeded.toString());
@@ -171,7 +173,8 @@ public class Stock implements Security {
             }
          }
       }
-	/*
+   /* Not sure why this is commented out. Will replace the for loop above with a lambda and moving to java.time
+	so... change is coming!
 	for(int checkedPrices = 0; checkedPrices < PRICES_NEEDED; checkedPrices++) {
 	    LOGGER.debug("Looking for valid open market date starting with {} ({})", histMutDateTime.getMillis(), histMutDateTime.toString());
 	    while(!DBHistoricalPrices.marketWasOpen(histMutDateTime)) {
@@ -191,7 +194,7 @@ public class Stock implements Security {
 	    histMutDateTime.addDays(-1);
 	}
 	*/
-      if (historicalPriceMap.isEmpty()) {
+      if (stock.historicalPriceMap.isEmpty()) {
          LOGGER.info("No current prices stored so need to get everything from Yahoo!");
          LOGGER.info("Setting earliest date to {} ({})", EARLIEST_PRICE_DATE.getMillis(), EARLIEST_PRICE_DATE.toString());
          mpdr.latest = new DateTime(DateTimeZone.forID("America/New_York"));
@@ -206,18 +209,18 @@ public class Stock implements Security {
       return historicalPriceMap;
    }
 
-   private static BigDecimal[] calculateBollingerBands(Stock stock) {
+   private static void calculateBollingerBands(Stock stock) {
       LOGGER.debug("Entering calculateBollingerBands()");
       BigDecimal period = new BigDecimal(Constants.BOLL_BAND_PERIOD);
       Collection<BigDecimal> historicalPriceArray;
-      if (stock.getHistoricalPriceMap().containsValue(BigDecimal.valueOf(-1.0))) {
+      if (stock.getHistoricalPriceMap().containsValue(Constants.BIGDECIMAL_MINUS_ONE)) {
          LOGGER.warn("Not enough historical data to calculate Bollinger Bands for {}", stock.getTicker());
-         stock.bollingerBand[0] = BigDecimal.valueOf(-1.0);
-         stock.bollingerBand[1] = BigDecimal.valueOf(-1.0);
-         stock.bollingerBand[2] = BigDecimal.valueOf(-1.0);
-         stock.bollingerBand[3] = BigDecimal.valueOf(-1.0);
-         stock.bollingerBand[4] = BigDecimal.valueOf(-1.0);
-         stock.bollingerBand[5] = BigDecimal.valueOf(-1.0);
+         stock.bollingerBand[0] = Constants.BIGDECIMAL_MINUS_ONE;
+         stock.bollingerBand[1] = Constants.BIGDECIMAL_MINUS_ONE;
+         stock.bollingerBand[2] = Constants.BIGDECIMAL_MINUS_ONE;
+         stock.bollingerBand[3] = Constants.BIGDECIMAL_MINUS_ONE;
+         stock.bollingerBand[4] = Constants.BIGDECIMAL_MINUS_ONE;
+         stock.bollingerBand[5] = Constants.BIGDECIMAL_MINUS_ONE;
       } else {
          BigDecimal currentSMASum;
          BigDecimal currentSMA;

@@ -48,4 +48,5 @@ public class Constants {
                    .put(2015, Arrays.asList(JULIAN_1PM_CLOSE_2015))
                    .build();
    static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
+   static final BigDecimal BIGDECIMAL_MINUS_ONE = new BigDecimal(-1);
 }

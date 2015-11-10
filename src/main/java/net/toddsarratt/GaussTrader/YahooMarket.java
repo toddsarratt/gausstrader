@@ -193,38 +193,6 @@ public class YahooMarket implements Market {
       return InstantPrice.NO_PRICE;
    }
 
-   public HashMap<Long, BigDecimal> readHistoricalPrices(Stock stock) {
-   /* historicalPriceMap was built from PRICE_TRACKING_MAP which contains all necessary epochs as keys and -1.0 for every value,
-    * which should be replaced first from the local database first and then supplemented by Yahoo!
-	 * TODO: The incomplete statement below will not stand, man
-	 * This method returns a map of blahblahblah
-	 */
-      LOGGER.debug("Entering populateHistoricalPricesYahoo()");
-      MissingPriceDateRange priceRangeToDownload;
-      LinkedHashMap<Long, BigDecimal> retrievedYahooPriceMap;
-      HashMap<Long, BigDecimal> pricesMissingFromDB = new HashMap<>();
-
-      if (historicalPriceMap.containsValue(BigDecimal.valueOf(-1.0))) {
-         LOGGER.debug("Calculating date range for missing stock prices.");
-         priceRangeToDownload = getMissingPriceDateRange();
-         if (!priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant())) {
-            try {
-
-            } catch (IOException ioe) {
-               LOGGER.warn("Could not connect to Yahoo! to get historical prices");
-               LOGGER.debug("Caught (IOException ioe) {}", ioe);
-            }
-         } else {
-            LOGGER.warn("historicalPriceMap.containsValue(-1.0) but " +
-                            "priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant() ({} after {})",
-                    priceRangeToDownload.earliest.toString(), priceRangeToDownload.latest.toString());
-         }
-      } else {
-         LOGGER.debug("historicalPriceMap.containsValue(-1.0) is false, all needed prices have been retrieved from the database. Not calling Yahoo!");
-      }
-      return pricesMissingFromDB;
-   }
-
    @Override
    public LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange) {
       LOGGER.debug("Entering YahooFinance.retrieveYahooHistoricalPrices(MissingPriceDateRange dateRange)");
