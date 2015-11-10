@@ -4,6 +4,8 @@ import org.joda.time.MutableDateTime;
 import org.joda.time.ReadableDateTime;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 
 /**
  * Provides market functions such as current and historical prices and access to exchanges for the trading of
@@ -13,6 +15,8 @@ import java.io.IOException;
  * @since GaussTrader v0.2
  */
 public interface Market {
+
+   LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
 
    boolean isOpenToday();
 

@@ -7,13 +7,15 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.net.URL;
-import java.util.Arrays;
+import java.util.*;
 
 /**
  * YahooMarket
  * <p>
- * http://www.gummy-stuff.org/Yahoo-data.htm
+ * http://www.gummy-stuff.org/Yahoo-data.htm moved to
+ * http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
  * @since v0.2
@@ -26,38 +28,44 @@ public class YahooMarket implements Market {
    private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
 
    @Override
+   public boolean tickerValid(String ticker) {
+      LOGGER.debug("Entering tickerValid(String ticker)");
+      return askYahoo(ticker, "e1")[0].equals("N/A");
+   }
+
+   @Override
+   public String[] priceMovingAvgs(String ticker) {
+      return askYahoo(ticker, "l1d1t1m3m4");
+   }
+
+
+   @Override
    public boolean marketPricesCurrent() {
    /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
       LOGGER.debug("Inside yahooPricesCurrent()");
       long currentEpoch = System.currentTimeMillis();
       LOGGER.debug("currentEpoch = {}", currentEpoch);
       String[] yahooDateTime;
-      try {
-         yahooDateTime = askYahoo("BAC", "d1t1");
-         LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
-         long lastBacEpoch = Constants.LAST_BAC_TICK_FORMATTER.parseMillis(yahooDateTime[0] + yahooDateTime[1]);
-         LOGGER.debug("lastBacEpoch == {}", lastBacEpoch);
-         LOGGER.debug("Comparing currentEpoch {} to lastBacEpoch {} ", currentEpoch, lastBacEpoch);
-         LOGGER.debug("LAST_BAC_TICK_FORMATTER.print(currentEpoch) {} vs. LAST_BAC_TICK_FORMATTER.print(lastBacEpoch) {}",
-                 Constants.LAST_BAC_TICK_FORMATTER.print(currentEpoch), Constants.LAST_BAC_TICK_FORMATTER.print(lastBacEpoch));
-         if ((lastBacEpoch < (currentEpoch - 3600000)) || (lastBacEpoch > (currentEpoch + 3600000))) {
-            LOGGER.debug("Yahoo! last tick for BAC differs from current time by over an hour.");
-            return false;
-         }
-      } catch (IOException ioe) {
-         LOGGER.info("Could not connect to Yahoo! to check for current prices (BAC last tick)");
-         LOGGER.debug("Caught (IOException ioe)", ioe);
+      yahooDateTime = askYahoo("BAC", "d1t1");
+      LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
+      long lastBacEpoch = Constants.LAST_BAC_TICK_FORMATTER.parseMillis(yahooDateTime[0] + yahooDateTime[1]);
+      LOGGER.debug("lastBacEpoch == {}", lastBacEpoch);
+      LOGGER.debug("Comparing currentEpoch {} to lastBacEpoch {} ", currentEpoch, lastBacEpoch);
+      LOGGER.debug("LAST_BAC_TICK_FORMATTER.print(currentEpoch) {} vs. LAST_BAC_TICK_FORMATTER.print(lastBacEpoch) {}",
+              Constants.LAST_BAC_TICK_FORMATTER.print(currentEpoch), Constants.LAST_BAC_TICK_FORMATTER.print(lastBacEpoch));
+      if ((lastBacEpoch < (currentEpoch - 3600000)) || (lastBacEpoch > (currentEpoch + 3600000))) {
+         LOGGER.debug("Yahoo! last tick for BAC differs from current time by over an hour.");
          return false;
       }
       return true;
    }
 
-   private static String[] askYahoo(String ticker, String arguments) throws IOException {
+   private static String[] askYahoo(String ticker, String arguments) {
       LOGGER.debug("Entering Stock.askYahoo(String {}, String {})", ticker, arguments);
       for (int yahooAttempt = 1; yahooAttempt <= Constants.YAHOO_RETRIES; yahooAttempt++) {
          try {
-            final URL YAHOO_URL = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
-            BufferedReader br = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
+            URL yahooUrl = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
+            BufferedReader br = new BufferedReader(new InputStreamReader(yahooUrl.openStream()));
             String[] yahooResults = br.readLine().replaceAll("[\"+%]", "").split("[,]");
             LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
             return yahooResults;
@@ -69,7 +77,7 @@ public class YahooMarket implements Market {
             LOGGER.debug("Caught (NullPointerException)", npe);
          }
       }
-      throw new IOException();
+      return new String[]{"No valid response from Yahoo! market"};
    }
 
    @Override
@@ -156,12 +164,103 @@ public class YahooMarket implements Market {
 
    /* TODO: NEVER RETURN NULL */
    @Override
-   public InstantPrice lastTick(String ticker) throws IOException {
+   public InstantPrice lastTick(String ticker) {
       LOGGER.debug("Entering lastTick(String {})", ticker);
       String[] tickString = askYahoo(ticker, "sl1d1t1");
       if (ticker.equals(tickString[0])) {
-         return InstantPrice.of(tickString[1], System.currentTimeMillis());
+         return InstantPrice.of(tickString[1], java.time.Instant.now());
       }
-      return (InstantPrice) null;
+      return InstantPrice.NO_PRICE;
    }
+
+   @Override
+   public InstantPrice lastBid(String ticker) {
+      LOGGER.debug("Entering lastBid(String {})", ticker);
+      String[] bidString = askYahoo(ticker, "sb2d1t1");
+      if (ticker.equals(bidString[0])) {
+         return InstantPrice.of(bidString[1], java.time.Instant.now());
+      }
+      return InstantPrice.NO_PRICE;
+   }
+
+   @Override
+   public InstantPrice lastAsk(String ticker) {
+      LOGGER.debug("Entering lastAsk(String {})", ticker);
+      String[] askString = askYahoo(ticker, "sb3d1t1");
+      if (ticker.equals(askString[0])) {
+         return InstantPrice.of(askString[1], java.time.Instant.now());
+      }
+      return InstantPrice.NO_PRICE;
+   }
+
+   public HashMap<Long, BigDecimal> readHistoricalPrices(Stock stock) {
+   /* historicalPriceMap was built from PRICE_TRACKING_MAP which contains all necessary epochs as keys and -1.0 for every value,
+    * which should be replaced first from the local database first and then supplemented by Yahoo!
+	 * TODO: The incomplete statement below will not stand, man
+	 * This method returns a map of blahblahblah
+	 */
+      LOGGER.debug("Entering populateHistoricalPricesYahoo()");
+      MissingPriceDateRange priceRangeToDownload;
+      LinkedHashMap<Long, BigDecimal> retrievedYahooPriceMap;
+      HashMap<Long, BigDecimal> pricesMissingFromDB = new HashMap<>();
+
+      if (historicalPriceMap.containsValue(BigDecimal.valueOf(-1.0))) {
+         LOGGER.debug("Calculating date range for missing stock prices.");
+         priceRangeToDownload = getMissingPriceDateRange();
+         if (!priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant())) {
+            try {
+
+            } catch (IOException ioe) {
+               LOGGER.warn("Could not connect to Yahoo! to get historical prices");
+               LOGGER.debug("Caught (IOException ioe) {}", ioe);
+            }
+         } else {
+            LOGGER.warn("historicalPriceMap.containsValue(-1.0) but " +
+                            "priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant() ({} after {})",
+                    priceRangeToDownload.earliest.toString(), priceRangeToDownload.latest.toString());
+         }
+      } else {
+         LOGGER.debug("historicalPriceMap.containsValue(-1.0) is false, all needed prices have been retrieved from the database. Not calling Yahoo!");
+      }
+      return pricesMissingFromDB;
+   }
+
+   @Override
+   public LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange) {
+      LOGGER.debug("Entering YahooFinance.retrieveYahooHistoricalPrices(MissingPriceDateRange dateRange)");
+      LinkedHashMap<Long, BigDecimal> yahooPriceReturns = new LinkedHashMap<>();
+      String inputLine;
+      try {
+         final URL YAHOO_URL = new URL(createYahooHistUrl(ticker, dateRange));
+         BufferedReader yahooBufferedReader = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
+         /* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" */
+         LOGGER.debug(yahooBufferedReader.readLine().replace("Date,", "Date         ").replaceAll(",", "    "));
+         while ((inputLine = yahooBufferedReader.readLine()) != null) {
+            String[] yahooLine = inputLine.replaceAll("[\"+%]", "").split("[,]");
+            LOGGER.debug(Arrays.toString(yahooLine));
+            HistoricalPrice yahooHistPrice = new HistoricalPrice(yahooLine[0], yahooLine[6]);
+            yahooPriceReturns.put(yahooHistPrice.getDateEpoch(), yahooHistPrice.getAdjClose());
+         }
+         return yahooPriceReturns;
+      } catch (IOException ioe) {
+         //TODO : HANDLE THIS!
+      }
+      return new LinkedHashMap<>(Collections.EMPTY_MAP);
+   }
+
+   /**
+    * http://ichart.finance.yahoo.com/table.csv?s=INTC&a=11&b=1&c=2012&d=00&e=21&f=2013&g=d&ignore=.csv
+    * where month January = 00
+    */
+   private static String createYahooHistUrl(String ticker, MissingPriceDateRange dateRange) {
+      LOGGER.debug("Entering YahooFinance.createYahooHistUrl(MissingPriceDateRange dateRange)");
+      StringBuilder yahooPriceArgs = new StringBuilder("http://ichart.finance.yahoo.com/table.csv?s=");
+      yahooPriceArgs.append(ticker).append("&a=").append(dateRange.earliest.getMonthOfYear() - 1).append("&b=").append(dateRange.earliest.getDayOfMonth());
+      yahooPriceArgs.append("&c=").append(dateRange.earliest.getYear()).append("&d=").append(dateRange.latest.getMonthOfYear() - 1);
+      yahooPriceArgs.append("&e=").append(dateRange.latest.getDayOfMonth()).append("&f=").append(dateRange.latest.getYear());
+      yahooPriceArgs.append("&g=d&ignore=.csv");
+      LOGGER.debug("yahooPriceArgs = {}", yahooPriceArgs);
+      return yahooPriceArgs.toString();
+   }
+
 }

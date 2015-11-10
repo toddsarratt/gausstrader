@@ -45,6 +45,13 @@ public class GaussTrader {
       return market;
    }
 
+   // TODO : Allow this to change the default market from YahooMarket()
+   boolean setMarket(String marketName) {
+      boolean setMarketSuccess = false;
+      // market = null;
+      return setMarketSuccess;
+   }
+
    public static void main(String[] args) {
       Instant programStartTime = Instant.now();
       LOGGER.info("*** START PROGRAM ***");
@@ -53,8 +60,8 @@ public class GaussTrader {
       watchList.watch(Constants.DOW_JONES_TICKERS);
       watchList.watch("AAPL");
       /* Past price history is collected from the network when Stock objects are created. Save to the dataStore for
-       cheaper future retrieval */
-      dataStore.updateStockMetricsToStorage(watchList.getStockSet());
+       cheaper future retrieval. Why is this being done here and not in the Stock class? */
+      dataStore.writeStockMetrics(watchList.getStockSet());
       LOGGER.debug("watchList.getTickers() = {}", watchList.getTickerSet());
       /** This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? **/
       watchList.reset();

@@ -2,27 +2,34 @@ package net.toddsarratt.GaussTrader;
 
 import org.joda.time.DateTime;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
 /**
- * The {@code DataStore} class provides
+ * The {@code DataStore} interface provides
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
  * @since GaussTrader v0.2
  */
 public interface DataStore {
-   void updateStockPriceToStorage(Stock stock);
 
    void resetWatchList();
 
-   LinkedHashMap<Long, Double> getStoredPrices(String ticker, DateTime earliestCloseDate);
+   LinkedHashMap<Long, BigDecimal> readPrices(String ticker, Instant earliestCloseDate);
 
-   void updateStockMetricsToStorage(Stock stockToUpdate);
+   LinkedHashMap<Long, BigDecimal> getStoredPrices(String ticker, DateTime earliestCloseDate);
 
-   void updateStockMetricsToStorage(Set<Stock> stockSetToUpdate);
+   LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, DateTime earliestCloseDate);
 
-   void addStockPriceToStore(String ticker, long dateEpoch, double adjClose);
+   void writeStockMetrics(Stock stockToUpdate);
+
+   void writeStockMetrics(Set<Stock> stocksToUpdate);
+
+   void writeStockPrice(String ticker, long dateEpoch, BigDecimal adjClose);
+
+   void writeStockPrice(Stock stock);
 
    boolean tickerPriceInStore(String ticker);
 
@@ -36,13 +43,14 @@ public interface DataStore {
 
    Set<Order> getPortfolioOrders();
 
-   void addOrder(Order orderToAdd);
+   void write(Order order);
 
-   void addPosition(Position position);
+   void write(Position position);
 
-   void insertPosition(Position positionTakenByOrder);
+   void write(PortfolioSummary summary);
 
-   void closeOrder(Order orderToFill);
+   void close(Order orderToFill);
 
-   void closePosition(Position optionPositionToExercise);
+   void close(Position optionPositionToExercise);
+
 }

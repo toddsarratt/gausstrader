@@ -13,7 +13,7 @@ public class HistoricalPrice {
       MutableDateTime mutableDt = new MutableDateTime(dateString, DateTimeZone.forID("America/New_York"));
       mutableDt.setMillisOfDay((16 * 60 + 20) * 60 * 1000);
       dateEpoch = mutableDt.getMillis();
-      adjClose = BigDecimal.valueOf(Double.parseDouble(priceString));
+      adjClose = new BigDecimal(priceString);
    }
 
    long getDateEpoch() {

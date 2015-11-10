@@ -19,29 +19,32 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
-public class Stock extends Security {
+public class Stock implements Security {
 
    /*	private class Dividend {
   DateTime dividendDate;
   double dividendPayment;
   }
    */
-   private String ticker = "AAPL";
-   private double price = 0.00;
-   private long lastPriceUpdateEpoch = 0l;
-   private double twentyDma = 0.00;
-   private double fiftyDma = 0.00;
-   private double twoHundredDma = 0.00;
-   private LinkedHashMap<Long, Double> historicalPriceMap = new LinkedHashMap<>(PRICE_TRACKING_MAP);
+   private final String ticker;
+   private BigDecimal price;
+   private long lastPriceUpdateEpoch;
+   private BigDecimal twentyDma;
+   private BigDecimal fiftyDma;
+   private BigDecimal twoHundredDma;
+   private LinkedHashMap<Long, BigDecimal> historicalPriceMap = new LinkedHashMap<>(PRICE_TRACKING_MAP);
    private Boolean tickerValid;
    //	public LinkedList<Dividend> dividendsPaid = null;
-   private double[] bollingerBand = new double[6];
+   private BigDecimal[] bollingerBand = new BigDecimal[6];
    private static Market market = new YahooMarket();
+   private static DataStore dataStore = GaussTrader.getDataStore();
    private static final DateTimeFormatter LAST_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyy hh:mmaa");
    private static final Logger LOGGER = LoggerFactory.getLogger(Stock.class);
-   private static final Map<Long, Double> PRICE_TRACKING_MAP = new HashMap<>();
+   private static final Map<Long, BigDecimal> PRICE_TRACKING_MAP = new HashMap<>();
    private static final DateTime EARLIEST_PRICE_DATE = earliestHistoricalPriceNeeded();
 
    /**
@@ -56,103 +59,59 @@ public class Stock extends Security {
 
    public static Stock of(String ticker) {
       LOGGER.debug("Entering of(String {})", ticker);
-      Stock stock = new Stock(ticker);
-      populateStockInfo(stock);
-      populateHistoricalPricesStore(stock);
-      addPriceMapToDB(populateHistoricalPricesMarket(stock));
-      calculateBollingerBands(stock);
-   }
+      Stock newStock = new Stock(ticker);
+      newStock.tickerValid = market.tickerValid(newStock.ticker);
+      if (newStock.tickerValid) {
+         fetchPriceMovingAvgs(newStock);
+         fetchHistoricalPrices(newStock);
 
-   // TODO : Allow this to change the default market from YahooMarket()
-   boolean setMarket(String marketName) {
-      boolean setMarketSuccess = false;
-      market = null;
-      return setMarketSuccess;
+         // Get missing prices from market (formerly Stock.populateHistoricalPricesYahoo())
+         market.readHistoricalPrices(newStock);
+         // Update dataStore with price map (formerly Stock.addPriceMapToDB()
+         dataStore.writePriceMap(newStock.historicalPriceMap);
+         // Calculate BollingerBands
+         calculateBollingerBands(newStock);
+      }
+      return newStock;
    }
 
    /**
-    * @return
+    *
     */
-   private static boolean populateStockInfo(Stock stock) {
+   private static void fetchPriceMovingAvgs(Stock stock) {
       LOGGER.debug("Entering Stock.populateStockInfo()");
-      String[] quoteString;
-      quoteString = askYahoo(stock.ticker, "l1d1t1m3m4");
-      stock.price = Double.parseDouble(quoteString[0]);
-      stock.lastPriceUpdateEpoch = jodaLastTickToEpoch(quoteString[1] + " " + quoteString[2]);
-      stock.fiftyDma = Double.parseDouble(quoteString[3]);
-      stock.twoHundredDma = Double.parseDouble(quoteString[4]);
-      /* TODO : This logic needs to be closer to the Yahoo! call
-      } catch (IOException ioe) {
-         LOGGER.warn("Caught IOException connecting to Yahoo! to populate stock info for {}", ticker);
-         LOGGER.debug("Caught (IOException ioe) ", ioe);
-      }
-      */
+      String[] priceMovingAvgs;
+      priceMovingAvgs = market.priceMovingAvgs(stock.getTicker());
+      stock.price = new BigDecimal(priceMovingAvgs[0]);
+      stock.lastPriceUpdateEpoch = jodaLastTickToEpoch(priceMovingAvgs[1] + " " + priceMovingAvgs[2]);
+      stock.fiftyDma = new BigDecimal(priceMovingAvgs[3]);
+      stock.twoHundredDma = new BigDecimal(priceMovingAvgs[4]);
    }
 
-   void populateHistoricalPricesDB(Stock stock) {
-   /* Populate stock price history from DB */
-      LOGGER.debug("Entering Stock.populateHistoricalPricesDB()");
-      LinkedHashMap<Long, Double> priceMapFromDB = DBHistoricalPrices.getDBPrices(ticker, EARLIEST_PRICE_DATE);
-      if (!priceMapFromDB.isEmpty()) {
-         for (Long epochInDb : priceMapFromDB.keySet()) {
-            if (historicalPriceMap.containsKey(epochInDb)) {
-               LOGGER.debug("Required price from epoch {} returned from db, updating price in historicalPriceMap", epochInDb);
-               historicalPriceMap.put(epochInDb, priceMapFromDB.get(epochInDb));
-            } else {
-               LOGGER.warn("Price from epoch {} returned from db but not required per PRICE_TRACKING_MAP", epochInDb);
-            }
-         }
-      }
-   }
-
-   HashMap<Long, Double> populateHistoricalPricesYahoo() {
-	/* historicalPriceMap was built from PRICE_TRACKING_MAP which contains all necessary epochs as keys and -1.0 for every value, 
-    * which should be replaced first from the local database first and then supplemented by Yahoo!
-	 * TODO: The incomplete statement below will not stand, man
-	 * This method returns a map of blahblahblah
-	 */
-      LOGGER.debug("Entering Stock.populateHistoricalPricesYahoo()");
-      MissingPriceDateRange priceRangeToDownload;
-      LinkedHashMap<Long, Double> retrievedYahooPriceMap;
-      HashMap<Long, Double> pricesMissingFromDB = new HashMap<>();
-
-      if (historicalPriceMap.containsValue(-1.0)) {
+   private static void fetchHistoricalPrices(Stock stock) {
+      // Build price map (formerly Stock.populateHistoricalPricesDB -> DBHistoricalPrices.getDBPrices)
+      LinkedHashMap<Long, BigDecimal> priceMapFromStore = dataStore.readHistoricalPrices(stock.ticker, EARLIEST_PRICE_DATE);
+      priceMapFromStore.keySet().stream()
+              .forEach(epochInStore -> {
+                 stock.historicalPriceMap.put(epochInStore, priceMapFromStore.get(epochInStore));
+                 LOGGER.debug("Required price from epoch {} returned from db, updating price in historicalPriceMap", epochInStore);
+              });
+      if (stock.historicalPriceMap.containsValue(BigDecimal.valueOf(-1.0))) {
          LOGGER.debug("Calculating date range for missing stock prices.");
-         priceRangeToDownload = getMissingPriceDateRange();
-         if (!priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant())) {
-            try {
-               retrievedYahooPriceMap = YahooFinance.retrieveYahooHistoricalPrices(this.ticker, priceRangeToDownload);
-               for (long epochToCheck : historicalPriceMap.keySet()) {
-                  if (historicalPriceMap.get(epochToCheck) < 0.00) {
-                     if (retrievedYahooPriceMap.containsKey(epochToCheck)) {
-                        historicalPriceMap.put(epochToCheck, retrievedYahooPriceMap.get(epochToCheck));
-                        pricesMissingFromDB.put(epochToCheck, retrievedYahooPriceMap.get(epochToCheck));
-                     } else {
-                        LOGGER.warn("historicalPriceMap requires price for epoch {} but data missing from both DB and yahoo!", epochToCheck);
-                     }
-                  }
+         MissingPriceDateRange priceRangeToDownload = getMissingPriceDateRange(stock);
+         LinkedHashMap<> retrievedYahooPriceMap = YahooFinance.retrieveYahooHistoricalPrices(stock.ticker, priceRangeToDownload);
+         for (long epochToCheck : historicalPriceMap.keySet()) {
+            if (historicalPriceMap.get(epochToCheck).compareTo(BigDecimal.ZERO) < 0) {
+               if (retrievedYahooPriceMap.containsKey(epochToCheck)) {
+                  historicalPriceMap.put(epochToCheck, retrievedYahooPriceMap.get(epochToCheck));
+                  pricesMissingFromDB.put(epochToCheck, retrievedYahooPriceMap.get(epochToCheck));
+               } else {
+                  LOGGER.warn("historicalPriceMap requires price for epoch {} but data missing from both DB and yahoo!", epochToCheck);
                }
-            } catch (IOException ioe) {
-               LOGGER.warn("Could not connect to Yahoo! to get historical prices");
-               LOGGER.debug("Caught (IOException ioe) {}", ioe);
             }
-         } else {
-            LOGGER.warn("historicalPriceMap.containsValue(-1.0) but " +
-               "priceRangeToDownload.earliest.isAfter(priceRangeToDownload.latest.toInstant() ({} after {})",
-               priceRangeToDownload.earliest.toString(), priceRangeToDownload.latest.toString());
          }
-      } else {
-         LOGGER.debug("historicalPriceMap.containsValue(-1.0) is false, all needed prices have been retrieved from the database. Not calling Yahoo!");
       }
-      return pricesMissingFromDB;
-   }
 
-   void addPriceMapToDB(Map<Long, Double> pricesMissingFromDB) {
-      LOGGER.debug("Entering Stock.addPriceMapToDB(Map<Long, Double> {})", pricesMissingFromDB.toString());
-      for (Long priceEpoch : pricesMissingFromDB.keySet()) {
-         DBHistoricalPrices.addStockPrice(ticker, priceEpoch, pricesMissingFromDB.get(priceEpoch));
-      }
-   }
 
    private static DateTime earliestHistoricalPriceNeeded() {
 	/* 
@@ -171,7 +130,7 @@ public class Stock extends Security {
          while (!DBHistoricalPrices.marketWasOpen(earliestDatePriceNeeded)) {
             earliestDatePriceNeeded.addDays(-1);
          }
-         PRICE_TRACKING_MAP.put(earliestDatePriceNeeded.getMillis(), -1.0);
+         PRICE_TRACKING_MAP.put(earliestDatePriceNeeded.getMillis(), BigDecimal.valueOf(-1.0));
          LOGGER.debug("PRICE_TRACKING_MAP.put({}, {}) == {}", earliestDatePriceNeeded.getMillis(), -1.0, earliestDatePriceNeeded.toString());
       }
       LOGGER.debug("Returning earliest date required for adjusted close {} ({})", earliestDatePriceNeeded.getMillis(), earliestDatePriceNeeded.toString());
@@ -179,7 +138,7 @@ public class Stock extends Security {
       return new DateTime(earliestDatePriceNeeded, DateTimeZone.forID("America/New_York"));
    }
 
-   private MissingPriceDateRange getMissingPriceDateRange() {
+   private static MissingPriceDateRange getMissingPriceDateRange(Stock stock) {
       LOGGER.debug("Entering Stock.getMissingPriceDateRange()");
       MissingPriceDateRange mpdr = new MissingPriceDateRange();
       MutableDateTime histMutDateTime = new MutableDateTime(DateTimeZone.forID("America/New_York"));
@@ -193,15 +152,15 @@ public class Stock extends Security {
       mpdr.latest = new DateTime(EARLIEST_PRICE_DATE, DateTimeZone.forID("America/New_York"));
       LOGGER.debug("mpdr.latest = {} ({})", mpdr.latest.getMillis(), mpdr.latest.toString());
       LOGGER.debug("mpdr.earliest = {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
-      for (long epochPriceRequired : historicalPriceMap.keySet()) {
-	    /* Map defaults all prices == -1.00 which is updated to a real price returned from the DB */
+      for (long epochPriceRequired : stock.historicalPriceMap.keySet()) {
+       /* Map defaults all prices == -1.00 which is updated to a real price returned from the DB */
 	    /* Any remaining price of -1.00 needs to be retrieved from Yahoo! */
-         if (historicalPriceMap.get(epochPriceRequired) < 0.00) {
+         if (stock.historicalPriceMap.get(epochPriceRequired).compareTo(BigDecimal.ZERO) < 0) {
             missingDateTimeToCheck = new DateTime(epochPriceRequired, DateTimeZone.forID("America/New_York"));
             LOGGER.debug("historicalPriceMap.get({}) < 0.00 : {}", epochPriceRequired, missingDateTimeToCheck.toString());
             if (mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant())) {
                LOGGER.debug("mpdr.earliest.isAfter(missingDateTimeToCheck.toInstant()) : ({}).isAfter({})",
-                  mpdr.earliest.toString(), missingDateTimeToCheck.toString());
+                       mpdr.earliest.toString(), missingDateTimeToCheck.toString());
                mpdr.earliest = new DateTime(missingDateTimeToCheck, DateTimeZone.forID("America/New_York")).withTime(16, (Constants.DELAYED_QUOTES ? 20 : 0), 0, 0);
                LOGGER.debug("Updating mpdr.earliest = {} ({})", mpdr.earliest.getMillis(), mpdr.earliest.toString());
             }
@@ -243,48 +202,54 @@ public class Stock extends Security {
       return mpdr;
    }
 
-   void calculateBollingerBands() {
-      LOGGER.debug("Entering Stock.calculateBollingerBands()");
-      int period = Constants.BOLL_BAND_PERIOD;
-      Collection<Double> historicalPriceArray;
+   public LinkedHashMap<Long, BigDecimal> getHistoricalPriceMap() {
+      return historicalPriceMap;
+   }
 
-      if (historicalPriceMap.containsValue(-1.0)) {
-         LOGGER.warn("Not enough historical data to calculate Bollinger Bands for {}", ticker);
-         bollingerBand[0] = -1.0;
-         bollingerBand[1] = -1.0;
-         bollingerBand[2] = -1.0;
-         bollingerBand[3] = -1.0;
-         bollingerBand[4] = -1.0;
-         bollingerBand[5] = -1.0;
+   private static BigDecimal[] calculateBollingerBands(Stock stock) {
+      LOGGER.debug("Entering calculateBollingerBands()");
+      BigDecimal period = new BigDecimal(Constants.BOLL_BAND_PERIOD);
+      Collection<BigDecimal> historicalPriceArray;
+      if (stock.getHistoricalPriceMap().containsValue(BigDecimal.valueOf(-1.0))) {
+         LOGGER.warn("Not enough historical data to calculate Bollinger Bands for {}", stock.getTicker());
+         stock.bollingerBand[0] = BigDecimal.valueOf(-1.0);
+         stock.bollingerBand[1] = BigDecimal.valueOf(-1.0);
+         stock.bollingerBand[2] = BigDecimal.valueOf(-1.0);
+         stock.bollingerBand[3] = BigDecimal.valueOf(-1.0);
+         stock.bollingerBand[4] = BigDecimal.valueOf(-1.0);
+         stock.bollingerBand[5] = BigDecimal.valueOf(-1.0);
       } else {
-         double currentSMASum = 0;
-         double currentSMA;
-         double currentSDSum = 0;
-         double currentSD;
-         historicalPriceArray = historicalPriceMap.values();
-         for (double adjClose : historicalPriceArray) {
-            currentSMASum += adjClose;
-         }
+         BigDecimal currentSMASum;
+         BigDecimal currentSMA;
+         BigDecimal currentSDSum;
+         BigDecimal currentSD;
+         historicalPriceArray = stock.getHistoricalPriceMap().values();
+         currentSMASum = historicalPriceArray
+                 .stream()
+                 .reduce(BigDecimal.ZERO, BigDecimal::add);
          LOGGER.debug("currentSMASum = {}", currentSMASum);
-         currentSMA = currentSMASum / period;
-         twentyDma = currentSMA;
+         currentSMA = currentSMASum.divide(period, 3, RoundingMode.HALF_EVEN);
+         stock.twentyDma = currentSMA;
          LOGGER.debug("currentSMA = {}", currentSMA);
-         for (double adjClose : historicalPriceArray) {
-            currentSDSum += Math.pow((adjClose - currentSMA), 2);
-         }
+         currentSDSum = historicalPriceArray
+                 .stream()
+                 .map(adjClose -> adjClose.subtract(currentSMA))
+                 .map(distance -> distance.pow(2))
+                 .reduce(BigDecimal.ZERO, BigDecimal::add);
          LOGGER.debug("currentSDSum = {}", currentSDSum);
-         currentSD = Math.sqrt(currentSDSum / period);
+         // Seriously, is there no square root method in BigDecimal?
+         currentSD = BigDecimal.valueOf(Math.sqrt(currentSDSum.divide(period, 3, RoundingMode.HALF_EVEN).doubleValue()));
          LOGGER.debug("currentSD = {}", currentSD);
-         bollingerBand[0] = currentSMA;
-         bollingerBand[1] = currentSMA + currentSD * Constants.BOLLINGER_SD1;
-         bollingerBand[2] = currentSMA + currentSD * Constants.BOLLINGER_SD2;
-         bollingerBand[3] = currentSMA - currentSD * Constants.BOLLINGER_SD1;
-         bollingerBand[4] = currentSMA - currentSD * Constants.BOLLINGER_SD2;
-         bollingerBand[5] = currentSMA - currentSD * Constants.BOLLINGER_SD3;
+         stock.bollingerBand[0] = currentSMA;
+         stock.bollingerBand[1] = currentSMA.add(currentSD).multiply(Constants.BOLLINGER_SD1);
+         stock.bollingerBand[2] = currentSMA.add(currentSD).multiply(Constants.BOLLINGER_SD2);
+         stock.bollingerBand[3] = currentSMA.subtract(currentSD).multiply(Constants.BOLLINGER_SD1);
+         stock.bollingerBand[4] = currentSMA.subtract(currentSD).multiply(Constants.BOLLINGER_SD2);
+         stock.bollingerBand[5] = currentSMA.subtract(currentSD).multiply(Constants.BOLLINGER_SD3);
       }
    }
 
-   private long jodaLastTickToEpoch(String yahooDateTime) {
+   private static long jodaLastTickToEpoch(String yahooDateTime) {
       LOGGER.debug("Entering Stock.jodaLastTickToEpoch(String {})", yahooDateTime);
       DateTime dateTimeEasternTZ = LAST_TICK_FORMATTER.withZone(DateTimeZone.forID("America/New_York")).parseDateTime(yahooDateTime);
       LOGGER.debug("Returning {}", dateTimeEasternTZ.getMillis());
@@ -305,80 +270,52 @@ public class Stock extends Security {
    //	}
 
 
-
-   double lastTick() {
-      LOGGER.debug("Entering Stock.lastTick()");
-      try {
-         InstantPrice instantPrice = market.lastTick(ticker);
-         if (ticker.equals(tickString[0])) {
-            price = Double.parseDouble(tickString[1]);
-            lastPriceUpdateEpoch = jodaLastTickToEpoch(tickString[2] + " " + tickString[3]);
-            return price;
-         }
-      } catch (IOException ioe) {
-         LOGGER.warn("IOException generated trying to get lastTick for {}", ticker);
-         LOGGER.debug("Caught (IOException ioe)", ioe);
-      }
-      return -1;
+   @Override
+   public InstantPrice lastTick() {
+      LOGGER.debug("Entering lastTick()");
+      InstantPrice instantPrice = market.lastTick(ticker);
+      price = instantPrice.getPrice();
+      lastPriceUpdateEpoch = instantPrice.getEpoch();
+      return instantPrice;
    }
 
-   public static double lastTick(String ticker) throws IOException {
-      LOGGER.debug("Entering Stock.lastTick(String {})", ticker);
-      String[] tickString = askYahoo(ticker, "sl1d1t1");
-      if (ticker.equals(tickString[0])) {
-         return Double.parseDouble(tickString[1]);
-      }
-      return -1;
+   @Override
+   public InstantPrice lastBid() {
+      return market.lastBid(ticker);
    }
 
-   double lastBid() throws IOException {
-      String[] tickString = askYahoo(ticker, "sb2d1t1");
-      if (ticker.equals(tickString[0])) {
-         price = Double.parseDouble(tickString[1]);
-         lastPriceUpdateEpoch = jodaLastTickToEpoch(tickString[2] + " " + tickString[3]);
-         return price;
-      }
-      return -1;
+   @Override
+   public InstantPrice lastAsk() {
+      return market.lastAsk(ticker);
    }
 
-   double lastAsk() throws IOException {
-      String[] tickString = askYahoo(ticker, "sb3d1t1");
-      if (ticker.equals(tickString[0])) {
-         price = Double.parseDouble(tickString[1]);
-         lastPriceUpdateEpoch = jodaLastTickToEpoch(tickString[2] + " " + tickString[3]);
-         return price;
-      }
-      return -1;
-   }
-
+   @Override
    public String getTicker() {
       return ticker;
    }
 
-   void setTicker(String ticker) {
-      this.ticker = ticker;
-   }
-
-   public double getPrice() {
+   @Override
+   public BigDecimal getPrice() {
       return price;
    }
 
-   public double getBollingerBand(int index) {
+   public BigDecimal getBollingerBand(int index) {
       return bollingerBand[index];
    }
 
-   public double getTwentyDma() {
+   public BigDecimal getTwentyDma() {
       return twentyDma;
    }
 
-   public double getFiftyDma() {
+   public BigDecimal getFiftyDma() {
       return fiftyDma;
    }
 
-   public double getTwoHundredDma() {
+   public BigDecimal getTwoHundredDma() {
       return twoHundredDma;
    }
 
+   @Override
    public String getSecType() {
       return "STOCK";
    }
@@ -387,39 +324,30 @@ public class Stock extends Security {
       return lastPriceUpdateEpoch;
    }
 
-   public boolean tickerValidStore() {
+   public boolean tickerStored() {
       LOGGER.debug("Entering Stock.tickerValidDb()");
-      return DataStore.tickerPriceInDb(ticker);
+      return dataStore.tickerPriceInStore(ticker);
    }
 
-   public boolean tickerValidMarket() {
-      LOGGER.debug("Entering Stock.tickerValidYahoo()");
-      try {
-         return Market.tickerValid
-         return askYahoo(ticker, "e1")[0].equals("N/A");
-      } catch(IOException ioe) {
-         LOGGER.warn("Could not connect to Yahoo! to verify ticker {} validity", ticker);
-         LOGGER.debug("Caught exception ", ioe);
-      }
-      return false;
-   }
+
    public boolean tickerValid() {
       LOGGER.debug("Entering Stock.tickerValid()");
       if (tickerValid == null) {
-         return(tickerValid = (tickerValidDb() || tickerValidYahoo()));
+         return (tickerValid = (tickerStored() || market.tickerValid(ticker)));
       }
       return tickerValid;
    }
 
    String describeBollingerBands() {
       return "SMA " + bollingerBand[0] +
-         " Upper 1st " + bollingerBand[1] +
-         " 2nd " + bollingerBand[2] +
-         " Lower 1st " + bollingerBand[3] +
-         " 2nd " + bollingerBand[4] +
-         " 3rd " + bollingerBand[5];
+              " Upper 1st " + bollingerBand[1] +
+              " 2nd " + bollingerBand[2] +
+              " Lower 1st " + bollingerBand[3] +
+              " 2nd " + bollingerBand[4] +
+              " 3rd " + bollingerBand[5];
    }
 
+   // TODO : This is a sorry toString()
    @Override
    public String toString() {
       return ticker;
