@@ -1,5 +1,6 @@
 package net.toddsarratt.GaussTrader;
 
+import javafx.beans.binding.When;
 import org.joda.time.MutableDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,7 @@ public class Portfolio {
       this.orders = orders;
    }
 
-   public Portfolio of(String portfolioName) {
+   public static Portfolio of(String portfolioName) {
       Portfolio newPortfolio;
       LOGGER.debug("Entering Portfolio constructor Portfolio(String {})", portfolioName);
       if (dataStore.portfolioInStore(portfolioName)) {
@@ -72,7 +73,7 @@ public class Portfolio {
       return newPortfolio;
    }
 
-   public Portfolio of(String portfolioName, BigDecimal startingCash) {
+   public static Portfolio of(String portfolioName, BigDecimal startingCash) {
       LOGGER.debug("Entering of(String {}, BigDecimal {})", portfolioName, startingCash);
       if (dataStore.portfolioInStore(portfolioName)) {
          LOGGER.error("Portfolio {} already exists", portfolioName);
@@ -85,7 +86,7 @@ public class Portfolio {
       return newPortfolio;
    }
 
-   Portfolio getPortfolioFromStore(String portfolioName) {
+   static Portfolio getPortfolioFromStore(String portfolioName) {
       LOGGER.debug("Entering Portfolio.getDbPortfolio()");
       PortfolioSummary summary = dataStore.getPortfolioSummary(portfolioName);
       Set<Position> positions = dataStore.getPortfolioPositions();
@@ -113,14 +114,11 @@ public class Portfolio {
 
    @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
    public BigDecimal calculateNetAssetValue() {
-      BigDecimal openPositionNavs = BigDecimal.ZERO;
       calculateTotalCash();
-//      positions.parallelStream().map(Position::calculateNetAssetValue) TODO : When we go all BigDecimal...
-      for (Position positionToUpdate : positions) {
-         if (positionToUpdate.isOpen()) {
-            openPositionNavs = openPositionNavs.add(BigDecimal.valueOf(positionToUpdate.calculateNetAssetValue()));
-         }
-      }
+      BigDecimal openPositionNavs = positions.stream()
+              .filter(Position::isOpen)
+              .map(Position::calculateNetAssetValue)
+              .reduce(BigDecimal.ZERO, BigDecimal::add);
       netAssetValue = totalCash.add(openPositionNavs);
       return netAssetValue;
    }
@@ -293,12 +291,12 @@ public class Portfolio {
    public void addNewPosition(Position position) {
       LOGGER.debug("Entering Portfolio.addNewPosition(Position {})", position.getPositionId());
       positions.add(position);
-      LOGGER.debug("freeCash ${} -= position.getCostBasis() ${} == ${}", freeCash, position.getCostBasis(), freeCash.subtract(BigDecimal.valueOf(position.getCostBasis())));
-      freeCash = freeCash.subtract(BigDecimal.valueOf(position.getCostBasis()));
-      LOGGER.debug("freeCash ${} -= position.getClaimAgainstCash() ${} == ${}", freeCash, position.getClaimAgainstCash(), freeCash.subtract(BigDecimal.valueOf(position.getClaimAgainstCash())));
-      freeCash = freeCash.subtract(BigDecimal.valueOf(position.getClaimAgainstCash()));
-      LOGGER.debug("reservedCash ${} += position.getClaimAgainstCash() ${} == ${}", reservedCash, position.getClaimAgainstCash(), reservedCash.add(BigDecimal.valueOf(position.getClaimAgainstCash())));
-      reservedCash = reservedCash.add(BigDecimal.valueOf(position.getClaimAgainstCash()));
+      LOGGER.debug("freeCash ${} -= position.getCostBasis() ${} == ${}", freeCash, position.getCostBasis(), freeCash.subtract(position.getCostBasis()));
+      freeCash = freeCash.subtract(position.getCostBasis());
+      LOGGER.debug("freeCash ${} -= position.getClaimAgainstCash() ${} == ${}", freeCash, position.getClaimAgainstCash(), freeCash.subtract(position.getClaimAgainstCash()));
+      freeCash = freeCash.subtract(position.getClaimAgainstCash());
+      LOGGER.debug("reservedCash ${} += position.getClaimAgainstCash() ${} == ${}", reservedCash, position.getClaimAgainstCash(), reservedCash.add(position.getClaimAgainstCash()));
+      reservedCash = reservedCash.add(position.getClaimAgainstCash());
       dataStore.write(position);
       /** TODO : Move try catch to called method which should write to a file if dbwrite fails */
    }
@@ -306,6 +304,7 @@ public class Portfolio {
    public List<Order> getListOfOpenOrders() {
       LOGGER.debug("Entering Portfolio.getListOfOpenOrders()");
       List<Order> openOrderList = new ArrayList<>();
+      // TODO : Lambda
       for (Order portfolioOrder : orders) {
          if (portfolioOrder.isOpen()) {
             openOrderList.add(portfolioOrder);
@@ -319,6 +318,7 @@ public class Portfolio {
    public List<Position> getListOfOpenPositions() {
       LOGGER.debug("Entering Portfolio.getListOfOpenPositions()");
       List<Position> openPositionList = new ArrayList<>();
+      // TODO : Lambda
       for (Position portfolioPosition : positions) {
          if (portfolioPosition.isOpen()) {
             openPositionList.add(portfolioPosition);
@@ -331,6 +331,7 @@ public class Portfolio {
    public List<Position> getListOfOpenOptionPositions() {
       LOGGER.debug("Entering Portfolio.getListOfOpenOptionPositions()");
       List<Position> openOptionPositionList = new ArrayList<>();
+      // TODO : Lambda
       for (Position portfolioPosition : positions) {
          if (portfolioPosition.isOpen() && portfolioPosition.isOption()) {
             openOptionPositionList.add(portfolioPosition);
@@ -343,6 +344,7 @@ public class Portfolio {
    public List<Position> getListOfOpenStockPositions() {
       LOGGER.debug("Entering Portfolio.getListOfOpenStockPositions()");
       List<Position> openStockPositionList = new ArrayList<>();
+      // TODO : Lambda
       for (Position portfolioPosition : positions) {
          if (portfolioPosition.isOpen() && portfolioPosition.isStock()) {
             openStockPositionList.add(portfolioPosition);
@@ -506,15 +508,15 @@ public class Portfolio {
          LOGGER.warn("Attempted to expire a stock position");
          return;
       }
-      BigDecimal newFreeCash = freeCash.add(BigDecimal.valueOf(optionPositionToExercise.getClaimAgainstCash()));
+      BigDecimal newFreeCash = freeCash.add(optionPositionToExercise.getClaimAgainstCash());
       LOGGER.debug("freeCash ${} += optionPositionToExercise.getClaimAgainstCash() ${} = ${}",
               freeCash, optionPositionToExercise.getClaimAgainstCash(), newFreeCash);
       freeCash = newFreeCash;
-      BigDecimal newReservedCash = reservedCash.subtract(BigDecimal.valueOf(optionPositionToExercise.getClaimAgainstCash()));
+      BigDecimal newReservedCash = reservedCash.subtract(optionPositionToExercise.getClaimAgainstCash());
       LOGGER.debug("reservedCash -= optionPositionToExercise.getClaimAgainstCash()",
               reservedCash, optionPositionToExercise.getClaimAgainstCash(), newReservedCash);
       reservedCash = newReservedCash;
-      optionPositionToExercise.close(0.00);
+      optionPositionToExercise.close(BigDecimal.ZERO);
       dataStore.close(optionPositionToExercise);
    }
 
@@ -529,7 +531,7 @@ public class Portfolio {
       for (Position openPosition : getListOfOpenPositions()) {
          if (openPosition.isStock() &&
                  openPosition.getTicker().equals(tickerToDeliver) &&
-                 (openPosition.getCostBasis().compare(lowestCostBasis) < 0) &&
+                 (openPosition.getCostBasis().compareTo(lowestCostBasis) < 0) &&
                  (openPosition.getNumberTransacted() >= 100) ) {
             lowestCostBasis = openPosition.getCostBasis();
             positionToDeliver = openPosition;
@@ -552,8 +554,8 @@ public class Portfolio {
    public void expireOrder(Order expiredOrder) {
       LOGGER.debug("Entering Portfolio.expireOrder(Order {}) with freeCash {} and reservedCash {}",
          expiredOrder.getOrderId(), freeCash, reservedCash);
-      freeCash = freeCash.add(BigDecimal.valueOf(expiredOrder.getClaimAgainstCash());
-      reservedCash = reservedCash.subtract(BigDecimal.valueOf(expiredOrder.getClaimAgainstCash());
+      freeCash = freeCash.add(expiredOrder.getClaimAgainstCash());
+      reservedCash = reservedCash.subtract(expiredOrder.getClaimAgainstCash());
       LOGGER.debug("claimAgainstCash() ${}, freeCash ${}, reservedCash ${}", expiredOrder.getClaimAgainstCash(), freeCash, reservedCash);
       calculateTotalCash();
       expiredOrder.closeExpired();

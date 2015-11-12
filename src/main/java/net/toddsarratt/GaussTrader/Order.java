@@ -1,9 +1,10 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.time.Instant;
 
 /**
  *  Class to record each order
@@ -17,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * secType : "CALL", "PUT", "STOCK"
  * tif (Time in Force) : "GTC" (Good 'Til Cancelled) vs "GFD" (Good For Day = day order)
  * epochOpened : milliseconds since epoch when order was opened
- * epochClosed : milliseconds since epoch when order was closed
+ * instantClosed : milliseconds since epoch when order was closed
  * closeReason : "FILLED", "EXPIRED", or "CANCELLED"
  * fillPrice : price at which order was filled and closed
  */
@@ -25,27 +26,27 @@ import org.slf4j.LoggerFactory;
 class Order {
 
    private long orderId = GaussTrader.getNewId();
-   private boolean open = true;
-   private String ticker = "AAPL";
-   private DateTime expiry = new DateTime(DateTimeZone.forID("America/New_York"));
-   private String underlyingTicker = "AAPL";
-   private double strikePrice = 0.00;
-   private double limitPrice = 0.00;
-   private String action = "SELL";
-   private int totalQuantity = 1;
-   private String secType = "PUT";
-   private double claimAgainstCash = 0.00;
-   private String tif = "GFD";
-   private long epochOpened = System.currentTimeMillis();
-   private long epochClosed;
+   private boolean open;
+   private String ticker;
+   private Instant expiry;
+   private String underlyingTicker;
+   private BigDecimal strikePrice;
+   private BigDecimal limitPrice;
+   private String action;
+   private int totalQuantity;
+   private String secType;
+   private BigDecimal claimAgainstCash;
+   private String tif;
+   private Instant instantOpened;
+   private Instant instantClosed;
    private String closeReason;
-   private double fillPrice;
+   private BigDecimal fillPrice;
    private static final Logger LOGGER = LoggerFactory.getLogger(Order.class);
 
    public Order() {
    }
 
-   public Order(Security security, double limitPrice, String action, int totalQuantity, String tif) {
+   public Order(Security security, BigDecimal limitPrice, String action, int totalQuantity, String tif) {
       LOGGER.debug("Entering constructor Order(Security {}, double {}, String {}, int {}, String {})",
          security, limitPrice, action, totalQuantity, tif);
       LOGGER.debug("Security is of type {}", security.getClass());
@@ -69,7 +70,7 @@ class Order {
       LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
       this.tif = tif;
       open = true;
-      epochOpened = System.currentTimeMillis();
+      instantOpened = Instant.now();
       LOGGER.info("Created order ID {} for {} to {} {} of {} @ ${} TIF : {}", orderId, underlyingTicker, action, totalQuantity, ticker, limitPrice, tif);
    }
 
@@ -97,11 +98,11 @@ class Order {
       this.ticker = ticker;
    }
 
-   public double getLimitPrice() {
+   public BigDecimal getLimitPrice() {
       return limitPrice;
    }
 
-   void setLimitPrice(double limitPrice) {
+   void setLimitPrice(BigDecimal limitPrice) {
       this.limitPrice = limitPrice;
    }
 
@@ -162,47 +163,47 @@ class Order {
    }
 
    /* Write changes in order to database */
-   public void fill(double fillPrice) {
+   public void fill(BigDecimal fillPrice) {
       LOGGER.debug("Entering Order.fill(double {})", fillPrice);
       closeReason = "FILLED";
       open = false;
       this.fillPrice = fillPrice;
-      epochClosed = System.currentTimeMillis();
-      LOGGER.info("Order {} {} @ ${} epoch {}", orderId, closeReason, this.fillPrice, epochClosed);
+      instantClosed = Instant.now();
+      LOGGER.info("Order {} {} @ ${} epoch {}", orderId, closeReason, this.fillPrice, instantClosed);
    }
 
    public void closeExpired() {
-      LOGGER.debug("Entering Order.closeExpired()");
-      closeReason = "EXPIRED";
-      open = false;
-      fillPrice = 0.00;
-      epochClosed = System.currentTimeMillis();
-      LOGGER.info("Order {} {} @ ${} epoch {}", this.orderId, closeReason, fillPrice, epochClosed);
+      close("EXPIRED");
    }
 
    public void closeCancelled() {
-      LOGGER.debug("Entering Order.closeCancelled()");
-      closeReason = "CANCELLED";
+      close("CANCELLED");
+   }
+
+   private void close(String closeReason) {
+      LOGGER.debug("Entering close()");
+      this.closeReason = closeReason;
       open = false;
-      fillPrice = 0.00;
-      epochClosed = System.currentTimeMillis();
-      LOGGER.info("Order {} {} @ ${} epoch {}", this.orderId, closeReason, fillPrice, epochClosed);
+      fillPrice = BigDecimal.ZERO;
+      instantClosed = Instant.now();
+      LOGGER.info("Order {} {} @ ${} epoch {}", this.orderId, closeReason, fillPrice, instantClosed);
+
    }
 
-   void setEpochOpened(long epochOpened) {
-      this.epochOpened = epochOpened;
+   void setInstantOpened(Instant instantOpened) {
+      this.instantOpened = instantOpened;
    }
 
-   long getEpochOpened() {
-      return epochOpened;
+   Instant getInstantOpened() {
+      return instantOpened;
    }
 
-   void setEpochClosed(long epochClosed) {
-      this.epochClosed = epochClosed;
+   void setInstantClosed(Instant instantClosed) {
+      this.instantClosed = instantClosed;
    }
 
-   long getEpochClosed() {
-      return epochClosed;
+   Instant getInstantClosed() {
+      return instantClosed;
    }
 
    void setCloseReason(String closeReason) {
@@ -213,23 +214,23 @@ class Order {
       return closeReason;
    }
 
-   void setFillPrice(double fillPrice) {
+   void setFillPrice(BigDecimal fillPrice) {
       this.fillPrice = fillPrice;
    }
 
-   double getFillPrice() {
+   BigDecimal getFillPrice() {
       return fillPrice;
    }
 
-   void setExpiry(DateTime expiry) {
+   void setExpiry(Instant expiry) {
       this.expiry = expiry;
    }
 
    void setExpiry(long expiryMillis) {
-      this.expiry = new DateTime(expiryMillis, DateTimeZone.forID("America/New_York"));
+      this.expiry = Instant.ofEpochMilli(expiryMillis);
    }
 
-   DateTime getExpiry() {
+   Instant getExpiry() {
       return expiry;
    }
 
@@ -241,39 +242,40 @@ class Order {
       return underlyingTicker;
    }
 
-   void setStrikePrice(double strikePrice) {
+   void setStrikePrice(BigDecimal strikePrice) {
       this.strikePrice = strikePrice;
    }
 
-   double getStrikePrice() {
+   BigDecimal getStrikePrice() {
       return strikePrice;
    }
 
-   double getClaimAgainstCash() {
+   BigDecimal getClaimAgainstCash() {
       return claimAgainstCash;
    }
 
-   void setClaimAgainstCash(double requiredCash) {
+   void setClaimAgainstCash(BigDecimal requiredCash) {
       claimAgainstCash = requiredCash;
    }
 
    void calculateClaimAgainstCash() {
       LOGGER.debug("Entering Order.calculateClaimAgainstCash()");
-      double costBasis = limitPrice * totalQuantity * (isStock() ? 1.0 : 100.0) * (isLong() ? 1.0 : -1.0);
+      BigDecimal costBasis = limitPrice.multiply(new BigDecimal(totalQuantity * (isStock() ? 1.0 : 100.0) * (isLong() ? 1.0 : -1.0)));
       LOGGER.debug("costBasis = ${}", costBasis);
-      claimAgainstCash = 0.00;
       if (isLong()) {
          claimAgainstCash = costBasis;
       } else if (isPut()) {
-         claimAgainstCash = strikePrice * totalQuantity * 100.0 + costBasis;
+         claimAgainstCash = strikePrice.multiply(new BigDecimal(totalQuantity * 100)).add(costBasis);
+      } else {
+         claimAgainstCash = BigDecimal.ZERO;
       }
    }
 
-   public boolean canBeFilled(double lastTick) {
-      if(lastTick < 0.00) {
+   public boolean canBeFilled(BigDecimal lastTick) {
+      if (lastTick.compareTo(BigDecimal.ZERO) < 0) {
          return false;
       }
-      return (isLong() && (lastTick <= limitPrice)) || (isShort() && (lastTick >= limitPrice));
+      return (isLong() && (lastTick.compareTo(limitPrice) <= 0)) || (isShort() && (lastTick.compareTo(limitPrice) >= 0));
    }
 
    @Override

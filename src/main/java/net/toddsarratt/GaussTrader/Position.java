@@ -6,38 +6,40 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.Instant;
 
 public class Position {
-   private long positionId = System.currentTimeMillis();
-   private long originatingOrderId = System.currentTimeMillis();
-   private boolean open = true;
-   private String ticker = "APPL";
-   private String secType = "PUT";
-   private DateTime expiry = new DateTime(DateTimeZone.forID("America/New_York"));
-   private String underlyingTicker = "AAPL";
-   private double strikePrice = 0.00;
-   private long epochOpened = System.currentTimeMillis();
-   private Boolean longPosition = false;
-   private int numberTransacted = 1;
-   private double priceAtOpen = 0.00;
-   private double costBasis = 0.00;
-   private double claimAgainstCash = 0.00;
-   private double price = 0.00;
-   private double netAssetValue = 0.00;
-   private long epochClosed;
-   private double priceAtClose;
-   private double profit = netAssetValue - costBasis;
-
+   private long positionId;
+   private long originatingOrderId;
+   private boolean open;
+   private String ticker;
+   private String secType;
+   private Instant expiry;
+   private String underlyingTicker;
+   private BigDecimal strikePrice;
+   private Instant instantOpened;
+   private boolean longPosition;
+   private int numberTransacted;
+   private BigDecimal priceAtOpen;
+   private BigDecimal costBasis;
+   private BigDecimal claimAgainstCash;
+   private BigDecimal price;
+   private BigDecimal netAssetValue;
+   private Instant instantClosed;
+   private BigDecimal priceAtClose;
+   private BigDecimal profit;
+   private static Market market = GaussTrader.getMarket();
    private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
 
    Position() {
       LOGGER.debug("Entering Position default constructor");
       positionId = getNewId();
-      epochOpened = System.currentTimeMillis();
+      instantOpened = Instant.now();
       open = true;
    }
 
-   Position(Order orderToFill, double priceAtOpen) {
+   Position(Order orderToFill, BigDecimal priceAtOpen) {
       LOGGER.debug("Entering Position constructor Position(Order {}, price {})", orderToFill.getOrderId(), priceAtOpen);
       positionId = getNewId();
       originatingOrderId = orderToFill.getOrderId();
@@ -52,7 +54,7 @@ public class Position {
          underlyingTicker = ticker;
          expiry = null;
       }
-      epochOpened = System.currentTimeMillis();
+      instantOpened = Instant.now();
       longPosition = orderToFill.isLong();
       numberTransacted = orderToFill.getTotalQuantity();
       this.priceAtOpen = priceAtOpen;
@@ -62,7 +64,7 @@ public class Position {
       price = priceAtOpen;
       netAssetValue = costBasis;
       LOGGER.info("New position created with positionId " + positionId + " ticker " + ticker +
-         " secType " + secType + " open " + open + " epochOpened " + epochOpened);
+              " secType " + secType + " open " + open + " instantOpened " + instantOpened);
       LOGGER.info("longPosition " + longPosition + " numberTransacted " + numberTransacted +
          " priceAtOpen " + priceAtOpen + " costBasis " + costBasis);
    }
@@ -71,24 +73,23 @@ public class Position {
       LOGGER.debug("Entering Position.exerciseOptionPosition(Position {})", exercisingOptionPosition.getPositionId());
       Position newStockPosition = new Position();
       String ticker = exercisingOptionPosition.getUnderlyingTicker();
-      double lastTick = 0.00;
+      BigDecimal lastTick;
       newStockPosition.setTicker(ticker);
       newStockPosition.setUnderlyingTicker(ticker);
       newStockPosition.setSecType("STOCK");
       newStockPosition.setLongPosition(true);
       newStockPosition.setNumberTransacted(exercisingOptionPosition.getNumberTransacted() * 100);
       newStockPosition.setPriceAtOpen(exercisingOptionPosition.getStrikePrice());
-      newStockPosition.setCostBasis(newStockPosition.getPriceAtOpen() * newStockPosition.getNumberTransacted());
-      try {
-         newStockPosition.setPrice(lastTick = Stock.lastTick(ticker));
-      } catch (IOException ioe) {
+      newStockPosition.setCostBasis(newStockPosition.getPriceAtOpen()
+              .multiply(new BigDecimal(newStockPosition.getNumberTransacted())));
+      newStockPosition.setPrice(lastTick = market.lastTick(ticker).getPrice());
+/*      } catch (IOException ioe) {
          LOGGER.info("Could not connect to yahoo! to get lastTick() for {} when exercising option position {}", ticker, exercisingOptionPosition.getPositionId());
          LOGGER.info("lastTick and netAssetValue are incorrect for current open position {}", newStockPosition.getPositionId());
          LOGGER.debug("Caught (IOException ioe)", ioe);
          newStockPosition.setPrice(lastTick = newStockPosition.getPriceAtOpen());
-      } finally {
-         newStockPosition.setNetAssetValue(newStockPosition.getNumberTransacted() * lastTick);
-      }
+      } */
+      newStockPosition.setNetAssetValue(lastTick.multiply(new BigDecimal(newStockPosition.getNumberTransacted())));
       return newStockPosition;
    }
 
@@ -101,11 +102,13 @@ public class Position {
       return ((System.currentTimeMillis() << 20) & 0x7FFFFFFFFFF00000l) | (System.nanoTime() & 0x00000000000FFFFFl);
    }
 
-   public void close(double closePrice) {
+   public void close(BigDecimal closePrice) {
       open = false;
-      epochClosed = System.currentTimeMillis();
+      instantClosed = Instant.now();
       priceAtClose = closePrice;
-      profit = (priceAtClose * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1)) - costBasis;
+      profit = priceAtClose
+              .multiply(new BigDecimal(numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1)))
+              .subtract(costBasis);
    }
 
    public long getPositionId() {
@@ -160,11 +163,11 @@ public class Position {
       return (isCall() || isPut());
    }
 
-   public DateTime getExpiry() {
+   public Instant getExpiry() {
       return expiry;
    }
 
-   void setExpiry(DateTime expiry) {
+   void setExpiry(Instant expiry) {
       this.expiry = expiry;
    }
 
@@ -176,20 +179,20 @@ public class Position {
       this.underlyingTicker = underlyingTicker;
    }
 
-   public double getStrikePrice() {
+   public BigDecimal getStrikePrice() {
       return strikePrice;
    }
 
-   void setStrikePrice(double strikePrice) {
+   void setStrikePrice(BigDecimal strikePrice) {
       this.strikePrice = strikePrice;
    }
 
-   public long getEpochOpened() {
-      return epochOpened;
+   public Instant getInstantOpened() {
+      return instantOpened;
    }
 
-   void setEpochOpened(long epochOpened) {
-      this.epochOpened = epochOpened;
+   void setInstantOpened(Instant instantOpened) {
+      this.instantOpened = instantOpened;
    }
 
    public boolean isLong() {
@@ -212,34 +215,34 @@ public class Position {
       this.numberTransacted = numberTransacted;
    }
 
-   public double getPriceAtOpen() {
+   public BigDecimal getPriceAtOpen() {
       return priceAtOpen;
    }
 
-   void setPriceAtOpen(double priceAtOpen) {
+   void setPriceAtOpen(BigDecimal priceAtOpen) {
       this.priceAtOpen = priceAtOpen;
    }
 
-   public double getCostBasis() {
+   public BigDecimal getCostBasis() {
       return costBasis;
    }
 
-   void setCostBasis(double costBasis) {
+   void setCostBasis(BigDecimal costBasis) {
       this.costBasis = costBasis;
    }
 
    void calculateCostBasis() {
-      costBasis = priceAtOpen * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
+      costBasis = priceAtOpen.multiply(new BigDecimal(numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1)));
    }
 
-   public double getLastTick() {
+   public BigDecimal getLastTick() {
       try {
          if (isStock()) {
-            price = Stock.lastTick(ticker);
+            price = market.lastTick(ticker).getPrice();
          } else {
             price = Option.lastTick(ticker);
          }
-         netAssetValue = price * numberTransacted * (isStock() ? 1 : 100) * (longPosition ? 1 : -1);
+         netAssetValue = price.multiply(new BigDecimal(numberTransacted * (isStock() ? 1 : 100) * (longPosition ? 1 : -1)));
       } catch (IOException ioe) {
          LOGGER.warn("Caught IOException trying to get lastTick({}). Returning last known tick (We are no longer real-time).", ticker);
          LOGGER.debug("Caught (IOException ioe) ", ioe);
@@ -247,48 +250,48 @@ public class Position {
       return price;
    }
 
-   void setPrice(double lastTick) {
+   void setPrice(BigDecimal lastTick) {
       this.price = lastTick;
    }
 
-   public double getPrice() {
+   public BigDecimal getPrice() {
       return price;
    }
 
-   void setNetAssetValue(double netAssetValue) {
+   void setNetAssetValue(BigDecimal netAssetValue) {
       this.netAssetValue = netAssetValue;
    }
 
-   public long getEpochClosed() {
+   public Instant getInstantClosed() {
       if (!open) {
-         return epochClosed;
+         return instantClosed;
       }
-      return -1;
+      return Instant.MIN;
    }
 
-   void setEpochClosed(long epochClosed) {
-      this.epochClosed = epochClosed;
+   void setInstantClosed(Instant instantClosed) {
+      this.instantClosed = instantClosed;
    }
 
-   public double getPriceAtClose() {
+   public BigDecimal getPriceAtClose() {
       if (!open) {
          return priceAtClose;
       }
-      return -1;
+      return Constants.BIGDECIMAL_MINUS_ONE;
    }
 
-   void setPriceAtClose(double priceAtClose) {
+   void setPriceAtClose(BigDecimal priceAtClose) {
       this.priceAtClose = priceAtClose;
    }
 
-   public double getProfit() {
+   public BigDecimal getProfit() {
        if(open) {
-           profit = netAssetValue - costBasis;
+          profit = netAssetValue.subtract(costBasis);
        }
       return profit;
    }
 
-   void setProfit(double profit) {
+   void setProfit(BigDecimal profit) {
       this.profit = profit;
    }
 
@@ -296,41 +299,40 @@ public class Position {
       return open;
    }
 
-   public double getClaimAgainstCash() {
+   public BigDecimal getClaimAgainstCash() {
       return claimAgainstCash;
    }
 
-   void setClaimAgainstCash(double requiredCash) {
+   void setClaimAgainstCash(BigDecimal requiredCash) {
       claimAgainstCash = requiredCash;
    }
 
     public boolean isExpired() {
-       if(isOption()) {
-          return expiry.isBeforeNow();
-       }
-       return false;
+       return isOption() && expiry.isBefore(Instant.now());
    }
 
    /* Position.claimAgainstCash() is a bit disingenuous. Selling an option or shorting a stock
     * could result in an infinite liability. Only calculating for selling a put which has
     * a fixed obligation.
     */
-   double calculateClaimAgainstCash() {
+   BigDecimal calculateClaimAgainstCash() {
       if (isPut() && isShort()) {
-         return (claimAgainstCash = strikePrice * numberTransacted * 100);
+         return (claimAgainstCash = strikePrice.multiply(new BigDecimal(numberTransacted * 100)));
       }
-      return (claimAgainstCash = 0.00);
+      return (claimAgainstCash = BigDecimal.ZERO);
    }
 
-   public double calculateNetAssetValue() {
-      netAssetValue = price * numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1);
-      profit = netAssetValue - costBasis;
+   public BigDecimal calculateNetAssetValue() {
+      netAssetValue = price.multiply(new BigDecimal(numberTransacted))
+              .multiply(isStock() ? BigDecimal.ONE : Constants.BIGDECIMAL_ONE_HUNDRED)
+              .multiply(isLong() ? BigDecimal.ONE : Constants.BIGDECIMAL_MINUS_ONE);
+      profit = netAssetValue.subtract(costBasis);
       return netAssetValue;
    }
 
    public String toString() {
-      return (positionId + " | " + ticker + " | " + secType + " | " + open + " | " + epochOpened +
+      return (positionId + " | " + ticker + " | " + secType + " | " + open + " | " + instantOpened +
          " | " + longPosition + " | " + numberTransacted + " | " + priceAtOpen + " | " +
-         costBasis + " | " + epochClosed + " | " + priceAtClose + " | " + profit);
+              costBasis + " | " + instantClosed + " | " + priceAtClose + " | " + profit);
    }
 }

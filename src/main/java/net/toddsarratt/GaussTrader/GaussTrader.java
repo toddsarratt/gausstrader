@@ -29,7 +29,7 @@ public class GaussTrader {
    private static WatchList watchList = new WatchList();
    private static DataStore dataStore = new PostgresStore();
    private static Market market = new YahooMarket();
-   private static Portfolio portfolio = new Portfolio(Constants.PORTFOLIO_NAME);
+   private static Portfolio portfolio = Portfolio.of(Constants.PORTFOLIO_NAME);
 
    /**
     * @return DataStore associated with the application.

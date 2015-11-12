@@ -11,7 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URL;
+import java.time.Instant;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,13 +24,13 @@ import java.util.regex.Pattern;
  * Read more: http://www.investopedia.com/articles/optioninvestor/10/options-symbol-rules.asp#ixzz2IOZQ4kou
  */
 
-public class Option extends Security {
+public class Option implements Security {
    private String ticker;
    private String secType;
-   private DateTime expiry = null;
-   private String underlyingTicker = null;
-   private double price;
-   private double strike = 0.00;
+   private Instant expiry;
+   private String underlyingTicker;
+   private BigDecimal price;
+   private BigDecimal strike;
    private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
 
    Option(String optionTickerArg) {

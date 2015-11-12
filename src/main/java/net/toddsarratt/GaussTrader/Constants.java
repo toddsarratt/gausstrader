@@ -49,4 +49,5 @@ public class Constants {
                    .build();
    static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
    static final BigDecimal BIGDECIMAL_MINUS_ONE = new BigDecimal(-1);
+   static final BigDecimal BIGDECIMAL_ONE_HUNDRED = new BigDecimal(100);
 }
