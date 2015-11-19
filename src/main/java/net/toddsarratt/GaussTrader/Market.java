@@ -3,7 +3,6 @@ package net.toddsarratt.GaussTrader;
 import org.joda.time.MutableDateTime;
 import org.joda.time.ReadableDateTime;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 
@@ -41,4 +40,7 @@ public interface Market {
    InstantPrice lastAsk(String ticker);
 
    String[] priceMovingAvgs(String ticker);
+
+   /* TODO: NEVER RETURN NULL */
+   InstantPrice lastTick(Security security);
 }

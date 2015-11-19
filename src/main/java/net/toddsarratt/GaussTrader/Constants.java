@@ -24,7 +24,7 @@ public class Constants {
    static final String DB_NAME = "postgres";
    static final String DB_USER = "postgres";
    static final String DB_PASSWORD = "b3llcurv38";
-   static final int YAHOO_RETRIES = 5;                // Number of tiMes to retry Yahoo connections
+   static final int YAHOO_RETRIES = 5;                // Number of times to retry Yahoo connections
    static final BigDecimal STOCK_PCT_OF_PORTFOLIO = BigDecimal.valueOf(10.0);
    static final BigDecimal STARTING_CASH = BigDecimal.valueOf(1_000_000.00);  // Default value for new portfolio
    static final int BOLL_BAND_PERIOD = 20;

@@ -1,19 +1,16 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateMidnight;
-import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.MutableDateTime;
 import org.joda.time.base.BaseDateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,114 +24,75 @@ import java.util.regex.Pattern;
 public class Option implements Security {
    private String ticker;
    private String secType;
-   private Instant expiry;
+   private LocalDateTime expiry;
    private String underlyingTicker;
-   private BigDecimal price;
    private BigDecimal strike;
+   private BigDecimal price;
+   private static Market market = GaussTrader.getMarket();
    private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
 
-   Option(String optionTickerArg) {
-      // Receive an option ticker such as : XOM130720P00070000
-      LOGGER.debug("Entering constructor Option(String {})", optionTickerArg);
-      ticker = optionTickerArg;
+   private Option(String ticker,
+                  String secType,
+                  LocalDateTime expiry,
+                  String underlyingTicker,
+                  BigDecimal strike,
+                  BigDecimal price) {
+      this.ticker = ticker;
+      this.secType = secType;
+      this.expiry = expiry;
+      this.underlyingTicker = underlyingTicker;
+      this.strike = strike;
+      this.price = price;
+   }
 
-      Pattern p = Pattern.compile("^\\D+");
-      Matcher m = p.matcher(optionTickerArg);
-      if (m.find()) {
-         underlyingTicker = m.group(0);
+   public static Option of(String ticker) {
+      // Receive an option ticker such as : XOM130720P00070000
+      LOGGER.debug("Entering static constructor of(String {})", ticker);
+      String underlyingTicker = null;
+      LocalDateTime expiry = null;
+      String secType = null;
+      BigDecimal strike = null;
+      if (!market.tickerValid(ticker)) {
+         throw new IllegalArgumentException("Invalid option ticker");
       }
-      p = Pattern.compile("\\d{6}");
-      m = p.matcher(optionTickerArg);
-      if (m.find()) {
-         DateTimeFormatter expiryFormat = DateTimeFormat.forPattern("yyMMddHH");
-         expiry = expiryFormat.parseDateTime(m.group(0) + "17");
+      Pattern pattern = Pattern.compile("^[A-Z](1,4)");
+      Matcher matcher = pattern.matcher(ticker);
+      // If the option ticker is valid do we need an "if" statement or do we just assume that m.find() is always true?
+      if (matcher.find()) {
+         underlyingTicker = matcher.group(0);
       }
-      p = Pattern.compile("\\d[CP]\\d");
-      m = p.matcher(optionTickerArg);
-      if (m.find()) {
-         char[] optionTypeMatchArray = m.group(0).toCharArray();
+      pattern = Pattern.compile("\\d{6}");
+      matcher = pattern.matcher(ticker);
+      DateTimeFormatter expiryFormat = DateTimeFormatter.ofPattern("yyMMddHH");
+      if (matcher.find()) {
+         // "+17" means tack on hour 17, 5pm expiration time for options
+         expiry = LocalDateTime.parse(matcher.group(0) + "17", expiryFormat);
+      }
+      pattern = Pattern.compile("\\d[CP]\\d");
+      matcher = pattern.matcher(ticker);
+      if (matcher.find()) {
+         char[] optionTypeMatchArray = matcher.group(0).toCharArray();
          char optionType = optionTypeMatchArray[1];
          secType = (optionType == 'C') ? "CALL" : (optionType == 'P') ? "PUT" : null;
          if (secType == null) {
-            LOGGER.warn("Invalid parsing of option symbol. Expecting C or P (put or call), retrieved : {}", optionType);
+            LOGGER.warn(" {}", optionType);
+            throw new IllegalArgumentException("Invalid parsing of option symbol. Expecting C or P (put or call), retrieved : " + optionType);
          }
       }
-      p = Pattern.compile("\\d{8}");
-      m = p.matcher(optionTickerArg);
-      if (m.find()) {
-         strike = Double.parseDouble(m.group(0)) / 1000.0;
+      pattern = Pattern.compile("\\d{8}");
+      matcher = pattern.matcher(ticker);
+      if (matcher.find()) {
+         strike = new BigDecimal(matcher.group(0)).divide(BigDecimal.valueOf(1000), 3);
       }
       LOGGER.info("Created {} option {} for underlying {} expiry {} for strike ${}",
-         secType, ticker, underlyingTicker, expiry.toString("MMMM dd YYYY"), strike);
+              secType, ticker, underlyingTicker, expiry.format(expiryFormat), strike);
+      return new Option()
    }
 
-   public static boolean optionTickerValid(String optionTicker) throws IOException {
-   /**
-    *  Yahoo! returns 'There are no All Markets results for [invalid_option]' in the web page of an invalid option quote
-    *
-    *  Changed on 11/25/13 : 'There are no results for the given search term.'
-    *
-    *  Additional logic 12/2/13 : Some future options will show N/A for all fields and not the
-    *  error message above.
-    *
-    *  Change 2/4/14 : Wrote YahooFinance.isNumeric(String) to handle bad Yahoo! responses
-    */
-
-      LOGGER.debug("Entering Option.optionTickerValid(String {})", optionTicker);
-      String input;
-      URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + optionTicker);
-      Scanner yahooScan = new Scanner(yahoo_url.openStream());
-      if (!yahooScan.hasNextLine()) {
-         yahooScan.close();
-         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-         return false;
-      }
-      input = yahooScan.useDelimiter("\\A").next();
-      yahooScan.close();
-      if(input.indexOf("There are no") > 0) {
-         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-         return false;
-      }
-      int closeIndex = input.indexOf("Prev Close:");
-      int closeFrom = input.indexOf("\">", closeIndex);
-      int closeTo = input.indexOf("</td>", closeFrom);
-      String closePrice = input.substring(closeFrom + 2, closeTo);
-      LOGGER.debug("Parsed from Yahoo! Prev Close: {}", closePrice);
-      if(!YahooFinance.isNumeric(closePrice)) {
-         LOGGER.warn("Invalid response from Yahoo! for {}", optionTicker);
-         return false;
-      }
-      if(closePrice.equals("N/A")) {
-         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-         return false;
-      }
-      LOGGER.debug("{} is a valid option ticker", optionTicker);
-      return true;
-   }
 
       @Override
       InstantPrice lastTick() {
-      /** reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
-      String input;
-      try {
-         URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-         Scanner yahooScan = new Scanner(yahoo_url.openStream());
-         if (!yahooScan.hasNextLine()) {
-            yahooScan.close();
-            return -1.0;
-         }
-         input = yahooScan.useDelimiter("\\A").next();
-         yahooScan.close();
-         int tickerIndex = input.indexOf("time_rtq_ticker", 0);
-         int from = input.indexOf("<span", tickerIndex);
-         from = input.indexOf(">", from + 4);
-         int toIndex = input.indexOf("</span>", from);
-         String tickPrice = input.substring(from + 1, toIndex);
-         LOGGER.debug("Option.lastTick() received last tick from Yahoo! of {}", tickPrice);
-         if(!YahooFinance.isNumeric(tickPrice)) {
-            LOGGER.warn("Option.lastTick received invalid value from Yahoo!");
-            return -1.0;
-         }
+
          price = Double.parseDouble(tickPrice);
          return price;
       } catch (IOException ioe) {
@@ -225,16 +183,6 @@ public class Option implements Security {
    }
 
    /**
-    * @deprecated All monthly options expire on a Saturday through the 2015 calendar year
-    */
-   @Deprecated
-   public static int getExpirySaturday(int month, int year) {
-      DateMidnight secondOfexpiryMonth = new DateMidnight(year, month, 2, DateTimeZone.forID("America/New_York"));
-      int expiryFriday = 21 - (secondOfexpiryMonth.getDayOfWeek() % 7);
-      return expiryFriday + 1;
-   }
-
-   /**
     * This method replaces deprecated method getExpirySaturday()
     * As of 2/2015 options expire on Friday instead of Saturday
     * http://www.cboe.com/aboutcboe/xcal2015.pdf
@@ -242,9 +190,14 @@ public class Option implements Security {
     * This function returns the expiration date's day of the month [15th - 21st]
     */
    public static int calculateFutureExpiry(int month, int year) {
-      MutableDateTime expiryDate = new MutableDateTime(year, month, 2, 16, 20, 0, 0, DateTimeZone.forID("America/New_York"));
+/*    MutableDateTime expiryDate = new MutableDateTime(year, month, 2, 16, 20, 0, 0, DateTimeZone.forID("America/New_York"));
       expiryDate.setDayOfMonth(21 - (expiryDate.getDayOfWeek() % 7));   // Calculate third friday
-      return expiryDate.getDayOfMonth();
+      return expiryDate.getDayOfMonth(); */
+      return 21 -
+              LocalDateTime.of(year, month, 2, 16, 20, 0)
+                      .getDayOfWeek()
+                      .getValue()
+                      % 7;
    }
 
    /**
@@ -318,9 +271,9 @@ public class Option implements Security {
          while ((strikePrice - limitStrikePrice) / limitStrikePrice > -0.1) {
             optionTickerToTry = optionTicker(stockTicker, mutableExpiry, 'P', strikePrice);
             try {
-               if (optionTickerValid(optionTickerToTry)) {
+               if (market.tickerValid(optionTickerToTry)) {
                   LOGGER.debug("Returning new Option(\"{}\")", optionTickerToTry);
-                  return new Option(optionTickerToTry);
+                  return Option.of(optionTickerToTry);
                }
             } catch (IOException ioe) {
                LOGGER.info("Cannot connect to Yahoo! trying to retrieve option " + optionTickerToTry);
@@ -338,29 +291,29 @@ public class Option implements Security {
    }
 
    @Override
-   String getTicker() {
+   public String getTicker() {
       return ticker;
    }
 
    @Override
-   String getSecType() {
+   public String getSecType() {
       return secType;
    }
 
-   double getStrike() {
+   public BigDecimal getStrike() {
       return strike;
    }
 
-   DateTime getExpiry() {
+   public LocalDateTime getExpiry() {
       return expiry;
    }
 
    @Override
-   double getPrice() {
+   public BigDecimal getPrice() {
       return price;
    }
 
-   String getUnderlyingTicker() {
+   public String getUnderlyingTicker() {
       return underlyingTicker;
    }
 }

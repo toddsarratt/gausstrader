@@ -1,14 +1,25 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.*;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeConstants;
+import org.joda.time.DateTimeZone;
+import org.joda.time.MutableDateTime;
+import org.joda.time.ReadableDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 /**
@@ -21,7 +32,11 @@ import java.util.*;
  * @since v0.2
  */
 public class YahooMarket implements Market {
-   private static DateTime todaysDateTime = new DateTime(DateTimeZone.forID("America/New_York"));
+   private static todaysDateTime=new
+
+   DateTime(DateTimeZone.forID("America/New_York")
+
+   );
    private static int dayToday = todaysDateTime.getDayOfWeek();
    private static long marketOpenEpoch;
    private static long marketCloseEpoch;
@@ -30,12 +45,16 @@ public class YahooMarket implements Market {
    @Override
    public boolean tickerValid(String ticker) {
       LOGGER.debug("Entering tickerValid(String ticker)");
-      return askYahoo(ticker, "e1")[0].equals("N/A");
+      if (ticker.length() <= 4) {
+         return yahooGummyApi(ticker, "e1")[0].equals("N/A");
+      } else {
+         return optionTickerValid(ticker);
+      }
    }
 
    @Override
    public String[] priceMovingAvgs(String ticker) {
-      return askYahoo(ticker, "l1d1t1m3m4");
+      return yahooGummyApi(ticker, "l1d1t1m3m4");
    }
 
 
@@ -46,7 +65,7 @@ public class YahooMarket implements Market {
       long currentEpoch = System.currentTimeMillis();
       LOGGER.debug("currentEpoch = {}", currentEpoch);
       String[] yahooDateTime;
-      yahooDateTime = askYahoo("BAC", "d1t1");
+      yahooDateTime = yahooGummyApi("BAC", "d1t1");
       LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
       long lastBacEpoch = Constants.LAST_BAC_TICK_FORMATTER.parseMillis(yahooDateTime[0] + yahooDateTime[1]);
       LOGGER.debug("lastBacEpoch == {}", lastBacEpoch);
@@ -60,8 +79,8 @@ public class YahooMarket implements Market {
       return true;
    }
 
-   private static String[] askYahoo(String ticker, String arguments) {
-      LOGGER.debug("Entering Stock.askYahoo(String {}, String {})", ticker, arguments);
+   private static String[] yahooGummyApi(String ticker, String arguments) {
+      LOGGER.debug("Entering Stock.yahooGummyApi(String {}, String {})", ticker, arguments);
       for (int yahooAttempt = 1; yahooAttempt <= Constants.YAHOO_RETRIES; yahooAttempt++) {
          try {
             URL yahooUrl = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
@@ -70,10 +89,10 @@ public class YahooMarket implements Market {
             LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
             return yahooResults;
          } catch (IOException ioe) {
-            LOGGER.warn("Attempt {} : Caught IOException in .askYahoo() with args {} for ticker {}", yahooAttempt, arguments, ticker);
+            LOGGER.warn("Attempt {} : Caught IOException in .yahooGummyApi() with args {} for ticker {}", yahooAttempt, arguments, ticker);
             LOGGER.debug("Caught (IOException ioe)", ioe);
          } catch (NullPointerException npe) {                            /* Found 3/10/14 */
-            LOGGER.warn("Attempt {} : Caught NullPointerException in .askYahoo() with args {} for ticker {}", yahooAttempt, arguments, ticker);
+            LOGGER.warn("Attempt {} : Caught NullPointerException in .yahooGummyApi() with args {} for ticker {}", yahooAttempt, arguments, ticker);
             LOGGER.debug("Caught (NullPointerException)", npe);
          }
       }
@@ -81,7 +100,7 @@ public class YahooMarket implements Market {
    }
 
    @Override
-   public boolean wasOpen(MutableDateTime histDateTime) {
+   public boolean wasOpen(histDateTime) {
       return !(isHoliday(histDateTime) ||
               (histDateTime.getDayOfWeek() == DateTimeConstants.SATURDAY) ||
               (histDateTime.getDayOfWeek() == DateTimeConstants.SUNDAY));
@@ -166,7 +185,7 @@ public class YahooMarket implements Market {
    @Override
    public InstantPrice lastTick(String ticker) {
       LOGGER.debug("Entering lastTick(String {})", ticker);
-      String[] tickString = askYahoo(ticker, "sl1d1t1");
+      String[] tickString = yahooGummyApi(ticker, "sl1d1t1");
       if (ticker.equals(tickString[0])) {
          return InstantPrice.of(tickString[1], java.time.Instant.now());
       }
@@ -174,9 +193,63 @@ public class YahooMarket implements Market {
    }
 
    @Override
+   public InstantPrice lastTick(Security security) {
+      LOGGER.debug("Entering lastTick(Security {})", security);
+      if (security.getClass().equals(Stock.class)) {
+         String[] tickString = yahooGummyApi(security.getTicker(), "sl1d1t1");
+         if (security.getTicker().equals(tickString[0])) {
+            return InstantPrice.of(tickString[1], java.time.Instant.now());
+         }
+      } else if (security.getClass().equals(Option.class)) {
+         return yahooOptionTick(security.getTicker());
+      } else {
+         throw new IllegalArgumentException("Security must be a Stock or an Option");
+      }
+      return InstantPrice.NO_PRICE;
+   }
+
+   private static InstantPrice yahooOptionTick(String ticker) {
+      LOGGER.debug("Entering yahooOptionTick(String {})", ticker);
+      /** reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
+      String input;
+      try {
+         URL yahooUrl = new URL("http://finance.yahoo.com/q?s=" + ticker);
+         URLConnection yahooUrlConnection = yahooUrl.openConnection();
+         yahooUrlConnection.setReadTimeout(10);
+         try (InputStream yahooInputStream = yahooUrlConnection.getInputStream();
+              Scanner yahooScan = new Scanner(yahooInputStream)) {
+            if (!yahooScan.hasNextLine()) {
+               return InstantPrice.NO_PRICE;
+            }
+            input = yahooScan.useDelimiter("\\A").next();
+            int tickerIndex = input.indexOf("time_rtq_ticker", 0);
+            int fromIndex = input.indexOf(">", input.indexOf("<span", tickerIndex) + 4);
+            int toIndex = input.indexOf("</span>", fromIndex);
+            String tickPrice = input.substring(fromIndex + 1, toIndex);
+            LOGGER.debug("Received last tick from Yahoo! of {}", tickPrice);
+            int timeIndex = input.indexOf("time_rtq", toIndex);
+            int colonIndex = input.indexOf(":", timeIndex);
+            String timeString = input.substring(colonIndex - 2, colonIndex + 9)
+                    .replaceAll("[<>]", "");
+            LOGGER.debug("Received time from Yahoo! of {}", timeString);
+            String todaysDate = ZonedDateTime.now(ZoneId.of("America/New_York")).format(DateTimeFormatter.ISO_LOCAL_DATE);
+            String dateTime = todaysDate + timeString;
+            LOGGER.debug("Created String timeDate of {}", dateTime);
+            return InstantPrice.of(tickPrice, dateTime);
+         } catch (IOException | IllegalArgumentException | DateTimeParseException iid) {
+            LOGGER.error("Caught exception ", iid);
+            return InstantPrice.NO_PRICE;
+         }
+      } catch (IOException ioe2) {
+         LOGGER.error("Caught exception", ioe2);
+         return InstantPrice.NO_PRICE;
+      }
+   }
+
+   @Override
    public InstantPrice lastBid(String ticker) {
       LOGGER.debug("Entering lastBid(String {})", ticker);
-      String[] bidString = askYahoo(ticker, "sb2d1t1");
+      String[] bidString = yahooGummyApi(ticker, "sb2d1t1");
       if (ticker.equals(bidString[0])) {
          return InstantPrice.of(bidString[1], java.time.Instant.now());
       }
@@ -186,7 +259,7 @@ public class YahooMarket implements Market {
    @Override
    public InstantPrice lastAsk(String ticker) {
       LOGGER.debug("Entering lastAsk(String {})", ticker);
-      String[] askString = askYahoo(ticker, "sb3d1t1");
+      String[] askString = yahooGummyApi(ticker, "sb3d1t1");
       if (ticker.equals(askString[0])) {
          return InstantPrice.of(askString[1], java.time.Instant.now());
       }
@@ -231,4 +304,45 @@ public class YahooMarket implements Market {
       return yahooPriceArgs.toString();
    }
 
+   private static boolean optionTickerValid(String optionTicker) {
+      /**
+       *  Yahoo! returns 'There are no All Markets results for [invalid_option]' in the web page of an invalid option quote
+       *
+       *  Changed on 11/25/13 : 'There are no results for the given search term.'
+       *
+       *  Additional logic 12/2/13 : Some future options will show N/A for all fields and not the
+       *  error message above.
+       *
+       *  Change 2/4/14 : Wrote YahooFinance.isNumeric(String) to handle bad Yahoo! responses
+       *
+       *  Change 11/17/15 : Source code will contain "(optionTicker)" only if optionTicker is valid
+       */
+      LOGGER.debug("Entering optionTickerValid(String {})", optionTicker);
+      String validOptionTickerFormat = "^[A-Z]{1,4}\\d{6}[CP]\\d{8}$";
+      if (!optionTicker.matches(validOptionTickerFormat)) {
+         return false;
+      }
+      String input;
+      try {
+         URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + optionTicker);
+         try (Scanner yahooScan = new Scanner(yahoo_url.openStream())) {
+            if (!yahooScan.hasNextLine()) {
+               LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
+               return false;
+            }
+            input = yahooScan.useDelimiter("\\A").next();
+            if (input.indexOf("(" + optionTicker + ")") > 0) {
+               LOGGER.debug("{} is a valid option ticker", optionTicker);
+               return true;
+            }
+            LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
+            return false;
+         } catch (IOException ioe) {
+            //TODO : Something!
+         }
+      } catch (MalformedURLException mue) {
+         //TODO : Something!
+      }
+      return false;
+   }
 }
