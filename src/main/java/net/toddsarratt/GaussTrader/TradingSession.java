@@ -28,20 +28,20 @@ public class TradingSession {
    private static final PriceBasedAction DO_NOTHING_PRICE_BASED_ACTION = new PriceBasedAction(false, "", 0);
    private ArrayList<Stock> stockList = null;
    private Portfolio portfolio = null;
-   /* Hard coded closed and early closure trading days : http://www.nyse.com/press/1387194753915.html */
-   static final Integer[] JULIAN_HOLIDAYS_2014 = {1, 20, 48, 108, 146, 185, 244, 331, 359};
-   static final Integer[] JULIAN_HOLIDAYS_2015 = {1,19, 47, 93, 145, 184, 250, 330, 359};
+   /* Hard coded closed and early closure trading days : https://www.nyse.com/markets/hours-calendars */
+   static final Integer[] JULIAN_HOLIDAYS_2016 = {1, 18, 46, 85, 151, 186, 249, 329, 361};
+   static final Integer[] JULIAN_HOLIDAYS_2017 = {2, 16, 51, 104, 149, 185, 247, 327, 359};
    private static final ImmutableMap<Integer, List<Integer>> HOLIDAY_MAP =
       ImmutableMap.<Integer, List<Integer>>builder()
-         .put(2014, Arrays.asList(JULIAN_HOLIDAYS_2014))
-         .put(2015, Arrays.asList(JULIAN_HOLIDAYS_2015))
+         .put(2016, Arrays.asList(JULIAN_HOLIDAYS_2016))
+         .put(2017, Arrays.asList(JULIAN_HOLIDAYS_2017))
          .build();
-   static final Integer[] JULIAN_1PM_CLOSE_2014 = {184, 332, 358};
-   static final Integer[] JULIAN_1PM_CLOSE_2015 = {331, 358};
+   static final Integer[] JULIAN_1PM_CLOSE_2016 = {330};
+   static final Integer[] JULIAN_1PM_CLOSE_2017 = {184, 328};
    private static final ImmutableMap<Integer, List<Integer>> EARLY_CLOSE_MAP =
       ImmutableMap.<Integer, List<Integer>>builder()
-         .put(2014, Arrays.asList(JULIAN_1PM_CLOSE_2014))
-         .put(2015, Arrays.asList(JULIAN_1PM_CLOSE_2015))
+         .put(2016, Arrays.asList(JULIAN_1PM_CLOSE_2016))
+         .put(2017, Arrays.asList(JULIAN_1PM_CLOSE_2017))
          .build();
    private static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
    private static long marketOpenEpoch;
