@@ -543,7 +543,7 @@ public class Portfolio {
    void endOfDayDataStoreWrite() {
       LOGGER.debug("Entering Portfolio.endOfDayDbWrite()");
       dataStore.write(getSummary());
-      positions.parallelStream().forEach(dataStore::write);
+      positions.stream().forEach(dataStore::write);
    }
 
 

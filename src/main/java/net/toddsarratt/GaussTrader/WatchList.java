@@ -3,6 +3,7 @@ package net.toddsarratt.GaussTrader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,7 +17,7 @@ import java.util.stream.Collectors;
  */
 
 public class WatchList {
-   private static final Logger LOGGER = LoggerFactory.getLogger(DBHistoricalPrices.class);
+   private static final Logger LOGGER = LoggerFactory.getLogger(WatchList.class);
    private static DataStore dataStore = new PostgresStore();
    /* tickerSet<String> is created from data passed into the watch() method. A Set is used to prevent duplicate tickers.
     * Each ticker is used to create a Stock object which is stored in tradeableStockSet<Stock> */
@@ -24,7 +25,7 @@ public class WatchList {
    private Set<Stock> tradeableStockSet = new HashSet<>();
 
    /**
-    * Adds a ticker or tickers to the list of securities for the application to watch.
+    * Adds a ticker or tickers to the list of securities for the application to watch, which is held by tickerSet.
     *
     * @param tickers String vararg representing tickers to watch
     */
@@ -35,14 +36,16 @@ public class WatchList {
 
    /**
     * Uses map to create a Stock object for each ticker. Clears tickerSet.
+    * TODO: But is it necessary to do so? Can using Sets make ticker/stock adds idempotent?
     */
    private void addTickerSetToTradeableSet() {
-      LOGGER.debug("Entering addTickerlistToTradeableList()");
+      LOGGER.debug("Entering addTickerSetToTradeableSet()");
       tradeableStockSet.addAll(
-              tickerSet.parallelStream()
+              tickerSet.stream()
                       .map(Stock::of)
                       .filter(Stock::tickerValid)
-                      .filter(stock -> stock.getBollingerBand(0) > 0.00)
+                      // Make sure Bollinger bands have been calculated TODO: There is probably a better way to do this
+                      .filter(stock -> stock.getBollingerBand(0).compareTo(BigDecimal.ZERO) > 0)
                       .collect(Collectors.toList())
       );
       tickerSet.clear();
@@ -52,7 +55,7 @@ public class WatchList {
     * @return a Set<String> containing all the tickers in the watchlist
     */
    public Set<String> getTickerSet() {
-      return tradeableStockSet.parallelStream()
+      return tradeableStockSet.stream()
               .map(Stock::getTicker)
               .collect(Collectors.toSet());
    }
