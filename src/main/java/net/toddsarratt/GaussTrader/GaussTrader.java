@@ -18,7 +18,7 @@ import java.util.Arrays;
 
 public class GaussTrader {
 
-   protected static String portfolioName = "shortStrat2014Aug07";
+   protected static String portfolioName = "reboot06132016";
    protected static final String DB_IP = "localhost";
    protected static final String DB_NAME = "postgres";
    protected static final String DB_USER = "postgres";
