@@ -1,6 +1,8 @@
-apply plugin: 'groovy'
+/* apply plugin: 'groovy' */
 apply plugin: 'java'
 apply plugin: 'application'
+
+check.dependsOn.remove(test)
 
 /*
  * Gets the version name from the latest Git tag
