@@ -46,6 +46,7 @@ public class GaussTrader {
    }
 
    // TODO : Allow this to change the default market from YahooMarket()
+   // TODO : Or, remove altogther and use config.properties to set market
    boolean setMarket(String marketName) {
       boolean setMarketSuccess = false;
       // market = null;
@@ -57,8 +58,7 @@ public class GaussTrader {
       LOGGER.info("*** START PROGRAM ***");
       LOGGER.info("Starting GaussTrader at {}", programStartTime);
       /* Add DJIA and Apple to list of securities to watch */
-      watchList.watch(Constants.DOW_JONES_TICKERS);
-      watchList.watch("AAPL");
+      watchList.watch(Constants.TICKERS);
       /* Past price history is collected from the network when Stock objects are created. Save to the dataStore for
        cheaper future retrieval. Why is this being done here and not in the Stock class? */
       dataStore.writeStockMetrics(watchList.getStockSet());

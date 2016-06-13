@@ -56,9 +56,9 @@ public class PostgresStore implements DataStore {
          LOGGER.debug("Inserting current stock price for ticker {} into database.", ticker);
          Connection dbConnection = pgDataSource.getConnection();
          sqlStatement = dbConnection.prepareStatement(sqlCommand);
-         double currentPrice = stock.getPrice();
+         BigDecimal currentPrice = stock.getPrice();
          long lastTickEpoch = stock.getLastPriceUpdateEpoch();
-         sqlStatement.setDouble(1, currentPrice);
+         sqlStatement.setDouble(1, currentPrice.doubleValue());
          sqlStatement.setLong(2, lastTickEpoch);
          sqlStatement.setString(3, ticker);
          LOGGER.debug("Executing UPDATE watchlist SET last_tick = {}, last_tick_epoch = {} WHERE ticker = {}", currentPrice, lastTickEpoch, ticker);
