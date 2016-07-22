@@ -23,342 +23,331 @@ import java.util.regex.Pattern;
  */
 
 public class Option extends Security {
-   private String ticker;
-   private String secType;
-   private DateTime expiry = null;
-   private String underlyingTicker = null;
-   private double price;
-   private double strike = 0.00;
-   private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
+	private String ticker;
+	private String secType;
+	private DateTime expiry = null;
+	private String underlyingTicker = null;
+	private double price;
+	private double strike = 0.00;
+	private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
 
-   Option(String optionTickerArg) {
-      // Receive an option ticker such as : XOM130720P00070000
-      LOGGER.debug("Entering constructor Option(String {})", optionTickerArg);
-      ticker = optionTickerArg;
+	Option(String optionTickerArg) {
+		// Receive an option ticker such as : XOM130720P00070000
+		LOGGER.debug("Entering constructor Option(String {})", optionTickerArg);
+		ticker = optionTickerArg;
 
-      Pattern p = Pattern.compile("^\\D+");
-      Matcher m = p.matcher(optionTickerArg);
-      if (m.find()) {
-         underlyingTicker = m.group(0);
-      }
-      p = Pattern.compile("\\d{6}");
-      m = p.matcher(optionTickerArg);
-      if (m.find()) {
-         DateTimeFormatter expiryFormat = DateTimeFormat.forPattern("yyMMddHH");
-         expiry = expiryFormat.parseDateTime(m.group(0) + "17");
-      }
-      p = Pattern.compile("\\d[CP]\\d");
-      m = p.matcher(optionTickerArg);
-      if (m.find()) {
-         char[] optionTypeMatchArray = m.group(0).toCharArray();
-         char optionType = optionTypeMatchArray[1];
-         secType = (optionType == 'C') ? "CALL" : (optionType == 'P') ? "PUT" : null;
-         if (secType == null) {
-            LOGGER.warn("Invalid parsing of option symbol. Expecting C or P (put or call), retrieved : {}", optionType);
-         }
-      }
-      p = Pattern.compile("\\d{8}");
-      m = p.matcher(optionTickerArg);
-      if (m.find()) {
-         strike = Double.parseDouble(m.group(0)) / 1000.0;
-      }
-      LOGGER.info("Created {} option {} for underlying {} expiry {} for strike ${}",
-         secType, ticker, underlyingTicker, expiry.toString("MMMM dd YYYY"), strike);
-   }
+		Pattern p = Pattern.compile("^\\D+");
+		Matcher m = p.matcher(optionTickerArg);
+		if (m.find()) {
+			underlyingTicker = m.group(0);
+		}
+		p = Pattern.compile("\\d{6}");
+		m = p.matcher(optionTickerArg);
+		if (m.find()) {
+			DateTimeFormatter expiryFormat = DateTimeFormat.forPattern("yyMMddHH");
+			expiry = expiryFormat.parseDateTime(m.group(0) + "17");
+		}
+		p = Pattern.compile("\\d[CP]\\d");
+		m = p.matcher(optionTickerArg);
+		if (m.find()) {
+			char[] optionTypeMatchArray = m.group(0).toCharArray();
+			char optionType = optionTypeMatchArray[1];
+			secType = (optionType == 'C') ? "CALL" : (optionType == 'P') ? "PUT" : null;
+			if (secType == null) {
+				LOGGER.warn("Invalid parsing of option symbol. Expecting C or P (put or call), retrieved : {}", optionType);
+			}
+		}
+		p = Pattern.compile("\\d{8}");
+		m = p.matcher(optionTickerArg);
+		if (m.find()) {
+			strike = Double.parseDouble(m.group(0)) / 1000.0;
+		}
+		LOGGER.info("Created {} option {} for underlying {} expiry {} for strike ${}",
+				secType, ticker, underlyingTicker, expiry.toString("MMMM dd YYYY"), strike);
+	}
 
-   public static boolean optionTickerValid(String optionTicker) throws IOException {
-   /**
-    *  Yahoo! returns 'There are no All Markets results for [invalid_option]' in the web page of an invalid option quote
-    *
-    *  Changed on 11/25/13 : 'There are no results for the given search term.'
-    *
-    *  Additional logic 12/2/13 : Some future options will show N/A for all fields and not the
-    *  error message above.
-    *
-    *  Change 2/4/14 : Wrote YahooFinance.isNumeric(String) to handle bad Yahoo! responses
-    */
+	public static boolean optionTickerValid(String optionTicker) throws IOException {
+		/**
+		 *  Yahoo! returns 'There are no All Markets results for [invalid_option]' in the web page of an invalid option quote
+		 *
+		 *  Changed on 11/25/13 : 'There are no results for the given search term.'
+		 *
+		 *  Additional logic 12/2/13 : Some future options will show N/A for all fields and not the
+		 *  error message above.
+		 *
+		 *  Change 2/4/14 : Wrote YahooFinance.isNumeric(String) to handle bad Yahoo! responses
+		 *
+		 * TODO: This still isn't right
+		 */
 
-      LOGGER.debug("Entering Option.optionTickerValid(String {})", optionTicker);
-      String input;
-      URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + optionTicker);
-      Scanner yahooScan = new Scanner(yahoo_url.openStream());
-      if (!yahooScan.hasNextLine()) {
-         yahooScan.close();
-         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-         return false;
-      }
-      input = yahooScan.useDelimiter("\\A").next();
-      yahooScan.close();
-      if(input.indexOf("There are no") > 0) {
-         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-         return false;
-      }
-      int closeIndex = input.indexOf("Prev Close:");
-      int closeFrom = input.indexOf("\">", closeIndex);
-      int closeTo = input.indexOf("</td>", closeFrom);
-      String closePrice = input.substring(closeFrom + 2, closeTo);
-      LOGGER.debug("Parsed from Yahoo! Prev Close: {}", closePrice);
-      if(!YahooFinance.isNumeric(closePrice)) {
-         LOGGER.warn("Invalid response from Yahoo! for {}", optionTicker);
-         return false;
-      }
-      if(closePrice.equals("N/A")) {
-         LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-         return false;
-      }
-      LOGGER.debug("{} is a valid option ticker", optionTicker);
-      return true;
-   }
+		LOGGER.debug("Entering Option.optionTickerValid(String {})", optionTicker);
+		String input;
+		URL yahoo_url = new URL("http://finance.yahoo.com/quote/" + optionTicker + "news");
+		Scanner yahooScan = new Scanner(yahoo_url.openStream());
+		if (!yahooScan.hasNextLine()) {
+			yahooScan.close();
+			LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
+			return false;
+		}
+		input = yahooScan.useDelimiter("\\A").next();
+		yahooScan.close();
+		if (input.indexOf("There are no") > 0) {
+			LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
+			return false;
+		}
+		// 7/15/16 price follows this String in web page source code:
+		// "regularMarketPrice":{"raw":
+		int closeIndex = input.indexOf("\"regularMarketPrice\":{\"raw\":");
+		int closeFrom = input.indexOf("\">", closeIndex);
+		int closeTo = input.indexOf("</td>", closeFrom);
+		String closePrice = input.substring(closeFrom + 2, closeTo);
+		LOGGER.debug("Parsed from Yahoo! Prev Close: {}", closePrice);
+		if (!YahooFinance.isNumeric(closePrice)) {
+			LOGGER.warn("Invalid response from Yahoo! for {}", optionTicker);
+			return false;
+		}
+		if (closePrice.equals("N/A")) {
+			LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
+			return false;
+		}
+		LOGGER.debug("{} is a valid option ticker", optionTicker);
+		return true;
+	}
 
-      @Override
-      double lastTick() {
-      /** reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
-      String input;
-      try {
-         URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-         Scanner yahooScan = new Scanner(yahoo_url.openStream());
-         if (!yahooScan.hasNextLine()) {
-            yahooScan.close();
-            return -1.0;
-         }
-         input = yahooScan.useDelimiter("\\A").next();
-         yahooScan.close();
-         int tickerIndex = input.indexOf("time_rtq_ticker", 0);
-         int from = input.indexOf("<span", tickerIndex);
-         from = input.indexOf(">", from + 4);
-         int toIndex = input.indexOf("</span>", from);
-         String tickPrice = input.substring(from + 1, toIndex);
-         LOGGER.debug("Option.lastTick() received last tick from Yahoo! of {}", tickPrice);
-         if(!YahooFinance.isNumeric(tickPrice)) {
-            LOGGER.warn("Option.lastTick received invalid value from Yahoo!");
-            return -1.0;
-         }
-         price = Double.parseDouble(tickPrice);
-         return price;
-      } catch (IOException ioe) {
-         LOGGER.warn("IOException generated trying to get lastTick for {}", ticker);
-         LOGGER.debug("Caught (IOException ioe)", ioe);
-      }
-      return -1.0;
-   }
+	@Override
+	double lastTick() {
+		try {
+			return lastTick(ticker);
+		} catch (IOException ioe) {
+			LOGGER.warn("IOException generated trying to get lastTick for {}", ticker);
+			LOGGER.debug("Caught (IOException ioe)", ioe);
+		}
+		return -1.0;
+	}
 
-   public static double lastTick(String ticker) throws IOException {
-      String input;
-      URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-      for(int attempt = 1; attempt <= GaussTrader.YAHOO_RETRIES; attempt++) {
-         Scanner yahooScan = new Scanner(yahoo_url.openStream());
-         if (!yahooScan.hasNextLine()) {
-            yahooScan.close();
-            return -1.0;
-         }
-         input = yahooScan.useDelimiter("\\A").next();
-         yahooScan.close();
-         int tickerIndex = input.indexOf("time_rtq_ticker", 0);
-         int from = input.indexOf("<span", tickerIndex);
-         from = input.indexOf(">", from + 4);
-         int toIndex = input.indexOf("</span>", from);
-         String tickPrice = input.substring(from + 1, toIndex);
-         try {
-            return Double.parseDouble(tickPrice);
-         } catch(NumberFormatException nfe) {
-            LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, tickPrice, ticker);
-            LOGGER.debug("Caught NumberFormatException", nfe);
-            if( (attempt == 1) && (!Option.optionTickerValid(ticker)) ) {
-               LOGGER.warn("Option ticker {} is invalid. ", ticker);
-               return -1.0;
-            }
-         }
-      }
-      return -1.0;
-   }
+	/**
+	 * Yahoo! web scrape for option price.
+	 * Reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html
+	 *
+	 * @param optionTicker the option ticker that we want the price for
+	 * @return the price of the option
+	 * @throws IOException
+	 */
+	public static double lastTick(String optionTicker) throws IOException {
+		URL yahoo_url = new URL("http://finance.yahoo.com/quote/" + optionTicker + "/news");
+		for (int attempt = 1; attempt <= GaussTrader.YAHOO_RETRIES; attempt++) {
+			Scanner yahooScan = new Scanner(yahoo_url.openStream());
+			if (!yahooScan.hasNextLine()) {
+				yahooScan.close();
+				return -1.0;
+			}
+			String yahooInput = yahooScan.useDelimiter("\\A").next();
+			yahooScan.close();
+			String priceStartString = "$main-0-Quote.0.0.0.$price.0\">";
+			int priceStartIndex = yahooInput.indexOf(priceStartString + priceStartString.length());
+			int priceEndIndex = yahooInput.indexOf("</span>", priceStartIndex);
+			String tickPrice = yahooInput.substring(priceStartIndex, priceEndIndex);
+			try {
+				return Double.parseDouble(tickPrice);
+			} catch (NumberFormatException nfe) {
+				LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, tickPrice, optionTicker);
+				LOGGER.debug("Caught NumberFormatException", nfe);
+				if ((attempt == 1) && (!Option.optionTickerValid(optionTicker))) {
+					LOGGER.warn("Option ticker {} is invalid. ", optionTicker);
+					return -1.0;
+				}
+			}
+		}
+		return -1.0;
+	}
 
-   double lastBid() throws IOException {
-      /* reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
-      String input;
-      URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-      for(int attempt = 1; attempt <= GaussTrader.YAHOO_RETRIES; attempt++) {
-         Scanner yahooScan = new Scanner(yahoo_url.openStream());
-         if (!yahooScan.hasNextLine()) {
-            yahooScan.close();
-            return -1.0;
-         }
-         input = yahooScan.useDelimiter("\\A").next();
-         yahooScan.close();
-         int yahooBid = input.indexOf("Bid:", 0);
-         int from = input.indexOf("<span", yahooBid);
-         from = input.indexOf(">", from + 4);
-         int to = input.indexOf("</span>", from);
-         String bidPrice = input.substring(from + 1, to);
-         try {
-            return Double.parseDouble(bidPrice);
-         } catch(NumberFormatException nfe) {
-            LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, bidPrice, ticker);
-            LOGGER.debug("Caught NumberFormatException", nfe);
-            if( (attempt == 1) && (!Option.optionTickerValid(ticker)) ) {
-               LOGGER.warn("Option ticker {} is invalid. ");
-               return -1.0;
-            }
-         }
-      }
-      return -1.0;
-   }
+	double lastBid() throws IOException {
+	    /* reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
+		String input;
+		URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
+		for (int attempt = 1; attempt <= GaussTrader.YAHOO_RETRIES; attempt++) {
+			Scanner yahooScan = new Scanner(yahoo_url.openStream());
+			if (!yahooScan.hasNextLine()) {
+				yahooScan.close();
+				return -1.0;
+			}
+			input = yahooScan.useDelimiter("\\A").next();
+			yahooScan.close();
+			int yahooBid = input.indexOf("Bid:", 0);
+			int from = input.indexOf("<span", yahooBid);
+			from = input.indexOf(">", from + 4);
+			int to = input.indexOf("</span>", from);
+			String bidPrice = input.substring(from + 1, to);
+			try {
+				return Double.parseDouble(bidPrice);
+			} catch (NumberFormatException nfe) {
+				LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, bidPrice, ticker);
+				LOGGER.debug("Caught NumberFormatException", nfe);
+				if ((attempt == 1) && (!Option.optionTickerValid(ticker))) {
+					LOGGER.warn("Option ticker {} is invalid. ");
+					return -1.0;
+				}
+			}
+		}
+		return -1.0;
+	}
 
-   double lastAsk() throws IOException {
-      // reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html
-      String input;
-      URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-      Scanner yahooScan = new Scanner(yahoo_url.openStream());
-      if (!yahooScan.hasNextLine()) {
-         yahooScan.close();
-         return -1.0;
-      }
-      input = yahooScan.useDelimiter("\\A").next();
-      yahooScan.close();
-      int yahooAsk = input.indexOf("Ask:", 0);
-      int from = input.indexOf("<span", yahooAsk);
-      from = input.indexOf(">", from + 4);
-      int to = input.indexOf("</span>", from);
-      String askPrice = input.substring(from + 1, to);
-      return Double.parseDouble(askPrice);
-   }
+	double lastAsk() throws IOException {
+		// reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html
+		String input;
+		URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
+		Scanner yahooScan = new Scanner(yahoo_url.openStream());
+		if (!yahooScan.hasNextLine()) {
+			yahooScan.close();
+			return -1.0;
+		}
+		input = yahooScan.useDelimiter("\\A").next();
+		yahooScan.close();
+		int yahooAsk = input.indexOf("Ask:", 0);
+		int from = input.indexOf("<span", yahooAsk);
+		from = input.indexOf(">", from + 4);
+		int to = input.indexOf("</span>", from);
+		String askPrice = input.substring(from + 1, to);
+		return Double.parseDouble(askPrice);
+	}
 
-   /**
-    * @deprecated All monthly options expire on a Saturday through the 2015 calendar year
-    */
-   @Deprecated
-   public static int getExpirySaturday(int month, int year) {
-      DateMidnight secondOfexpiryMonth = new DateMidnight(year, month, 2, DateTimeZone.forID("America/New_York"));
-      int expiryFriday = 21 - (secondOfexpiryMonth.getDayOfWeek() % 7);
-      return expiryFriday + 1;
-   }
+	/**
+	 * @deprecated All monthly options expire on a Saturday through the 2015 calendar year
+	 */
+	@Deprecated
+	public static int getExpirySaturday(int month, int year) {
+		DateMidnight secondOfexpiryMonth = new DateMidnight(year, month, 2, DateTimeZone.forID("America/New_York"));
+		int expiryFriday = 21 - (secondOfexpiryMonth.getDayOfWeek() % 7);
+		return expiryFriday + 1;
+	}
 
-   /**
-    * This method replaces deprecated method getExpirySaturday()
-    * As of 2/2015 options expire on Friday instead of Saturday
-    * http://www.cboe.com/aboutcboe/xcal2015.pdf
-    * Expiration date is now the third Friday of the month
-    * This function returns the expiration date's day of the month [15th - 21st]
-    */
-   public static int calculateFutureExpiry(int month, int year) {
-      MutableDateTime expiryDate = new MutableDateTime(year, month, 2, 16, 20, 0, 0, DateTimeZone.forID("America/New_York"));
-      expiryDate.setDayOfMonth(21 - (expiryDate.getDayOfWeek() % 7));   // Calculate third friday
-      return expiryDate.getDayOfMonth();
-   }
+	/**
+	 * This method replaces deprecated method getExpirySaturday()
+	 * As of 2/2015 options expire on Friday instead of Saturday
+	 * http://www.cboe.com/aboutcboe/xcal2015.pdf
+	 * Expiration date is now the third Friday of the month
+	 * This function returns the expiration date's day of the month [15th - 21st]
+	 */
+	public static int calculateFutureExpiry(int month, int year) {
+		MutableDateTime expiryDate = new MutableDateTime(year, month, 2, 16, 20, 0, 0, DateTimeZone.forID("America/New_York"));
+		expiryDate.setDayOfMonth(21 - (expiryDate.getDayOfWeek() % 7));   // Calculate third friday
+		return expiryDate.getDayOfMonth();
+	}
 
-   /**
-    * Build option ticker. Example : Exxon Mobil 90 Strike Aug 13 expiry call = XOM130817C00090000
-    */
-   public static String optionTicker(String stockTicker, BaseDateTime expiry, char indicator, double strikeDouble) {
-      LOGGER.debug("Entering optionTicker(String {}, BaseDateTime {}, char {}, double {})", stockTicker, expiry.toString(), indicator, strikeDouble);
-      StringBuilder tickerBuilder = new StringBuilder(stockTicker);
+	/**
+	 * Build option ticker. Example : Exxon Mobil 90 Strike Aug 13 expiry call = XOM130817C00090000
+	 */
+	public static String optionTicker(String stockTicker, BaseDateTime expiry, char indicator, double strikeDouble) {
+		LOGGER.debug("Entering optionTicker(String {}, BaseDateTime {}, char {}, double {})", stockTicker, expiry.toString(), indicator, strikeDouble);
+		StringBuilder tickerBuilder = new StringBuilder(stockTicker);
 	/* Option strike format is xxxxx.yyy * 10^3 Example : Strike $82.50 = 00082500 */
-      int strikeInt = (int) (strikeDouble * 1000);
-      tickerBuilder.append(expiry.toString("yyMMdd"));
-      LOGGER.debug("Assembling option ticker with {} (expiry : {})", expiry.toString("yyMMdd"), expiry.toString("MMMM dd YYYY"));
-      tickerBuilder.append(indicator);
-      tickerBuilder.append(String.format("%08d", strikeInt));
-      LOGGER.debug("Returning assembled option ticker {}", tickerBuilder.toString());
-      return tickerBuilder.toString();
-   }
+		int strikeInt = (int) (strikeDouble * 1000);
+		tickerBuilder.append(expiry.toString("yyMMdd"));
+		LOGGER.debug("Assembling option ticker with {} (expiry : {})", expiry.toString("yyMMdd"), expiry.toString("MMMM dd YYYY"));
+		tickerBuilder.append(indicator);
+		tickerBuilder.append(String.format("%08d", strikeInt));
+		LOGGER.debug("Returning assembled option ticker {}", tickerBuilder.toString());
+		return tickerBuilder.toString();
+	}
 
-   public static Option getOption(String stockTicker, String optionType, double limitStrikePrice) {
-      LOGGER.debug("Entering Option.getOption(String {}, String {}, double {})", stockTicker, optionType, limitStrikePrice);
-      double strikePrice;
-      String optionTickerToTry;
-      int expirationSaturday;
-      MutableDateTime mutableExpiry = new MutableDateTime(DateTimeZone.forID("America/New_York"));
-      /** If today is after 7 days before this month's options expiration, go out a month */
-      expirationSaturday = calculateFutureExpiry(mutableExpiry.getMonthOfYear(), mutableExpiry.getYear());
-      if(mutableExpiry.getDayOfMonth() > (expirationSaturday - 7)) {
-         mutableExpiry.addMonths(1);
-         expirationSaturday = calculateFutureExpiry(mutableExpiry.getMonthOfYear(), mutableExpiry.getYear());
-      }
-      mutableExpiry.setDayOfMonth(expirationSaturday);
-      /** Let's sell ITM options and generate some alpha */
-      if (optionType.equals("CALL")) {
-         LOGGER.debug("Finding call to sell");
-         /** Should provide an ITM price either on the dollar or half dollar  */
-         strikePrice = Math.floor(limitStrikePrice * 2.0 - 0.1) / 2.0;
-         LOGGER.debug("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
+	public static Option getOption(String stockTicker, String optionType, double limitStrikePrice) {
+		LOGGER.debug("Entering Option.getOption(String {}, String {}, double {})", stockTicker, optionType, limitStrikePrice);
+		double strikePrice;
+		String optionTickerToTry;
+		int expirationSaturday;
+		MutableDateTime mutableExpiry = new MutableDateTime(DateTimeZone.forID("America/New_York"));
+		/** If today is after 7 days before this month's options expiration, go out a month */
+		expirationSaturday = calculateFutureExpiry(mutableExpiry.getMonthOfYear(), mutableExpiry.getYear());
+		if (mutableExpiry.getDayOfMonth() > (expirationSaturday - 7)) {
+			mutableExpiry.addMonths(1);
+			expirationSaturday = calculateFutureExpiry(mutableExpiry.getMonthOfYear(), mutableExpiry.getYear());
+		}
+		mutableExpiry.setDayOfMonth(expirationSaturday);
+		/** Let's sell ITM options and generate some alpha */
+		if (optionType.equals("CALL")) {
+			LOGGER.debug("Finding call to sell");
+			/** Should provide an ITM price either on the dollar or half dollar  */
+			strikePrice = Math.floor(limitStrikePrice * 2.0 - 0.1) / 2.0;
+			LOGGER.debug("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
          /* Deprecated for ITM options
          if (strikePrice < limitStrikePrice) {
             strikePrice += 0.50;
             LOGGER.debug("Adjusted strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
          }
          */
-	    /** While looking for an option don't go further than 10% out from current underlying security price */
-         while ((strikePrice - limitStrikePrice) / limitStrikePrice < 0.1) {
-            optionTickerToTry = optionTicker(stockTicker, mutableExpiry, 'C', strikePrice);
-            LOGGER.debug("Trying option ticker {}", optionTickerToTry);
-            try {
-               if (optionTickerValid(optionTickerToTry)) {
-                  return new Option(optionTickerToTry);
-               }
-            } catch (IOException ioe) {
-               LOGGER.info("Cannot connect to Yahoo! trying to retrieve option " + optionTickerToTry);
-               LOGGER.debug("Caught (IOException ioe)", ioe);
-               return null;
-            }
-            strikePrice += 0.50;
-         }
-         LOGGER.warn("Couldn't find a CALL in the correct strike range");
-      } else if (optionType.equals("PUT")) {
-         LOGGER.debug("Finding put to sell");
-         strikePrice = (int) limitStrikePrice + 0.50;
-         LOGGER.debug("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
-         /** Deprecated for ITM options
-         if (strikePrice > limitStrikePrice) {
-            strikePrice -= 0.50;
-            LOGGER.debug("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
-         }
-         */
-         /** While looking for an option don't go further than 10% out from current underlying security price */
-         while ((strikePrice - limitStrikePrice) / limitStrikePrice > -0.1) {
-            optionTickerToTry = optionTicker(stockTicker, mutableExpiry, 'P', strikePrice);
-            try {
-               if (optionTickerValid(optionTickerToTry)) {
-                  LOGGER.debug("Returning new Option(\"{}\")", optionTickerToTry);
-                  return new Option(optionTickerToTry);
-               }
-            } catch (IOException ioe) {
-               LOGGER.info("Cannot connect to Yahoo! trying to retrieve option " + optionTickerToTry);
-               LOGGER.debug("Caught (IOException ioe)", ioe);
-               return null;
-            }
-            strikePrice -= 0.50;
-         }
-         LOGGER.warn("Couldn't find a PUT in the correct strike range");
-      } else {
-         LOGGER.warn("Couldn't make heads nor tails of option type {}", optionType);
-      }
-      LOGGER.debug("Returning null from Option.getOption()");
-      return null;  // Failed to supply valid information
-   }
+			/** While looking for an option don't go further than 10% out from current underlying security price */
+			while ((strikePrice - limitStrikePrice) / limitStrikePrice < 0.1) {
+				optionTickerToTry = optionTicker(stockTicker, mutableExpiry, 'C', strikePrice);
+				LOGGER.debug("Trying option ticker {}", optionTickerToTry);
+				try {
+					if (optionTickerValid(optionTickerToTry)) {
+						return new Option(optionTickerToTry);
+					}
+				} catch (IOException ioe) {
+					LOGGER.info("Cannot connect to Yahoo! trying to retrieve option " + optionTickerToTry);
+					LOGGER.debug("Caught (IOException ioe)", ioe);
+					return null;
+				}
+				strikePrice += 0.50;
+			}
+			LOGGER.warn("Couldn't find a CALL in the correct strike range");
+		} else if (optionType.equals("PUT")) {
+			LOGGER.debug("Finding put to sell");
+			strikePrice = (int) limitStrikePrice + 0.50;
+			LOGGER.debug("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+			/** Deprecated for ITM options
+			 if (strikePrice > limitStrikePrice) {
+			 strikePrice -= 0.50;
+			 LOGGER.debug("Adjusted strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
+			 }
+			 */
+			/** While looking for an option don't go further than 10% out from current underlying security price */
+			while ((strikePrice - limitStrikePrice) / limitStrikePrice > -0.1) {
+				optionTickerToTry = optionTicker(stockTicker, mutableExpiry, 'P', strikePrice);
+				try {
+					if (optionTickerValid(optionTickerToTry)) {
+						LOGGER.debug("Returning new Option(\"{}\")", optionTickerToTry);
+						return new Option(optionTickerToTry);
+					}
+				} catch (IOException ioe) {
+					LOGGER.info("Cannot connect to Yahoo! trying to retrieve option " + optionTickerToTry);
+					LOGGER.debug("Caught (IOException ioe)", ioe);
+					return null;
+				}
+				strikePrice -= 0.50;
+			}
+			LOGGER.warn("Couldn't find a PUT in the correct strike range");
+		} else {
+			LOGGER.warn("Couldn't make heads nor tails of option type {}", optionType);
+		}
+		LOGGER.debug("Returning null from Option.getOption()");
+		return null;  // Failed to supply valid information
+	}
 
-   @Override
-   String getTicker() {
-      return ticker;
-   }
+	@Override
+	String getTicker() {
+		return ticker;
+	}
 
-   @Override
-   String getSecType() {
-      return secType;
-   }
+	@Override
+	String getSecType() {
+		return secType;
+	}
 
-   double getStrike() {
-      return strike;
-   }
+	double getStrike() {
+		return strike;
+	}
 
-   DateTime getExpiry() {
-      return expiry;
-   }
+	DateTime getExpiry() {
+		return expiry;
+	}
 
-   @Override
-   double getPrice() {
-      return price;
-   }
+	@Override
+	double getPrice() {
+		return price;
+	}
 
-   String getUnderlyingTicker() {
-      return underlyingTicker;
-   }
+	String getUnderlyingTicker() {
+		return underlyingTicker;
+	}
 }
