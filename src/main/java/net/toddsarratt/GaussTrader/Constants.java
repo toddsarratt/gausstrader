@@ -52,29 +52,28 @@ class Constants {
 
 	static final List<String> TICKERS = Arrays.asList(appProps.getProperty("TICKERS").split(","));
 
-	static final String DB_IP = appProps.getString("DB_IP", "localhost");
-	static final String DB_NAME = appProps.getString("DB_NAME", "postgres");
-	static final String DB_USER = appProps.getString("DB_USER", "postgres");
-	static final String DB_PASSWORD = appProps.getString("DB_PASSWORD", "b3llcurv38");
+	static final String DB_IP = appProps.getProperty("DB_IP", "localhost");
+	static final String DB_NAME = appProps.getProperty("DB_NAME", "postgres");
+	static final String DB_USER = appProps.getProperty("DB_USER", "postgres");
+	static final String DB_PASSWORD = appProps.getProperty("DB_PASSWORD", "b3llcurv38");
 	static final int YAHOO_RETRIES = 5;                // Number of times to retry Yahoo connections
-	static final BigDecimal STOCK_PCT_OF_PORTFOLIO =
-			appProps.getBigDecimal("STOCK_PCT_OF_PORTFOLIO", BigDecimal.valueOf(10.0));
-	static final BigDecimal STARTING_CASH = appProps.getBigDecimal("STARTING_CASH", BigDecimal.valueOf(1_000_000.00));
-	static final int BOLL_BAND_PERIOD = appProps.getInt("BOLL_BAND_PERIOD", 20);
-	static final BigDecimal BOLLINGER_SD1 = appProps.getBigDecimal("BOLLINGER_SD1", BigDecimal.valueOf(2.0));
-	static final BigDecimal BOLLINGER_SD2 = appProps.getBigDecimal("BOLLINGER_SD2", BigDecimal.valueOf(2.5));
-	static final BigDecimal BOLLINGER_SD3 = appProps.getBigDecimal("BOLLINGER_SD3", BigDecimal.valueOf(3.0));
-	static final boolean DELAYED_QUOTES = appProps.getBoolean("DELAYED_QUOTES", true);
-	static final int DELAY_MS = appProps.getInt("DELAY", 60) * 1000;
-	static final List<Integer> JULIAN_HOLIDAYS_2016 = appProps.getList(Integer.class, "JULIAN_HOLIDAYS_2016");
-	static final List<Integer> JULIAN_HOLIDAYS_2017 = appProps.getList(Integer.class, "JULIAN_HOLIDAYS_2017");
+	static final BigDecimal STOCK_PCT_OF_PORTFOLIO = new BigDecimal(appProps.getProperty("STOCK_PCT_OF_PORTFOLIO", "10.0"));
+	static final BigDecimal STARTING_CASH = new BigDecimal(appProps.getProperty("STARTING_CASH", "1_000_000.00"));
+	static final int BOLL_BAND_PERIOD = Integer.valueOf(appProps.getProperty("BOLL_BAND_PERIOD", "20"));
+	static final BigDecimal BOLLINGER_SD1 = new BigDecimal(appProps.getProperty("BOLLINGER_SD1", "2.0"));
+	static final BigDecimal BOLLINGER_SD2 = new BigDecimal(appProps.getProperty("BOLLINGER_SD2", "2.5"));
+	static final BigDecimal BOLLINGER_SD3 = new BigDecimal(appProps.getProperty("BOLLINGER_SD3", "3.0"));
+	static final boolean DELAYED_QUOTES = Boolean.valueOf(appProps.getProperty("DELAYED_QUOTES", "true"));
+	static final int DELAY_MS = appProps.getProperty("DELAY", 60) * 1000;
+	static final List<Integer> JULIAN_HOLIDAYS_2016 = appProps.getProperty(Integer.class, "JULIAN_HOLIDAYS_2016");
+	static final List<Integer> JULIAN_HOLIDAYS_2017 = appProps.getProperty(Integer.class, "JULIAN_HOLIDAYS_2017");
 	static final ImmutableMap<Integer, List<Integer>> HOLIDAY_MAP =
 			ImmutableMap.<Integer, List<Integer>>builder()
 					.put(2016, JULIAN_HOLIDAYS_2016)
 					.put(2017, JULIAN_HOLIDAYS_2017)
 					.build();
-	static final List<Integer> JULIAN_1PM_CLOSE_2016 = appProps.getList(Integer.class, "JULIAN_1PM_CLOSE_2016");
-	static final List<Integer> JULIAN_1PM_CLOSE_2017 = appProps.getList(Integer.class, "JULIAN_1PM_CLOSE_2017");
+	static final List<Integer> JULIAN_1PM_CLOSE_2016 = appProps.getProperty(Integer.class, "JULIAN_1PM_CLOSE_2016");
+	static final List<Integer> JULIAN_1PM_CLOSE_2017 = appProps.getProperty(Integer.class, "JULIAN_1PM_CLOSE_2017");
 	static final ImmutableMap<Integer, List<Integer>> EARLY_CLOSE_MAP =
 			ImmutableMap.<Integer, List<Integer>>builder()
 					.put(2016, JULIAN_1PM_CLOSE_2016)
