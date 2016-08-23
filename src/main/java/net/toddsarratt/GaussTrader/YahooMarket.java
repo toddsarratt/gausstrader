@@ -1,10 +1,5 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeConstants;
-import org.joda.time.DateTimeZone;
-import org.joda.time.MutableDateTime;
-import org.joda.time.ReadableDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +11,7 @@ import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -40,7 +36,8 @@ public class YahooMarket implements Market {
    private static int dayToday = todaysDateTime.getDayOfWeek();
    private static long marketOpenEpoch;
    private static long marketCloseEpoch;
-   private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
+	private static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormatter.ofPattern("MM/dd/yyyyhh:mm aa");
+	private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
 
    @Override
    public boolean tickerValid(String ticker) {
@@ -62,12 +59,12 @@ public class YahooMarket implements Market {
    public boolean marketPricesCurrent() {
    /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
       LOGGER.debug("Inside yahooPricesCurrent()");
-      long currentEpoch = System.currentTimeMillis();
-      LOGGER.debug("currentEpoch = {}", currentEpoch);
+      Instant currently = Instant.now();
+      LOGGER.debug("currently = {}", currently);
       String[] yahooDateTime;
       yahooDateTime = yahooGummyApi("BAC", "d1t1");
       LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
-      long lastBacEpoch = Constants.LAST_BAC_TICK_FORMATTER.parseMillis(yahooDateTime[0] + yahooDateTime[1]);
+      long lastBacEpoch = LAST_BAC_TICK_FORMATTER.parse(yahooDateTime[0] + yahooDateTime[1]);
       LOGGER.debug("lastBacEpoch == {}", lastBacEpoch);
       LOGGER.debug("Comparing currentEpoch {} to lastBacEpoch {} ", currentEpoch, lastBacEpoch);
       LOGGER.debug("LAST_BAC_TICK_FORMATTER.print(currentEpoch) {} vs. LAST_BAC_TICK_FORMATTER.print(lastBacEpoch) {}",

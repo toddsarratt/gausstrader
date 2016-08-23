@@ -1,8 +1,5 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTimeZone;
-import org.joda.time.MutableDateTime;
-import org.joda.time.base.BaseDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,13 +19,13 @@ import java.util.regex.Pattern;
  */
 
 public class Option implements Security {
-   private String ticker;
-   private String secType;
-   private LocalDateTime expiry;
-   private String underlyingTicker;
-   private BigDecimal strike;
-   private BigDecimal price;
-   private static Market market = GaussTrader.getMarket();
+   private final String ticker;
+   private final String secType;
+   private final LocalDateTime expiry;
+   private final String underlyingTicker;
+   private final BigDecimal strike;
+   private final BigDecimal price;
+   private final static Market MARKET = GaussTrader.getMarket();
    private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
 
    private Option(String ticker,
@@ -52,7 +49,7 @@ public class Option implements Security {
       LocalDateTime expiry = null;
       String secType = null;
       BigDecimal strike = null;
-      if (!market.tickerValid(ticker)) {
+      if (!MARKET.tickerValid(ticker)) {
          throw new IllegalArgumentException("Invalid option ticker");
       }
       Pattern pattern = Pattern.compile("^[A-Z](1,4)");

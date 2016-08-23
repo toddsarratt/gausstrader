@@ -11,6 +11,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -72,15 +73,13 @@ class Constants {
 					.put(2016, JULIAN_HOLIDAYS_2016)
 					.put(2017, JULIAN_HOLIDAYS_2017)
 					.build();
-	static final List<Integer> JULIAN_1PM_CLOSE_2016 = appProps.getProperty(Integer.class, "JULIAN_1PM_CLOSE_2016");
-	static final List<Integer> JULIAN_1PM_CLOSE_2017 = appProps.getProperty(Integer.class, "JULIAN_1PM_CLOSE_2017");
+	static final List<Integer> JULIAN_1PM_CLOSE_2016 = appProps.getProperty("JULIAN_1PM_CLOSE_2016");
+	static final List<Integer> JULIAN_1PM_CLOSE_2017 = appProps.getProperty("JULIAN_1PM_CLOSE_2017");
 	static final ImmutableMap<Integer, List<Integer>> EARLY_CLOSE_MAP =
 			ImmutableMap.<Integer, List<Integer>>builder()
 					.put(2016, JULIAN_1PM_CLOSE_2016)
 					.put(2017, JULIAN_1PM_CLOSE_2017)
 					.build();
-	/* Move to appropriate class */
-	static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormat.forPattern("MM/dd/yyyyhh:mmaa");
 	/* These are not read from the appProps.properties file because they represent non-fungible truth */
 	static final BigDecimal BIGDECIMAL_MINUS_ONE = new BigDecimal(-1);
 	static final BigDecimal BIGDECIMAL_ONE_HUNDRED = new BigDecimal(100);
