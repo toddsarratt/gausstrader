@@ -78,11 +78,13 @@ public class Option extends Security {
 		 *  Change 2/4/14 : Wrote YahooFinance.isNumeric(String) to handle bad Yahoo! responses
 		 *
 		 * 8/22/16 : "/news", not "news" to terminate URL
+		 * 8/23/16 : That didn't get it. Page redirected, so let's try the redirect landing page
 		 */
 
 		LOGGER.debug("Entering Option.optionTickerValid(String {})", optionTicker);
 		String input;
-		URL yahoo_url = new URL("http://finance.yahoo.com/quote/" + optionTicker + "/news");
+		URL yahoo_url = new URL("http://finance.yahoo.com/quote/" + optionTicker);
+		LOGGER.debug("Calling to URL: {}", yahoo_url);
 		Scanner yahooScan = new Scanner(yahoo_url.openStream());
 		if (!yahooScan.hasNextLine()) {
 			yahooScan.close();

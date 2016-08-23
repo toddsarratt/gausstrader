@@ -14,5 +14,6 @@
     <orderEntry type="library" name="com.google.guava:guava-collections:r03" level="project" />
     <orderEntry type="library" name="ch.qos.logback:logback-classic:1.1.7" level="project" />
     <orderEntry type="library" name="ch.qos.logback:logback-core:1.1.7" level="project" />
+    <orderEntry type="library" name="joda-time:joda-time:2.9.4" level="project" />
   </component>
 </module>
