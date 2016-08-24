@@ -10,7 +10,9 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -79,37 +81,32 @@ public class Option extends Security {
 		 *
 		 * 8/22/16 : "/news", not "news" to terminate URL
 		 * 8/23/16 : That didn't get it. Page redirected, so let's try the redirect landing page
+		 * 8/24/16 : Complete rewrite from scratch. Dispensed with Scanner for BufferedReader
 		 */
 
 		LOGGER.debug("Entering Option.optionTickerValid(String {})", optionTicker);
-		String input;
-		URL yahoo_url = new URL("http://finance.yahoo.com/quote/" + optionTicker);
-		LOGGER.debug("Calling to URL: {}", yahoo_url);
-		Scanner yahooScan = new Scanner(yahoo_url.openStream());
-		if (!yahooScan.hasNextLine()) {
-			yahooScan.close();
-			LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-			return false;
+		URL yahooUrl = new URL("http://finance.yahoo.com/quote/" + optionTicker);
+		LOGGER.debug("Calling to URL: {}", yahooUrl);
+		BufferedReader yahooReader = new BufferedReader(
+				new InputStreamReader(yahooUrl.openStream()));
+		StringBuilder yahooScrape = new StringBuilder();
+		String yahooLine;
+		while((yahooLine = yahooReader.readLine()) != null) {
+			yahooScrape.append(yahooLine);
 		}
-		input = yahooScan.useDelimiter("\\A").next();
-		yahooScan.close();
-		if (input.indexOf("There are no") > 0) {
-			LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-			return false;
-		}
-		// 7/15/16 price follows this String in web page source code:
-		// "regularMarketPrice":{"raw":
-		int closeIndex = input.indexOf("\"regularMarketPrice\":{\"raw\":");
-		int closeFrom = input.indexOf("\">", closeIndex);
-		int closeTo = input.indexOf("</td>", closeFrom);
-		String closePrice = input.substring(closeFrom + 2, closeTo);
-		LOGGER.debug("Parsed from Yahoo! Prev Close: {}", closePrice);
-		if (!YahooFinance.isNumeric(closePrice)) {
+		yahooReader.close();
+		String yahooData = yahooScrape.toString();
+		String tickPre = "},\"currency\":\"USD\",\"regularMarketPrice\":{\"raw\":";
+		int tickFinder = yahooData.indexOf(tickPre);
+		System.out.println("tickFinder = " + tickFinder);
+		int tickFrom = tickFinder + tickPre.length();
+		System.out.println("tickFrom = " + tickFrom);
+		int tickTo = yahooData.indexOf(",\"", tickFrom);
+		System.out.println("tickTo = " + tickTo);
+		String tickPrice = yahooData.substring(tickFrom, tickTo);
+		LOGGER.debug("Parsed from Yahoo! current price: {}", tickPrice);
+		if (!YahooFinance.isNumeric(tickPrice)) {
 			LOGGER.warn("Invalid response from Yahoo! for {}", optionTicker);
-			return false;
-		}
-		if (closePrice.equals("N/A")) {
-			LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
 			return false;
 		}
 		LOGGER.debug("{} is a valid option ticker", optionTicker);
@@ -145,10 +142,23 @@ public class Option extends Security {
 			}
 			String yahooInput = yahooScan.useDelimiter("\\A").next();
 			yahooScan.close();
+
+			String tickPre = "},\"currency\":\"USD\",\"regularMarketPrice\":{\"raw\":";
+			int tickFinder = yahooInput.indexOf(tickPre);
+			System.out.println("tickFinder = " + tickFinder);
+			int tickFrom = tickFinder + tickPre.length();
+			System.out.println("tickFrom = " + tickFrom);
+			int tickTo = yahooInput.indexOf(",\"", tickFrom);
+			System.out.println("tickTo = " + tickTo);
+			String tickPrice = yahooInput.substring(tickFrom, tickTo);
+			/* priceStartString no longer valid (8/24/16). Now it's $main-0-Quote.0.1.0.$price.0">
+			Who can keep up?
+
 			String priceStartString = "$main-0-Quote.0.0.0.$price.0\">";
 			int priceStartIndex = yahooInput.indexOf(priceStartString + priceStartString.length());
 			int priceEndIndex = yahooInput.indexOf("</span>", priceStartIndex);
 			String tickPrice = yahooInput.substring(priceStartIndex, priceEndIndex);
+			*/
 			try {
 				return Double.parseDouble(tickPrice);
 			} catch (NumberFormatException nfe) {
