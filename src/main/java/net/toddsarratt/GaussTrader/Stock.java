@@ -129,7 +129,7 @@ public class Stock implements Security {
       LOGGER.debug("Looking for valid open market dates backwards from {} ({})", earliestDatePriceNeeded.getMillis(), earliestDatePriceNeeded.toString());
       for (int checkedDates = 0; checkedDates < Constants.BOLL_BAND_PERIOD; checkedDates++) {
          earliestDatePriceNeeded.addDays(-1);
-         while (!market.wasOpen(earliestDatePriceNeeded)) {
+         while (!market.isOpenMarketDate(earliestDatePriceNeeded)) {
             earliestDatePriceNeeded.addDays(-1);
          }
          PRICE_TRACKING_MAP.put(earliestDatePriceNeeded.getMillis(), Constants.BIGDECIMAL_MINUS_ONE);

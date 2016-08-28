@@ -1,9 +1,8 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.MutableDateTime;
-import org.joda.time.ReadableDateTime;
-
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 
 /**
@@ -13,34 +12,38 @@ import java.util.LinkedHashMap;
  * @author Todd Sarratt todd.sarratt@gmail.com
  * @since GaussTrader v0.2
  */
-public interface Market {
+interface Market {
 
-   LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
+	ZoneId marketZone = ZoneId.of("America/New_York");
 
-   boolean isOpenToday();
+	LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
 
-   InstantPrice lastTick(String ticker);
+	boolean isOpenToday();
 
-   boolean tickerValid(String ticker);
+	InstantPrice lastTick(String ticker);
 
-   boolean marketPricesCurrent();
+	boolean tickerValid(String ticker);
 
-   boolean wasOpen(MutableDateTime histDateTime);
+	boolean marketPricesCurrent();
 
-   boolean isHoliday(int julianDay, int year);
+	boolean isOpenMarketDate(LocalDate dateToCheck);
 
-   boolean isHoliday(ReadableDateTime date);
+	boolean isOpenRightNow();
 
-   boolean isEarlyClose(int julianDay, int year);
+	boolean isHoliday(int julianDay, int year);
 
-   boolean isEarlyClose(ReadableDateTime date);
+	boolean isHoliday(LocalDate date);
 
-   InstantPrice lastBid(String ticker);
+	boolean isEarlyClose(int julianDay, int year);
 
-   InstantPrice lastAsk(String ticker);
+	boolean isEarlyClose(LocalDate date);
 
-   String[] priceMovingAvgs(String ticker);
+	InstantPrice lastBid(String ticker);
 
-   /* TODO: NEVER RETURN NULL */
-   InstantPrice lastTick(Security security);
+	InstantPrice lastAsk(String ticker);
+
+	String[] priceMovingAvgs(String ticker);
+
+	/* TODO: NEVER RETURN NULL */
+	InstantPrice lastTick(Security security);
 }

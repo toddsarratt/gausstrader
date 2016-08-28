@@ -4,17 +4,21 @@ import java.math.BigDecimal;
 
 public interface Security {
 
-   InstantPrice lastTick();
+	InstantPrice lastTick();
 
-   //    public abstract static double lastTick(String ticker) throws IOException;
+	//    public abstract static double lastTick(String ticker) throws IOException;
 
-   InstantPrice lastBid();
+	InstantPrice lastBid();
 
-   InstantPrice lastAsk();
+	InstantPrice lastAsk();
 
-   String getTicker();
+	String getTicker();
 
-   BigDecimal getPrice();
+	BigDecimal getPrice();
 
-   String getSecType();
+	String getSecType();
+
+	boolean isStock();
+
+	boolean isOption();
 }
