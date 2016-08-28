@@ -1,23 +1,16 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.MutableDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.math.BigDecimal;
-import java.net.URL;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 
 /**
- * Created with IntelliJ IDEA.
- * User: tsarratt
- * Date: 1/31/14
+ * Created with IntelliJ IDEA on 1/31/14. Not sure why and I didn't update this JavaDoc until 8/28/16. Foo.
+ *
+ * @author Todd Sarratt todd.sarratt@gmail.com
+ * @since v0.1
  */
 public class YahooFinance {
    private static final Logger LOGGER = LoggerFactory.getLogger(YahooFinance.class);

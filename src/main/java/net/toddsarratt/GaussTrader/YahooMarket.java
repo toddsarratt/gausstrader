@@ -30,80 +30,9 @@ class YahooMarket implements Market {
 	private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
 
 	/**
-	 * If ticker is 4 characters or under it is assumed to represent a stock symbol. Yahoo! API is called with the
-	 * following argument:
-	 * <p><pre>
-	 *     e1   Error Indication (returned for symbol changed / invalid)
-	 * </pre></p>
-	 * If this call returns "N/A" then the stock exists (a double negative).
-	 * <p>
-	 * If ticker is greater than 4 characters it is assumed to represent an option. optionTickerValid() is called and
-	 * its result returned.
-	 *
-	 * @param ticker string representing a stock or option symbol, to be checked for validity
-	 * @return true if ticker represents a stock or option
-	 */
-	@Override
-	public boolean tickerValid(String ticker) {
-		LOGGER.debug("Entering tickerValid(String ticker)");
-		if (ticker.length() <= 4) {
-			return yahooGummyApi(ticker, "e1")[0].equals("N/A");
-		} else {
-			return optionTickerValid(ticker);
-		}
-	}
-
-	/**
-	 * Calls Yahoo! API with arguments:
-	 * <p><pre>
-	 *     l1   Last Trade (Price Only)
-	 *     d1   Last Trade Date
-	 *     t1   Last Trade Time
-	 *     m3   50-day Moving Average
-	 *     m4   200-day Moving Average
-	 * </pre>
-	 *
-	 * Returns a string array in the format:
-	 * TODO: fill this out
-	 *
-	 * @param ticker string representing a stock or option symbol
-	 * @return string array with the last trade price, date, and time, along with the 50 and 200 dma
-	 */
-	@Override
-	public String[] priceMovingAvgs(String ticker) {
-		return yahooGummyApi(ticker, "l1d1t1m3m4");
-	}
-
-	/**
-	 * Calls Yahoo! and finds the last time Bank of America (BAC) recorded a tick. BAC is far and away the most actively
-	 * traded stock with the highest daily volume and should be representative of how current Yahoo! prices are.
-	 * Returns false if last tick for BAC was over one hour ago.
-	 * 
-	 * @return true if Yahoo! updated BAC last tick within the last hour
-	 */
-	@Override
-	public boolean marketPricesCurrent() {
-   /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
-		LOGGER.debug("Inside yahooPricesCurrent()");
-		ZonedDateTime currentTime = Instant.now().atZone(marketZone);
-		LOGGER.debug("currentTime = {}", currentTime);
-		String[] yahooDateTime = yahooGummyApi("BAC", "d1t1");
-		LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
-		ZonedDateTime lastBacTick = ZonedDateTime.of(
-				LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], LAST_BAC_TICK_FORMATTER), marketZone);
-		LOGGER.debug("lastBacTick == {}", lastBacTick);
-		LOGGER.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
-		if (lastBacTick.isBefore(currentTime.minusHours(1))) {
-			LOGGER.debug("Yahoo! last tick for BAC differs from current time by over an hour.");
-			return false;
-		}
-		return true;
-	}
-
-	/**
 	 * Uses the Yahoo! finance API, referenced here: http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
 	 *
-	 * @param ticker stock symbol
+	 * @param ticker    stock symbol
 	 * @param arguments requested data, as documented
 	 * @return string array
 	 */
@@ -159,7 +88,7 @@ class YahooMarket implements Market {
 	 * Checks if the day and year supplied is a market holiday, per the map of holidays created at application runtime.
 	 *
 	 * @param julianDay integer representing the day of the year (Julian day)
-	 * @param year integer representing year in format YYYY
+	 * @param year      integer representing year in format YYYY
 	 * @return true if the day specified is found in the holiday map
 	 */
 	@Override
@@ -169,8 +98,8 @@ class YahooMarket implements Market {
 
 	/**
 	 * Checks if the LocalDate supplied are market holidays, per the map of holidays created at application runtime.
-	 * 
-	 * @param date LocalDate to compare against holiday map 
+	 *
+	 * @param date LocalDate to compare against holiday map
 	 * @return true if the date specified is found in the holiday map
 	 */
 	@Override
@@ -179,11 +108,11 @@ class YahooMarket implements Market {
 	}
 
 	/**
-	 * Checks if the day and year supplied is an early close day for the market, per the map of early closings created 
+	 * Checks if the day and year supplied is an early close day for the market, per the map of early closings created
 	 * at application runtime.
-	 * 
+	 *
 	 * @param julianDay integer representing the day of the year (Julian day)
-	 * @param year integer representing year in format YYYY
+	 * @param year      integer representing year in format YYYY
 	 * @return true if the day specified is found in the early close map
 	 */
 	@Override
@@ -194,7 +123,7 @@ class YahooMarket implements Market {
 	/**
 	 * Checks if the date supplied is an early close day for the market, per the map of early closings created
 	 * at application runtime.
-	 * 
+	 *
 	 * @param date LocalDate to compare against early close map
 	 * @return true if the date specified is found in the holiday map
 	 */
@@ -231,7 +160,7 @@ class YahooMarket implements Market {
 		// 1:20 pm will be used for early close days
 		LocalTime marketCloseTime = isEarlyClose(todaysDateTime.toLocalDate()) ?
 				LocalTime.of(13, 20) : LocalTime.of(16, 20);
-		LOGGER.debug("Current time = {}", );
+		LOGGER.debug("Current time = {}", todaysDateTime);
 		LOGGER.debug("Comparing currentEpoch {} to marketOpenEpoch {} and marketCloseEpoch {} ",
 				todaysDateTime, marketOpenTime, marketCloseTime);
 		if ((todaysDateTime.toLocalTime().isBefore(marketOpenTime))
@@ -244,12 +173,14 @@ class YahooMarket implements Market {
 	}
 
 	/**
-	 * Gets the last tick of the stock represented by ticker.
+	 * Returns an InstantPrice of the last tick of the stock represented by ticker. If the ticker is not a valid
+	 * stock ticker this method returns InstantPrice.NO_PRICE.
+	 *
+	 * TODO: Support option tickers
 	 *
 	 * @param ticker string representing a stock ticker
-	 * @return InstantPrice 
+	 * @return InstantPrice of the last tick of the stock, or InstantPrice.NO_PRICE
 	 */
-	/* TODO: NEVER RETURN NULL */
 	@Override
 	public InstantPrice lastTick(String ticker) {
 		LOGGER.debug("Entering lastTick(String {})", ticker);
@@ -260,21 +191,93 @@ class YahooMarket implements Market {
 		return InstantPrice.NO_PRICE;
 	}
 
+	/**
+	 * Returns an InstantPrice of the last tick of the security represented by ticker. If the method is unable to
+	 * find a price it will return InstantPrice.NO_PRICE.
+	 *
+	 * @param security security whose last tick is to be returned
+	 * @return InstantPrice
+	 */
 	@Override
 	public InstantPrice lastTick(Security security) {
 		LOGGER.debug("Entering lastTick(Security {})", security);
 		if (security.isStock()) {
 			return lastTick(security.getTicker());
 		} else if (security.isOption()) {
-			return yahooOptionTick(security.getTicker());
+			String prefix = "";
+			String suffix = "";
+			String scrapedPrice = yahooOptionScraper(security.getTicker(), prefix, suffix);
+			LOGGER.debug("Received {} from yahooOptionScraper() ", scrapedPrice);
+			if(InstantPrice.isNumeric(scrapedPrice)) {
+				return InstantPrice.of(scrapedPrice);
+			} else {
+				return InstantPrice.NO_PRICE;
+			}
 		} else {
 			throw new IllegalArgumentException("Security must be a Stock or an Option");
 		}
 	}
 
-	private static InstantPrice yahooOptionTick(String ticker) {
-		LOGGER.debug("Entering yahooOptionTick(String {})", ticker);
-		/** reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
+	/**
+	 * While Yahoo! provides a handy (if undocumented) API for stock information it does not appear to offer a similar
+	 * API for options. The current solution is to web scrape Yahoo! finance pages for the information. This method
+	 * takes the option ticker as its first parameter. The other two parameters define strings surrounding the
+	 * information that needs to be scraped out. The programmer (me, as it turns out) must view source of the web page
+	 * and tease out these boundaries and then change the code when the boundaries change.
+	 *
+	 * TODO: Move prefix and suffix into the config.properties file
+	 *
+	 * @param optionTicker ticker of the option we need to web scrape
+	 * @param prefix boundary for the beginning of the information needed
+	 * @param suffix boundary for the end of the information
+	 * @return string of the information being web scraped
+	 */
+	private static String yahooOptionScraper(String optionTicker, String prefix, String suffix) {
+		LOGGER.debug("Entering yahooOptionScraper(String {})", optionTicker);
+		try {
+			URL yahooUrl = new URL("http://finance.yahoo.com/quote/" + optionTicker);
+			LOGGER.debug("Calling to URL: {}", yahooUrl);
+			try (InputStream inputStream = yahooUrl.openStream();
+			     InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+			     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
+			) {
+				StringBuilder yahooScrape = new StringBuilder();
+				String yahooLine;
+				while ((yahooLine = yahooReader.readLine()) != null) {
+					yahooScrape.append(yahooLine);
+				}
+				String yahooData = yahooScrape.toString();
+				String tickPre = "},\"currency\":\"USD\",\"regularMarketPrice\":{\"raw\":";
+				int tickFinder = yahooData.indexOf(tickPre);
+				System.out.println("tickFinder = " + tickFinder);
+				int tickFrom = tickFinder + tickPre.length();
+				System.out.println("tickFrom = " + tickFrom);
+				int tickTo = yahooData.indexOf(",\"", tickFrom);
+				System.out.println("tickTo = " + tickTo);
+				String tickPrice = yahooData.substring(tickFrom, tickTo);
+				LOGGER.debug("Parsed from Yahoo! current price: {}", tickPrice);
+				if (!YahooFinance.isNumeric(tickPrice)) {
+					LOGGER.warn("Invalid response from Yahoo! for {}", optionTicker);
+					return false;
+				}
+				LOGGER.debug("{} is a valid option ticker", optionTicker);
+				return true;
+			} catch (IOException ioe) {
+				LOGGER.warn("Attempt {} : Caught IOException in yahooOptionTick()");
+				LOGGER.debug("Caught (IOException ioe)", ioe);
+				return InstantPrice.NO_PRICE;
+			}
+		} catch (MalformedURLException mue) {
+			LOGGER.warn("Caught MalformedURLException in yahooOptionTick()");
+			LOGGER.debug("Caught (MalformedURLException)", mue);
+			return InstantPrice.NO_PRICE;
+		}
+	}
+
+
+
+
+		// reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html
 		String input;
 		try {
 			URL yahooUrl = new URL("http://finance.yahoo.com/q?s=" + ticker);
@@ -338,7 +341,7 @@ class YahooMarket implements Market {
 		try {
 			final URL YAHOO_URL = new URL(createYahooHistUrl(ticker, dateRange));
 			BufferedReader yahooBufferedReader = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
-         /* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" */
+	     /* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" */
 			LOGGER.debug(yahooBufferedReader.readLine().replace("Date,", "Date         ").replaceAll(",", "    "));
 			while ((inputLine = yahooBufferedReader.readLine()) != null) {
 				String[] yahooLine = inputLine.replaceAll("[\"+%]", "").split("[,]");
@@ -408,5 +411,76 @@ class YahooMarket implements Market {
 			//TODO : Something!
 		}
 		return false;
+	}
+
+	/**
+	 * Calls Yahoo! and finds the last time Bank of America (BAC) recorded a tick. BAC is far and away the most actively
+	 * traded stock with the highest daily volume and should be representative of how current Yahoo! prices are.
+	 * Returns false if last tick for BAC was over one hour ago.
+	 *
+	 * @return true if Yahoo! updated BAC last tick within the last hour
+	 */
+	@Override
+	public boolean marketPricesCurrent() {
+   /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
+		LOGGER.debug("Inside yahooPricesCurrent()");
+		ZonedDateTime currentTime = Instant.now().atZone(marketZone);
+		LOGGER.debug("currentTime = {}", currentTime);
+		String[] yahooDateTime = yahooGummyApi("BAC", "d1t1");
+		LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
+		ZonedDateTime lastBacTick = ZonedDateTime.of(
+				LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], LAST_BAC_TICK_FORMATTER), marketZone);
+		LOGGER.debug("lastBacTick == {}", lastBacTick);
+		LOGGER.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
+		if (lastBacTick.isBefore(currentTime.minusHours(1))) {
+			LOGGER.debug("Yahoo! last tick for BAC differs from current time by over an hour.");
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Calls Yahoo! API with arguments:
+	 * <p><pre>
+	 *     l1   Last Trade (Price Only)
+	 *     d1   Last Trade Date
+	 *     t1   Last Trade Time
+	 *     m3   50-day Moving Average
+	 *     m4   200-day Moving Average
+	 * </pre>
+	 * <p>
+	 * Returns a string array in the format:
+	 * TODO: fill this out
+	 *
+	 * @param ticker string representing a stock or option symbol
+	 * @return string array with the last trade price, date, and time, along with the 50 and 200 dma
+	 */
+	@Override
+	public String[] priceMovingAvgs(String ticker) {
+		return yahooGummyApi(ticker, "l1d1t1m3m4");
+	}
+
+	/**
+	 * If ticker is 4 characters or under it is assumed to represent a stock symbol. Yahoo! API is called with the
+	 * following argument:
+	 * <p><pre>
+	 *     e1   Error Indication (returned for symbol changed / invalid)
+	 * </pre></p>
+	 * If this call returns "N/A" then the stock exists (a double negative).
+	 * <p>
+	 * If ticker is greater than 4 characters it is assumed to represent an option. optionTickerValid() is called and
+	 * its result returned.
+	 *
+	 * @param ticker string representing a stock or option symbol, to be checked for validity
+	 * @return true if ticker represents a stock or option
+	 */
+	@Override
+	public boolean tickerValid(String ticker) {
+		LOGGER.debug("Entering tickerValid(String ticker)");
+		if (ticker.length() <= 4) {
+			return yahooGummyApi(ticker, "e1")[0].equals("N/A");
+		} else {
+			return optionTickerValid(ticker);
+		}
 	}
 }

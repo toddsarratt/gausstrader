@@ -32,8 +32,7 @@ public class InstantPrice {
     * understood must represent a valid instant in UTC and is parsed using {@code DateTimeFormatter.ISO_INSTANT}
     *
     * @param priceString string representing the price quoted
-    * @param date        charSequence(usually a string) representing the date and time the price quote was assumed to be
-    *                    valid
+    * @param date charSequence(usually a string) representing the date and time the price quote was assumed to be valid
     * @return InstantPrice object
     */
    public static InstantPrice of(String priceString, CharSequence date) {

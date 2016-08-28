@@ -16,34 +16,37 @@ interface Market {
 
 	ZoneId marketZone = ZoneId.of("America/New_York");
 
-	LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
+	boolean isEarlyClose(int julianDay, int year);
 
-	boolean isOpenToday();
-
-	InstantPrice lastTick(String ticker);
-
-	boolean tickerValid(String ticker);
-
-	boolean marketPricesCurrent();
-
-	boolean isOpenMarketDate(LocalDate dateToCheck);
-
-	boolean isOpenRightNow();
+	boolean isEarlyClose(LocalDate date);
 
 	boolean isHoliday(int julianDay, int year);
 
 	boolean isHoliday(LocalDate date);
 
-	boolean isEarlyClose(int julianDay, int year);
+	boolean isOpenMarketDate(LocalDate dateToCheck);
 
-	boolean isEarlyClose(LocalDate date);
+	boolean isOpenRightNow();
 
-	InstantPrice lastBid(String ticker);
+	boolean isOpenToday();
+
+	InstantPrice lastAsk(Security security);
 
 	InstantPrice lastAsk(String ticker);
 
+	InstantPrice lastBid(Security security);
+
+	InstantPrice lastBid(String ticker);
+
+	InstantPrice lastTick(Security security);
+
+	InstantPrice lastTick(String ticker);
+
+	boolean marketPricesCurrent();
+
 	String[] priceMovingAvgs(String ticker);
 
-	/* TODO: NEVER RETURN NULL */
-	InstantPrice lastTick(Security security);
+	LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
+
+	boolean tickerValid(String ticker);
 }
