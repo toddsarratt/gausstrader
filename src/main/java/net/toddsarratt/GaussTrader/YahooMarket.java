@@ -3,18 +3,15 @@ package net.toddsarratt.GaussTrader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 
 /**
  * YahooMarket
@@ -26,8 +23,24 @@ import java.util.Arrays;
  * @since v0.2
  */
 class YahooMarket implements Market {
-	private static final DateTimeFormatter LAST_BAC_TICK_FORMATTER = DateTimeFormatter.ofPattern("MM/dd/yyyyhh:mm aa");
+	private static final String VALID_OPTION_TICKER_FORMAT = "^[A-Z]{1,4}\\d{6}[CP]\\d{8}$";
+	private static final DateTimeFormatter YAHOO_API_FORMATTER = DateTimeFormatter.ofPattern("MM/dd/yyyyhh:mmaa");
 	private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
+
+	/**
+	 * Retrieves a past stock closing price.
+	 *
+	 * @param ticker         string representing stock symbol
+	 * @param historicalDate LocalDate for the close price being requested
+	 * @return BigDecimal of the closing price of the stock on the date requrested
+	 */
+	@Override
+	public BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
+		MissingPriceDateRange closingDateRange = new MissingPriceDateRange(historicalDate, historicalDate);
+		LinkedHashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, closingDateRange);
+		LOGGER.debug("Map {}", priceMap.toString());
+		return priceMap.get(historicalDate);
+	}
 
 	/**
 	 * Uses the Yahoo! finance API, referenced here: http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
@@ -175,7 +188,7 @@ class YahooMarket implements Market {
 	/**
 	 * Returns an InstantPrice of the last tick of the stock represented by ticker. If the ticker is not a valid
 	 * stock ticker this method returns InstantPrice.NO_PRICE.
-	 *
+	 * <p>
 	 * TODO: Support option tickers
 	 *
 	 * @param ticker string representing a stock ticker
@@ -186,7 +199,7 @@ class YahooMarket implements Market {
 		LOGGER.debug("Entering lastTick(String {})", ticker);
 		String[] tickString = yahooGummyApi(ticker, "sl1d1t1");
 		if (ticker.equals(tickString[0])) {
-			return InstantPrice.of(tickString[1]);
+			return InstantPrice.of(tickString[1], tickString[2] + tickString[3], YAHOO_API_FORMATTER, marketZone);
 		}
 		return InstantPrice.NO_PRICE;
 	}
@@ -194,6 +207,8 @@ class YahooMarket implements Market {
 	/**
 	 * Returns an InstantPrice of the last tick of the security represented by ticker. If the method is unable to
 	 * find a price it will return InstantPrice.NO_PRICE.
+	 * <p>
+	 * TODO: Move prefix and suffix into the config.properties file
 	 *
 	 * @param security security whose last tick is to be returned
 	 * @return InstantPrice
@@ -204,11 +219,11 @@ class YahooMarket implements Market {
 		if (security.isStock()) {
 			return lastTick(security.getTicker());
 		} else if (security.isOption()) {
-			String prefix = "";
-			String suffix = "";
+			String prefix = "},\"currency\":\"USD\",\"regularMarketPrice\":{\"raw\":";
+			String suffix = ",\"";
 			String scrapedPrice = yahooOptionScraper(security.getTicker(), prefix, suffix);
 			LOGGER.debug("Received {} from yahooOptionScraper() ", scrapedPrice);
-			if(InstantPrice.isNumeric(scrapedPrice)) {
+			if (InstantPrice.isNumeric(scrapedPrice)) {
 				return InstantPrice.of(scrapedPrice);
 			} else {
 				return InstantPrice.NO_PRICE;
@@ -219,198 +234,120 @@ class YahooMarket implements Market {
 	}
 
 	/**
-	 * While Yahoo! provides a handy (if undocumented) API for stock information it does not appear to offer a similar
-	 * API for options. The current solution is to web scrape Yahoo! finance pages for the information. This method
-	 * takes the option ticker as its first parameter. The other two parameters define strings surrounding the
-	 * information that needs to be scraped out. The programmer (me, as it turns out) must view source of the web page
-	 * and tease out these boundaries and then change the code when the boundaries change.
+	 * Calls Yahoo! API with arguments:
+	 * <p><pre>
+	 *     s    Symbol
+	 *     b    Bid
+	 *     d1   Last Trade Date
+	 *     t1   Last Trade Time
+	 * </pre>
 	 *
-	 * TODO: Move prefix and suffix into the config.properties file
-	 *
-	 * @param optionTicker ticker of the option we need to web scrape
-	 * @param prefix boundary for the beginning of the information needed
-	 * @param suffix boundary for the end of the information
-	 * @return string of the information being web scraped
+	 * @param ticker string representing a stock symbol
+	 * @return InstantPrice of this stock's last bid, or InstantPrice.NO_PRICE if result is invalid
 	 */
-	private static String yahooOptionScraper(String optionTicker, String prefix, String suffix) {
-		LOGGER.debug("Entering yahooOptionScraper(String {})", optionTicker);
-		try {
-			URL yahooUrl = new URL("http://finance.yahoo.com/quote/" + optionTicker);
-			LOGGER.debug("Calling to URL: {}", yahooUrl);
-			try (InputStream inputStream = yahooUrl.openStream();
-			     InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-			     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
-			) {
-				StringBuilder yahooScrape = new StringBuilder();
-				String yahooLine;
-				while ((yahooLine = yahooReader.readLine()) != null) {
-					yahooScrape.append(yahooLine);
-				}
-				String yahooData = yahooScrape.toString();
-				String tickPre = "},\"currency\":\"USD\",\"regularMarketPrice\":{\"raw\":";
-				int tickFinder = yahooData.indexOf(tickPre);
-				System.out.println("tickFinder = " + tickFinder);
-				int tickFrom = tickFinder + tickPre.length();
-				System.out.println("tickFrom = " + tickFrom);
-				int tickTo = yahooData.indexOf(",\"", tickFrom);
-				System.out.println("tickTo = " + tickTo);
-				String tickPrice = yahooData.substring(tickFrom, tickTo);
-				LOGGER.debug("Parsed from Yahoo! current price: {}", tickPrice);
-				if (!YahooFinance.isNumeric(tickPrice)) {
-					LOGGER.warn("Invalid response from Yahoo! for {}", optionTicker);
-					return false;
-				}
-				LOGGER.debug("{} is a valid option ticker", optionTicker);
-				return true;
-			} catch (IOException ioe) {
-				LOGGER.warn("Attempt {} : Caught IOException in yahooOptionTick()");
-				LOGGER.debug("Caught (IOException ioe)", ioe);
-				return InstantPrice.NO_PRICE;
-			}
-		} catch (MalformedURLException mue) {
-			LOGGER.warn("Caught MalformedURLException in yahooOptionTick()");
-			LOGGER.debug("Caught (MalformedURLException)", mue);
-			return InstantPrice.NO_PRICE;
-		}
-	}
-
-
-
-
-		// reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html
-		String input;
-		try {
-			URL yahooUrl = new URL("http://finance.yahoo.com/q?s=" + ticker);
-			URLConnection yahooUrlConnection = yahooUrl.openConnection();
-			yahooUrlConnection.setReadTimeout(10);
-			try (InputStream yahooInputStream = yahooUrlConnection.getInputStream();
-			     Scanner yahooScan = new Scanner(yahooInputStream)) {
-				if (!yahooScan.hasNextLine()) {
-					return InstantPrice.NO_PRICE;
-				}
-				input = yahooScan.useDelimiter("\\A").next();
-				int tickerIndex = input.indexOf("time_rtq_ticker", 0);
-				int fromIndex = input.indexOf(">", input.indexOf("<span", tickerIndex) + 4);
-				int toIndex = input.indexOf("</span>", fromIndex);
-				String tickPrice = input.substring(fromIndex + 1, toIndex);
-				LOGGER.debug("Received last tick from Yahoo! of {}", tickPrice);
-				int timeIndex = input.indexOf("time_rtq", toIndex);
-				int colonIndex = input.indexOf(":", timeIndex);
-				String timeString = input.substring(colonIndex - 2, colonIndex + 9)
-						.replaceAll("[<>]", "");
-				LOGGER.debug("Received time from Yahoo! of {}", timeString);
-				String todaysDate = ZonedDateTime.now(ZoneId.of("America/New_York")).format(DateTimeFormatter.ISO_LOCAL_DATE);
-				String dateTime = todaysDate + timeString;
-				LOGGER.debug("Created String timeDate of {}", dateTime);
-				return InstantPrice.of(tickPrice, dateTime);
-			} catch (IOException | IllegalArgumentException | DateTimeParseException iid) {
-				LOGGER.error("Caught exception ", iid);
-				return InstantPrice.NO_PRICE;
-			}
-		} catch (IOException ioe2) {
-			LOGGER.error("Caught exception", ioe2);
-			return InstantPrice.NO_PRICE;
-		}
-	}
-
 	@Override
 	public InstantPrice lastBid(String ticker) {
 		LOGGER.debug("Entering lastBid(String {})", ticker);
-		String[] bidString = yahooGummyApi(ticker, "sb2d1t1");
+		String[] bidString = yahooGummyApi(ticker, "sbd1t1");
 		if (ticker.equals(bidString[0])) {
-			return InstantPrice.of(bidString[1], java.time.Instant.now());
+			return InstantPrice.of(bidString[1], bidString[2] + bidString[3], YAHOO_API_FORMATTER, marketZone);
 		}
 		return InstantPrice.NO_PRICE;
 	}
 
+	/**
+	 * Calls Yahoo! API with arguments:
+	 * <p><pre>
+	 *     s	Symbol
+	 *     a    Ask
+	 *     d1	Last Trade Date
+	 *     t1	Last Trade Time
+	 * </pre>
+	 *
+	 * @param ticker string representing a stock symbol
+	 * @return InstantPrice of this stock's last bid, or InstantPrice.NO_PRICE if result is invalid
+	 */
 	@Override
 	public InstantPrice lastAsk(String ticker) {
 		LOGGER.debug("Entering lastAsk(String {})", ticker);
-		String[] askString = yahooGummyApi(ticker, "sb3d1t1");
+		String[] askString = yahooGummyApi(ticker, "sad1t1");
 		if (ticker.equals(askString[0])) {
-			return InstantPrice.of(askString[1], java.time.Instant.now());
+			return InstantPrice.of(askString[1], askString[2] + askString[3], YAHOO_API_FORMATTER, marketZone);
 		}
 		return InstantPrice.NO_PRICE;
 	}
 
+	/**
+	 * Retrieves a series of stock closing prices from Yahoo!. Returns a LinkedHashMap of the closing epoch and the
+	 * adjusted close price.
+	 *
+	 * @param ticker    string representing the stock represented by this ticker
+	 * @param dateRange MissingPriceDateRange object representing the closing prices missing from the local database
+	 * @return LinkedHashMap of missing prices
+	 */
 	@Override
-	public LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange) {
-		LOGGER.debug("Entering YahooFinance.retrieveYahooHistoricalPrices(MissingPriceDateRange dateRange)");
-		LinkedHashMap<Long, BigDecimal> yahooPriceReturns = new LinkedHashMap<>();
+	public LinkedHashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange) {
+		LOGGER.debug("Entering retrieveYahooHistoricalPrices()");
+		LinkedHashMap<LocalDate, BigDecimal> yahooPriceReturns = new LinkedHashMap<>();
 		String inputLine;
 		try {
-			final URL YAHOO_URL = new URL(createYahooHistUrl(ticker, dateRange));
-			BufferedReader yahooBufferedReader = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
-	     /* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" */
+			final URL yahooUrl = new URL(createYahooHistUrl(ticker, dateRange));
+			BufferedReader yahooBufferedReader = new BufferedReader(new InputStreamReader(yahooUrl.openStream()));
+			/* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" so we swallow it
+			* in a log entry where it looks nice. */
 			LOGGER.debug(yahooBufferedReader.readLine().replace("Date,", "Date         ").replaceAll(",", "    "));
 			while ((inputLine = yahooBufferedReader.readLine()) != null) {
 				String[] yahooLine = inputLine.replaceAll("[\"+%]", "").split("[,]");
 				LOGGER.debug(Arrays.toString(yahooLine));
-				HistoricalPrice yahooHistPrice = new HistoricalPrice(yahooLine[0], yahooLine[6]);
-				yahooPriceReturns.put(yahooHistPrice.getDateEpoch(), yahooHistPrice.getAdjClose());
+				LocalDate yahooDate = LocalDate.parse(yahooLine[0]);
+				BigDecimal closePrice = new BigDecimal(yahooLine[6]);
+				yahooPriceReturns.put(yahooDate, closePrice);
 			}
 			return yahooPriceReturns;
 		} catch (IOException ioe) {
-			//TODO : HANDLE THIS!
+			LOGGER.warn("Caught IOException in readHistoricalPrices()");
+			LOGGER.debug("Caught (IOException ioe)", ioe);
 		}
 		return new LinkedHashMap<>(Collections.EMPTY_MAP);
 	}
 
 	/**
-	 * http://ichart.finance.yahoo.com/table.csv?s=INTC&a=11&b=1&c=2012&d=00&e=21&f=2013&g=d&ignore=.csv
-	 * where month January = 00
+	 * Creates an URL that can be used to retrieve a list of historical closing stock prices from Yahoo!.
+	 *
+	 * @param ticker    stock ticker to retrieve prices for
+	 * @param dateRange MissingPriceDateRange of prices needed
+	 * @return string representing an URL to retrieve historical prices
 	 */
 	private static String createYahooHistUrl(String ticker, MissingPriceDateRange dateRange) {
-		LOGGER.debug("Entering YahooFinance.createYahooHistUrl(MissingPriceDateRange dateRange)");
+		LOGGER.debug("Entering createYahooHistUrl()");
 		StringBuilder yahooPriceArgs = new StringBuilder("http://ichart.finance.yahoo.com/table.csv?s=");
-		yahooPriceArgs.append(ticker).append("&a=").append(dateRange.earliest.getMonthOfYear() - 1).append("&b=").append(dateRange.earliest.getDayOfMonth());
-		yahooPriceArgs.append("&c=").append(dateRange.earliest.getYear()).append("&d=").append(dateRange.latest.getMonthOfYear() - 1);
-		yahooPriceArgs.append("&e=").append(dateRange.latest.getDayOfMonth()).append("&f=").append(dateRange.latest.getYear());
-		yahooPriceArgs.append("&g=d&ignore=.csv");
+		yahooPriceArgs.append(ticker)
+				.append("&a=").append(dateRange.getEarliest().getMonthValue() - 1)
+				.append("&b=").append(dateRange.getEarliest().getDayOfMonth())
+				.append("&c=").append(dateRange.getEarliest().getYear())
+				.append("&d=").append(dateRange.getLatest().getMonthValue() - 1)
+				.append("&e=").append(dateRange.getLatest().getDayOfMonth())
+				.append("&f=").append(dateRange.getLatest().getYear())
+				.append("&g=d&ignore=.csv");
 		LOGGER.debug("yahooPriceArgs = {}", yahooPriceArgs);
 		return yahooPriceArgs.toString();
 	}
 
+	/**
+	 * Scrapes Yahoo! for option ticker. If it can't find it assumes it is not valid.
+	 *
+	 * @param optionTicker string representing an option ticker to check for validity
+	 * @return true if this option ticker is found on Yahoo!
+	 */
 	private static boolean optionTickerValid(String optionTicker) {
-		/**
-		 *  Yahoo! returns 'There are no All Markets results for [invalid_option]' in the web page of an invalid option quote
-		 *
-		 *  Changed on 11/25/13 : 'There are no results for the given search term.'
-		 *
-		 *  Additional logic 12/2/13 : Some future options will show N/A for all fields and not the
-		 *  error message above.
-		 *
-		 *  Change 2/4/14 : Wrote YahooFinance.isNumeric(String) to handle bad Yahoo! responses
-		 *
-		 *  Change 11/17/15 : Source code will contain "(optionTicker)" only if optionTicker is valid
-		 */
 		LOGGER.debug("Entering optionTickerValid(String {})", optionTicker);
-		String validOptionTickerFormat = "^[A-Z]{1,4}\\d{6}[CP]\\d{8}$";
-		if (!optionTicker.matches(validOptionTickerFormat)) {
+		if (!optionTicker.matches(VALID_OPTION_TICKER_FORMAT)) {
 			return false;
 		}
-		String input;
-		try {
-			URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + optionTicker);
-			try (Scanner yahooScan = new Scanner(yahoo_url.openStream())) {
-				if (!yahooScan.hasNextLine()) {
-					LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-					return false;
-				}
-				input = yahooScan.useDelimiter("\\A").next();
-				if (input.indexOf("(" + optionTicker + ")") > 0) {
-					LOGGER.debug("{} is a valid option ticker", optionTicker);
-					return true;
-				}
-				LOGGER.debug("{} is NOT a valid option ticker", optionTicker);
-				return false;
-			} catch (IOException ioe) {
-				//TODO : Something!
-			}
-		} catch (MalformedURLException mue) {
-			//TODO : Something!
-		}
-		return false;
+		String prefix = "$main-0-Quote-Proxy.$main-0-Quote.0.1.0\">";
+		String suffix = "</p>";
+		String price = yahooOptionScraper(optionTicker, prefix, suffix);
+		return InstantPrice.isNumeric(price);
 	}
 
 	/**
@@ -429,7 +366,7 @@ class YahooMarket implements Market {
 		String[] yahooDateTime = yahooGummyApi("BAC", "d1t1");
 		LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
 		ZonedDateTime lastBacTick = ZonedDateTime.of(
-				LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], LAST_BAC_TICK_FORMATTER), marketZone);
+				LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], YAHOO_API_FORMATTER), marketZone);
 		LOGGER.debug("lastBacTick == {}", lastBacTick);
 		LOGGER.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
 		if (lastBacTick.isBefore(currentTime.minusHours(1))) {
@@ -481,6 +418,55 @@ class YahooMarket implements Market {
 			return yahooGummyApi(ticker, "e1")[0].equals("N/A");
 		} else {
 			return optionTickerValid(ticker);
+		}
+	}
+
+	/**
+	 * While Yahoo! provides a handy (if undocumented) API for stock information it does not appear to offer a similar
+	 * API for options. The current solution is to web scrape Yahoo! finance pages for the information. This method
+	 * takes the option ticker as its first parameter. The other two parameters define strings surrounding the
+	 * information that needs to be scraped out. The programmer (me, as it turns out) must view source of the web page
+	 * and tease out these boundaries and then change the code when the boundaries change.
+	 *
+	 * @param optionTicker ticker of the option we need to web scrape
+	 * @param prefix       boundary for the beginning of the information needed
+	 * @param suffix       boundary for the end of the information
+	 * @return string of the information being web scraped
+	 */
+	private static String yahooOptionScraper(String optionTicker, String prefix, String suffix) {
+		LOGGER.debug("Entering yahooOptionScraper(String {}, String {}, String {})",
+				optionTicker, prefix, suffix);
+		try {
+			URL yahooUrl = new URL("http://finance.yahoo.com/quote/" + optionTicker);
+			LOGGER.debug("Calling to URL: {}", yahooUrl);
+			try (InputStream inputStream = yahooUrl.openStream();
+			     InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+			     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
+			) {
+				StringBuilder yahooSourceBuilder = new StringBuilder();
+				String yahooLine;
+				while ((yahooLine = yahooReader.readLine()) != null) {
+					yahooSourceBuilder.append(yahooLine);
+				}
+				String yahooSource = yahooSourceBuilder.toString();
+				int scrapeStart = yahooSource.indexOf(prefix);
+				LOGGER.debug("scrapeStart = {}", scrapeStart);
+				int scrapeFrom = scrapeStart + prefix.length();
+				LOGGER.debug("scrapeFrom = {}", scrapeFrom);
+				int scrapeTo = yahooSource.indexOf(suffix, scrapeFrom);
+				LOGGER.debug("scrapeTo = {}", scrapeTo);
+				String finalScrape = yahooSource.substring(scrapeFrom, scrapeTo);
+				LOGGER.debug("Scraped from Yahoo! : {}", finalScrape);
+				return finalScrape;
+			} catch (IOException ioe) {
+				LOGGER.warn("Attempt {} : Caught IOException in yahooOptionTick()");
+				LOGGER.debug("Caught (IOException ioe)", ioe);
+				return "";
+			}
+		} catch (MalformedURLException mue) {
+			LOGGER.warn("Caught MalformedURLException in yahooOptionTick()");
+			LOGGER.debug("Caught (MalformedURLException)", mue);
+			return "";
 		}
 	}
 }

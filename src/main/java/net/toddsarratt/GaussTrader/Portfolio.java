@@ -381,7 +381,7 @@ public class Portfolio {
       MutableDateTime expiryFriday = new MutableDateTime(expiredOptionPosition.getExpiry());
       expiryFriday.addDays(-1);
       expiryFriday.setMillisOfDay((16 * 60 + 20) * 60 * 1000);
-      BigDecimal expirationPrice = BigDecimal.valueOf(YahooFinance.getHistoricalClosingPrice(expiredOptionPosition.getUnderlyingTicker(), expiryFriday));
+      BigDecimal expirationPrice = BigDecimal.valueOf(YahooMarket.getHistoricalClosingPrice(expiredOptionPosition.getUnderlyingTicker(), expiryFriday));
       if (expiredOptionPosition.isPut() &&
               (expirationPrice.compareTo(BigDecimal.valueOf(expiredOptionPosition.getStrikePrice())) <= 0)) {
          exerciseOption(expiredOptionPosition);

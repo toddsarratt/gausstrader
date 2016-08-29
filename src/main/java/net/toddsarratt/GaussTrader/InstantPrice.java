@@ -2,6 +2,10 @@ package net.toddsarratt.GaussTrader;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * InstantPrice is a tuple representing a price and the epoch instant that price was quoted. The static factory method
@@ -30,6 +34,7 @@ public class InstantPrice {
    /**
     * Static factory method for creating InstantPrice objects. The CharSequence date (of which String is a subclass)
     * understood must represent a valid instant in UTC and is parsed using {@code DateTimeFormatter.ISO_INSTANT}
+    * TODO: Can CharSequence argument be a String? Does it matter?
     *
     * @param priceString string representing the price quoted
     * @param date charSequence(usually a string) representing the date and time the price quote was assumed to be valid
@@ -103,6 +108,28 @@ public class InstantPrice {
       BigDecimal price = new BigDecimal(priceString);
       return new InstantPrice(price, instant);
    }
+
+	/**
+	 * Static factory method for creating InstantPrice objects.
+	 *
+	 * @param priceString string representing the price value of the quote
+	 * @param dateString  date and time representing the moment the price quote was assumed to be valid
+	 * @param formatter DateTimeFormatter for converting dateString to LocalDateTime
+	 * @param tz ZoneId for the date and time representing the market time zone where price quote originated
+	 * @return InstantPrice object
+	 */
+	public static InstantPrice of(String priceString, String dateString, DateTimeFormatter formatter, ZoneId tz) {
+		if (priceString == null) {
+			throw new IllegalArgumentException("priceString may not be null");
+		}
+		if (dateString == null) {
+			throw new IllegalArgumentException("dateString may not be null");
+		}
+		BigDecimal price = new BigDecimal(priceString);
+		LocalDateTime ldt = LocalDateTime.parse(dateString, formatter);
+		ZonedDateTime zdt =  ZonedDateTime.of(ldt, tz);
+		return new InstantPrice(price, Instant.from(zdt));
+	}
 
    /**
     * Static method which uses regex to verify that a String is a valid decimal number. Handy method to use before

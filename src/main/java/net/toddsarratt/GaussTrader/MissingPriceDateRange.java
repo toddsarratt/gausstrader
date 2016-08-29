@@ -1,17 +1,21 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
+import java.time.LocalDate;
 
 class MissingPriceDateRange {
-   DateTime latest;
-   DateTime earliest = new DateTime(DateTimeZone.forID("America/New_York"));
+   private final LocalDate latest;
+   private final LocalDate earliest;
 
-    /* Class HistoricalPrice uses long dateEpoch to store dates at 4pm + 20min for yahoo! delay */
-    /*
-    MissingPriceDateRange() {
-	latest.setMillisOfDay( (16 * 60 + 20) * 60 * 1000);
-	earliest = latest.copy();
-    }
-    */
+	MissingPriceDateRange(final LocalDate latest, final LocalDate earliest) {
+		this.latest = latest;
+		this.earliest = earliest;
+	}
+
+	public LocalDate getLatest() {
+		return latest;
+	}
+
+	public LocalDate getEarliest() {
+		return earliest;
+	}
 }

@@ -13,8 +13,10 @@ import java.util.LinkedHashMap;
  * @since GaussTrader v0.2
  */
 interface Market {
-
+	// TODO: Move this to config.properties
 	ZoneId marketZone = ZoneId.of("America/New_York");
+
+	BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate);
 
 	boolean isEarlyClose(int julianDay, int year);
 
@@ -30,11 +32,7 @@ interface Market {
 
 	boolean isOpenToday();
 
-	InstantPrice lastAsk(Security security);
-
 	InstantPrice lastAsk(String ticker);
-
-	InstantPrice lastBid(Security security);
 
 	InstantPrice lastBid(String ticker);
 
@@ -46,7 +44,7 @@ interface Market {
 
 	String[] priceMovingAvgs(String ticker);
 
-	LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
+	LinkedHashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
 
 	boolean tickerValid(String ticker);
 }
