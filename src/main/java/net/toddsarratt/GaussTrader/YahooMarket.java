@@ -53,7 +53,7 @@ class YahooMarket implements Market {
 		LOGGER.debug("Entering Stock.yahooGummyApi(String {}, String {})", ticker, arguments);
 		try {
 			URL yahooUrl = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
-			for (int yahooAttempt = 1; yahooAttempt <= Constants.YAHOO_RETRIES; yahooAttempt++) {
+			for (int yahooAttempt = 1; yahooAttempt <= Constants.MARKET_QUERY_RETRIES; yahooAttempt++) {
 				try (InputStream inputStream = yahooUrl.openStream();
 				     InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
 				     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
