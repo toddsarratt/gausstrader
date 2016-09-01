@@ -55,23 +55,24 @@ public class Stock implements Security {
 			BigDecimal twoHundredDma = movingAverages[1];
 			// TODO: Move this to WatchList
 			// dataStore.writeStockMetrics(newStock);
-			LinkedHashMap<LocalDate, BigDecimal> historicalPriceMap = fetchHistoricalPrices(ticker);
+			HashMap<LocalDate, BigDecimal> historicalPriceMap = fetchHistoricalPrices(ticker);
 			BigDecimal[] bollingerBands = calculateBollingerBands(historicalPriceMap);
 			return new Stock(ticker, fiftyDma, twoHundredDma, bollingerBands);
 		}
 		throw new IllegalArgumentException("Ticker invalid");
 	}
 
-	private static LinkedHashMap<LocalDate, BigDecimal> fetchHistoricalPrices(String ticker) {
-		LinkedHashMap<LocalDate, BigDecimal> historicalPriceMap = new LinkedHashMap<>();
-		Set<LocalDate> datesNeeded = openMarketDates();
-		historicalPriceMap.putAll(fetchStoredHistoricalPrices(ticker, datesNeeded));
-		if (historicalPriceMap.containsValue(Constants.BIGDECIMAL_MINUS_ONE)) {
-			Set<LocalDate> missingPriceDates = historicalPriceMap.keySet().stream()
-					.filter(localDate -> historicalPriceMap.get(localDate).equals(Constants.BIGDECIMAL_MINUS_ONE))
+	private static HashMap<LocalDate, BigDecimal> fetchHistoricalPrices(String ticker) {
+		int datesNeededCount = Constants.BOLL_BAND_PERIOD;
+		Set<LocalDate> datesNeeded = priorOpenMarketDates(datesNeededCount);
+		HashMap<LocalDate, BigDecimal> historicalPriceMap = fetchStoredHistoricalPrices(ticker, datesNeeded);
+		if(historicalPriceMap.size() < datesNeededCount) {
+			Set<LocalDate> missingPriceDates = datesNeeded.stream()
+					.filter(dateNeeded -> !historicalPriceMap.containsKey(dateNeeded))
 					.collect(Collectors.toSet());
-			historicalPriceMap.putAll(fetchMissingPricesFromMarket(ticker, missingPriceDates));
-			updateStoreMissingPrices(ticker, missingPriceDates);
+			HashMap<LocalDate, BigDecimal> missingPriceMap = fetchMissingPricesFromMarket(ticker, missingPriceDates);
+			missingPriceDates.forEach(missingDate -> historicalPriceMap.put(missingDate, missingPriceMap.get(missingDate)));
+			updateStoreMissingPrices(ticker, missingPriceDates, historicalPriceMap);
 		}
 		return historicalPriceMap;
 	}
@@ -88,28 +89,24 @@ public class Stock implements Security {
 	}
 
 	private static HashMap<LocalDate, BigDecimal> fetchStoredHistoricalPrices(String ticker, Set<LocalDate> datesToRetrieve) {
-		HashMap<LocalDate, BigDecimal> priceMapFromStore =
-				DATA_STORE.readHistoricalPrices(ticker, findEarliestDate(datesToRetrieve));
-		return priceMapFromStore;
+		return DATA_STORE.readHistoricalPrices(ticker, findEarliestDate(datesToRetrieve));
 	}
 
-	private static void fetchMissingPricesFromMarket(String ticker, Set<LocalDate> datesToRetrieve) {
+	private static HashMap<LocalDate, BigDecimal> fetchMissingPricesFromMarket(String ticker, Set<LocalDate> datesToRetrieve) {
 		LOGGER.debug("Calculating date range for missing stock prices.");
-		HashMap<LocalDate, BigDecimal> priceMapFromMarket =
-				MARKET.readHistoricalPrices(ticker, findEarliestDate(datesToRetrieve));
+		return MARKET.readHistoricalPrices(ticker, findEarliestDate(datesToRetrieve));
 	}
 
-	private static void updateStoreMissingPrices(String ticker, Set<LocalDate> missingPriceDates) {
-		missingPriceDates.stream()
-				.forEach(date -> DATA_STORE.writeStockPrice(ticker, date, historicalPriceMap.get(epoch)));
+	private static void updateStoreMissingPrices(String ticker, Set<LocalDate> missingPriceDates, HashMap<LocalDate, BigDecimal> priceMap) {
+		missingPriceDates.forEach(date -> DATA_STORE.writeStockPrice(ticker, date, priceMap.get(date)));
 	}
 
-	private static Set<LocalDate> openMarketDates() {
+	private static Set<LocalDate> priorOpenMarketDates(int datesNeeded) {
 		LOGGER.debug("Entering openMarketDates()");
 	    Set<LocalDate> openMarketDates = new HashSet<>();
 		LocalDate dateToCheck = LocalDate.now(Constants.MARKET_ZONE);
 		LOGGER.debug("Looking for valid open market dates backwards from {} ", dateToCheck);
-		for (int checkedDates = 0; checkedDates < Constants.BOLL_BAND_PERIOD; checkedDates++) {
+		for (int checkedDates = 0; checkedDates < datesNeeded; checkedDates++) {
 			dateToCheck = dateToCheck.minusDays(1);
 			while (!MARKET.isOpenMarketDate(dateToCheck)) {
 				dateToCheck = dateToCheck.minusDays(1);
@@ -189,6 +186,14 @@ public class Stock implements Security {
 				" Lower 1st " + bollingerBands[3] +
 				" 2nd " + bollingerBands[4] +
 				" 3rd " + bollingerBands[5];
+	}
+
+	public boolean isStock() {
+		return true;
+	}
+
+	public boolean isOption() {
+		return false;
 	}
 
 	// TODO : This is a sorry toString()

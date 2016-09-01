@@ -25,7 +25,7 @@ public interface DataStore {
 
 	void writeStockMetrics(Set<Stock> stocksToUpdate);
 
-	void writeStockPrice(String ticker, long dateEpoch, BigDecimal adjClose);
+	void writeStockPrice(String ticker, LocalDate date, BigDecimal adjClose);
 
 	void writeStockPrice(Stock stock);
 
