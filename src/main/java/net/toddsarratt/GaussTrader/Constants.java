@@ -1,15 +1,17 @@
 package net.toddsarratt.GaussTrader;
 
 import com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Collected constants for GaussTrader. All members of this class are static final. Google Guava library used
@@ -25,6 +27,7 @@ class Constants {
 	private static final Properties appProps = null;
 	static final BigDecimal BIGDECIMAL_MINUS_ONE = new BigDecimal(-1);
 	static final BigDecimal BIGDECIMAL_ONE_HUNDRED = new BigDecimal(100);
+
 	static {
 		Properties defaultProps = new Properties();
 		try (FileInputStream defaultsIn = new FileInputStream(DEFAULT_CONFIG_FILENAME);
@@ -41,6 +44,7 @@ class Constants {
 			System.exit(1);
 		}
 	}
+
 	private static final String DOW_JONES_30 = "MMM, NKE, AXP, T, GS, BA, CAT, CVX, CSCO, KO, DD," +
 			"XOM, GE, V, HD, INTC, IBM, JNJ, JPM, MCD, MRK, MSFT, PFE, PG, TRV, UNH, UTX, VZ, WMT, DIS";
 	static final String PORTFOLIO_NAME = appProps.getProperty("PORTFOLIO_NAME");
@@ -86,4 +90,5 @@ class Constants {
 					.put(2016, JULIAN_1PM_CLOSE_2016)
 					.put(2017, JULIAN_1PM_CLOSE_2017)
 					.build();
+	static final ZoneId MARKET_ZONE = ZoneId.of(appProps.getProperty("MARKET_ZONE", "America/New_York"));
 }

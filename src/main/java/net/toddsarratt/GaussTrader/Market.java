@@ -2,8 +2,7 @@ package net.toddsarratt.GaussTrader;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 
 /**
  * Provides market functions such as current and historical prices and access to exchanges for the trading of
@@ -13,9 +12,6 @@ import java.util.LinkedHashMap;
  * @since GaussTrader v0.2
  */
 interface Market {
-	// TODO: Move this to config.properties
-	ZoneId marketZone = ZoneId.of("America/New_York");
-
 	BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate);
 
 	BigDecimal[] getMovingAverages(String ticker);
@@ -44,7 +40,7 @@ interface Market {
 
 	boolean marketPricesCurrent();
 
-	LinkedHashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
+	HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestDate);
 
 	boolean tickerValid(String ticker);
 }

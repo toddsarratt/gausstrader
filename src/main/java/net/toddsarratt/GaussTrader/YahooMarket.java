@@ -11,6 +11,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 /**
@@ -154,7 +155,7 @@ class YahooMarket implements Market {
 	public boolean isOpenToday() {
 		// This method contains some DateTime objects without TZ arguments to display local time in DEBUG logs
 		LOGGER.debug("Entering TradingSession.marketIsOpenToday()");
-		ZonedDateTime todaysDateTime = ZonedDateTime.now(marketZone);
+		ZonedDateTime todaysDateTime = ZonedDateTime.now(Constants.MARKET_ZONE);
 		return isOpenMarketDate(todaysDateTime.toLocalDate());
 	}
 
@@ -166,7 +167,7 @@ class YahooMarket implements Market {
 	@Override
 	public boolean isOpenRightNow() {
 		LOGGER.debug("Inside marketIsOpenThisInstant()");
-		ZonedDateTime todaysDateTime = ZonedDateTime.now(marketZone);
+		ZonedDateTime todaysDateTime = ZonedDateTime.now(Constants.MARKET_ZONE);
 		//	Add 20 minutes to market open (9:30am) and close (4pm) to allow for Yahoo! 20 minute delay
 		LocalTime marketOpenTime = LocalTime.of(9, 50);
 		// 1:20 pm will be used for early close days
@@ -198,7 +199,7 @@ class YahooMarket implements Market {
 		LOGGER.debug("Entering lastTick(String {})", ticker);
 		String[] tickString = yahooGummyApi(ticker, "sl1d1t1");
 		if (ticker.equals(tickString[0])) {
-			return InstantPrice.of(tickString[1], tickString[2] + tickString[3], YAHOO_API_FORMATTER, marketZone);
+			return InstantPrice.of(tickString[1], tickString[2] + tickString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
 		}
 		return InstantPrice.NO_PRICE;
 	}
@@ -249,7 +250,7 @@ class YahooMarket implements Market {
 		LOGGER.debug("Entering lastBid(String {})", ticker);
 		String[] bidString = yahooGummyApi(ticker, "sbd1t1");
 		if (ticker.equals(bidString[0])) {
-			return InstantPrice.of(bidString[1], bidString[2] + bidString[3], YAHOO_API_FORMATTER, marketZone);
+			return InstantPrice.of(bidString[1], bidString[2] + bidString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
 		}
 		return InstantPrice.NO_PRICE;
 	}
@@ -271,26 +272,26 @@ class YahooMarket implements Market {
 		LOGGER.debug("Entering lastAsk(String {})", ticker);
 		String[] askString = yahooGummyApi(ticker, "sad1t1");
 		if (ticker.equals(askString[0])) {
-			return InstantPrice.of(askString[1], askString[2] + askString[3], YAHOO_API_FORMATTER, marketZone);
+			return InstantPrice.of(askString[1], askString[2] + askString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
 		}
 		return InstantPrice.NO_PRICE;
 	}
 
 	/**
-	 * Retrieves a series of stock closing prices from Yahoo!. Returns a LinkedHashMap of the closing epoch and the
+	 * Retrieves a series of stock closing prices from Yahoo!. Returns a HashMap of the closing epoch and the
 	 * adjusted close price.
 	 *
 	 * @param ticker    string representing the stock represented by this ticker
-	 * @param dateRange MissingPriceDateRange object representing the closing prices missing from the local database
-	 * @return LinkedHashMap of missing prices
+	 * @param earliestDate LocalDate of the earliest missing prive from the data store
+	 * @return HashMap of missing prices
 	 */
 	@Override
-	public LinkedHashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange) {
+	public HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestDate) {
 		LOGGER.debug("Entering retrieveYahooHistoricalPrices()");
 		LinkedHashMap<LocalDate, BigDecimal> yahooPriceReturns = new LinkedHashMap<>();
 		String inputLine;
 		try {
-			final URL yahooUrl = new URL(createYahooHistUrl(ticker, dateRange));
+			final URL yahooUrl = new URL(createYahooHistUrl(ticker, earliestDate));
 			BufferedReader yahooBufferedReader = new BufferedReader(new InputStreamReader(yahooUrl.openStream()));
 			/* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" so we swallow it
 			* in a log entry where it looks nice. */
@@ -314,19 +315,20 @@ class YahooMarket implements Market {
 	 * Creates an URL that can be used to retrieve a list of historical closing stock prices from Yahoo!.
 	 *
 	 * @param ticker    stock ticker to retrieve prices for
-	 * @param dateRange MissingPriceDateRange of prices needed
+	 * @param earlyDate MissingPriceDateRange of prices needed
 	 * @return string representing an URL to retrieve historical prices
 	 */
-	private static String createYahooHistUrl(String ticker, MissingPriceDateRange dateRange) {
+	private static String createYahooHistUrl(String ticker, LocalDate earlyDate) {
 		LOGGER.debug("Entering createYahooHistUrl()");
+		LocalDate today = LocalDate.now(Constants.MARKET_ZONE);
 		StringBuilder yahooPriceArgs = new StringBuilder("http://ichart.finance.yahoo.com/table.csv?s=");
 		yahooPriceArgs.append(ticker)
-				.append("&a=").append(dateRange.getEarliest().getMonthValue() - 1)
-				.append("&b=").append(dateRange.getEarliest().getDayOfMonth())
-				.append("&c=").append(dateRange.getEarliest().getYear())
-				.append("&d=").append(dateRange.getLatest().getMonthValue() - 1)
-				.append("&e=").append(dateRange.getLatest().getDayOfMonth())
-				.append("&f=").append(dateRange.getLatest().getYear())
+				.append("&a=").append(earlyDate.getMonthValue() - 1)
+				.append("&b=").append(earlyDate.getDayOfMonth())
+				.append("&c=").append(earlyDate.getYear())
+				.append("&d=").append(today.getMonthValue() - 1)
+				.append("&e=").append(today.getDayOfMonth())
+				.append("&f=").append(today.getYear())
 				.append("&g=d&ignore=.csv");
 		LOGGER.debug("yahooPriceArgs = {}", yahooPriceArgs);
 		return yahooPriceArgs.toString();
@@ -360,12 +362,12 @@ class YahooMarket implements Market {
 	public boolean marketPricesCurrent() {
    /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
 		LOGGER.debug("Inside yahooPricesCurrent()");
-		ZonedDateTime currentTime = Instant.now().atZone(marketZone);
+		ZonedDateTime currentTime = Instant.now().atZone(Constants.MARKET_ZONE);
 		LOGGER.debug("currentTime = {}", currentTime);
 		String[] yahooDateTime = yahooGummyApi("BAC", "d1t1");
 		LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
 		ZonedDateTime lastBacTick = ZonedDateTime.of(
-				LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], YAHOO_API_FORMATTER), marketZone);
+				LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], YAHOO_API_FORMATTER), Constants.MARKET_ZONE);
 		LOGGER.debug("lastBacTick == {}", lastBacTick);
 		LOGGER.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
 		if (lastBacTick.isBefore(currentTime.minusHours(1))) {

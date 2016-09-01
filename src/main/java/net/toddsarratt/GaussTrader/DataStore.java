@@ -2,7 +2,7 @@ package net.toddsarratt.GaussTrader;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Set;
 
 /**
@@ -19,7 +19,7 @@ public interface DataStore {
 
 //   LinkedHashMap<Long, BigDecimal> getStoredPrices(String ticker, DateTime earliestCloseDate);
 
-	LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestCloseDate);
+	HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestCloseDate);
 
 	void writeStockMetrics(Stock stockToUpdate);
 
