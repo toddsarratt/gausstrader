@@ -17,7 +17,7 @@ import java.time.Instant;
  * expires in the money, then the stock is purchased against the short put or sold against the short call, as
  * appropriate.
  * <p>
- * On initialization
+ * On initialization...
  * <p>
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
@@ -25,49 +25,41 @@ import java.time.Instant;
  */
 
 public class GaussTrader {
-   private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
-   private static WatchList watchList = new WatchList();
-   private static DataStore dataStore = new PostgresStore();
-   private static Market market = new YahooMarket();
-   private static Portfolio portfolio = Portfolio.of(Constants.PORTFOLIO_NAME);
+	private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
+	private static WatchList watchList = new WatchList();
+	// TODO: Read dataStore and market info from config.properties, when more than one of either/each is supported
+	private static DataStore dataStore = new PostgresStore();
+	private static Market market = new YahooMarket();
+	private static Portfolio portfolio = Portfolio.of(Constants.PORTFOLIO_NAME);
 
-   /**
-    * @return DataStore associated with the application.
-    */
-   public static DataStore getDataStore() {
-      return dataStore;
-   }
+	/**
+	 * @return DataStore associated with the application.
+	 */
+	static DataStore getDataStore() {
+		return dataStore;
+	}
 
-   /**
-    * @return Market associated with the application.
-    */
-   public static Market getMarket() {
-      return market;
-   }
+	/**
+	 * @return Market associated with the application.
+	 */
+	static Market getMarket() {
+		return market;
+	}
 
-   // TODO : Allow this to change the default market from YahooMarket()
-   // TODO : Or, remove altogther and use config.properties to set market
-   boolean setMarket(String marketName) {
-      boolean setMarketSuccess = false;
-      // market = null;
-      return setMarketSuccess;
-   }
-
-   public static void main(String[] args) {
-      Instant programStartTime = Instant.now();
-      LOGGER.info("*** START PROGRAM ***");
-      LOGGER.info("Starting GaussTrader at {}", programStartTime);
-      /* Add DJIA and Apple to list of securities to watch */
-      watchList.watch(Constants.TICKERS);
+	public static void main(String[] args) {
+		Instant programStartTime = Instant.now();
+		LOGGER.info("*** START PROGRAM ***");
+		LOGGER.info("Starting GaussTrader at {}", programStartTime);
+		watchList.watch(Constants.TICKERS);
       /* Past price history is collected from the network when Stock objects are created. Save to the dataStore for
        cheaper future retrieval. Why is this being done here and not in the Stock class? */
-      dataStore.writeStockMetrics(watchList.getStockSet());
-      LOGGER.debug("watchList.getTickers() = {}", watchList.getTickerSet());
-      /** This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? **/
-      watchList.reset();
-      LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolio.getName());
-      TradingSession todaysSession = new TradingSession(portfolio, watchList);
-      todaysSession.runTradingDay();
-      LOGGER.info("*** END PROGRAM ***");
-   }
+		dataStore.writeStockMetrics(watchList.getStockSet());
+		LOGGER.debug("watchList.getTickers() = {}", watchList.getTickerSet());
+		/** This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? **/
+		watchList.reset();
+		LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolio.getName());
+		TradingSession todaysSession = new TradingSession(portfolio, watchList);
+		todaysSession.runTradingDay();
+		LOGGER.info("*** END PROGRAM ***");
+	}
 }

@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 
 public class WatchList {
    private static final Logger LOGGER = LoggerFactory.getLogger(WatchList.class);
-   private static DataStore dataStore = new PostgresStore();
    /* tickerSet<String> is created from data passed into the watch() method. A Set is used to prevent duplicate tickers.
     * Each ticker is used to create a Stock object which is stored in tradeableStockSet<Stock> */
    private Set<String> tickerSet = new HashSet<>();
@@ -70,7 +69,6 @@ public class WatchList {
    // TODO : What the hell did this do? Why don't I document better?
    void reset() {
       LOGGER.debug("Entering reset()");
-      DataStore dataStore = new PostgresStore();
       dataStore.resetWatchList();
    }
 }

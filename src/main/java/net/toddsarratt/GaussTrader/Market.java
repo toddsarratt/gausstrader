@@ -18,6 +18,8 @@ interface Market {
 
 	BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate);
 
+	BigDecimal[] getMovingAverages(String ticker);
+
 	boolean isEarlyClose(int julianDay, int year);
 
 	boolean isEarlyClose(LocalDate date);
@@ -41,8 +43,6 @@ interface Market {
 	InstantPrice lastTick(String ticker);
 
 	boolean marketPricesCurrent();
-
-	String[] priceMovingAvgs(String ticker);
 
 	LinkedHashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, MissingPriceDateRange dateRange);
 

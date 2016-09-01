@@ -14,10 +14,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 
 /**
- * YahooMarket
+ * YahooMarket uses the undocumented Yahoo! stock API and Yahoo! finance web scraping to return market results.
  * <p>
- * http://www.gummy-stuff.org/Yahoo-data.htm moved to
- * http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
+ * Reference: http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
  * @since v0.2
@@ -160,7 +159,7 @@ class YahooMarket implements Market {
 	}
 
 	/**
-	 * Verifies that today is not a weekend or market holiday and that it is within market trading hours.
+	 * Verifies that today is not a weekend or market holiday and that current NY time is within market trading hours.
 	 *
 	 * @return true if the market is open right now
 	 */
@@ -379,22 +378,18 @@ class YahooMarket implements Market {
 	/**
 	 * Calls Yahoo! API with arguments:
 	 * <p><pre>
-	 *     l1   Last Trade (Price Only)
-	 *     d1   Last Trade Date
-	 *     t1   Last Trade Time
 	 *     m3   50-day Moving Average
 	 *     m4   200-day Moving Average
 	 * </pre>
 	 * <p>
-	 * Returns a string array in the format:
-	 * TODO: fill this out
+	 * Returns a BigDecimal array of the form [BigDecimal(50 dma), BigDecimal(200 dma)]
 	 *
 	 * @param ticker string representing a stock or option symbol
-	 * @return string array with the last trade price, date, and time, along with the 50 and 200 dma
+	 * @return BigDecimal array of the 50 and 200 daily moving averages
 	 */
 	@Override
-	public String[] priceMovingAvgs(String ticker) {
-		return yahooGummyApi(ticker, "l1d1t1m3m4");
+	public BigDecimal[] getMovingAverages(String ticker) {
+		return Arrays.stream(yahooGummyApi(ticker, "m3m4")).toArray(BigDecimal[]::new);
 	}
 
 	/**
