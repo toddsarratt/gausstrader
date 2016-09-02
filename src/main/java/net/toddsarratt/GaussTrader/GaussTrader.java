@@ -26,7 +26,7 @@ import java.time.Instant;
 
 public class GaussTrader {
 	private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
-	private static WatchList watchList = new WatchList();
+	private static WatchList watchList = WatchList.getInstance();
 	// TODO: Read dataStore and market info from config.properties, when more than one of either/each is supported
 	private static DataStore dataStore = new PostgresStore();
 	private static Market market = new YahooMarket();
@@ -55,7 +55,7 @@ public class GaussTrader {
        cheaper future retrieval. Why is this being done here and not in the Stock class? */
 		dataStore.writeStockMetrics(watchList.getStockSet());
 		LOGGER.debug("watchList.getTickers() = {}", watchList.getTickerSet());
-		/** This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? **/
+		/* This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? */
 		watchList.reset();
 		LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolio.getName());
 		TradingSession todaysSession = new TradingSession(portfolio, watchList);
