@@ -1,6 +1,7 @@
 package net.toddsarratt.GaussTrader;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.HashMap;
 
@@ -43,4 +44,6 @@ interface Market {
 	HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestDate);
 
 	boolean tickerValid(String ticker);
+
+	Duration timeUntilMarketOpens();
 }

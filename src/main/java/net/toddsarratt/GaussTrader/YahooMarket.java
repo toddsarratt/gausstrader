@@ -23,6 +23,8 @@ import java.util.LinkedHashMap;
  * @since v0.2
  */
 class YahooMarket implements Market {
+	//	Add 20 minutes to market open (9:30am) to allow for Yahoo! 20 minute delay
+	private static final LocalTime MARKET_OPEN_TIME = LocalTime.of(9, 50);
 	private static final String VALID_OPTION_TICKER_FORMAT = "^[A-Z]{1,4}\\d{6}[CP]\\d{8}$";
 	private static final DateTimeFormatter YAHOO_API_FORMATTER = DateTimeFormatter.ofPattern("MM/dd/yyyyhh:mmaa");
 	private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
@@ -36,8 +38,7 @@ class YahooMarket implements Market {
 	 */
 	@Override
 	public BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
-		MissingPriceDateRange closingDateRange = new MissingPriceDateRange(historicalDate, historicalDate);
-		LinkedHashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, closingDateRange);
+		HashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, historicalDate);
 		LOGGER.debug("Map {}", priceMap.toString());
 		return priceMap.get(historicalDate);
 	}
@@ -154,7 +155,6 @@ class YahooMarket implements Market {
 	@Override
 	public boolean isOpenToday() {
 		// This method contains some DateTime objects without TZ arguments to display local time in DEBUG logs
-		LOGGER.debug("Entering TradingSession.marketIsOpenToday()");
 		ZonedDateTime todaysDateTime = ZonedDateTime.now(Constants.MARKET_ZONE);
 		return isOpenMarketDate(todaysDateTime.toLocalDate());
 	}
@@ -168,15 +168,14 @@ class YahooMarket implements Market {
 	public boolean isOpenRightNow() {
 		LOGGER.debug("Inside marketIsOpenThisInstant()");
 		ZonedDateTime todaysDateTime = ZonedDateTime.now(Constants.MARKET_ZONE);
-		//	Add 20 minutes to market open (9:30am) and close (4pm) to allow for Yahoo! 20 minute delay
-		LocalTime marketOpenTime = LocalTime.of(9, 50);
+		//	Add 20 minutes to market close (4pm) to allow for Yahoo! 20 minute delay
 		// 1:20 pm will be used for early close days
 		LocalTime marketCloseTime = isEarlyClose(todaysDateTime.toLocalDate()) ?
 				LocalTime.of(13, 20) : LocalTime.of(16, 20);
 		LOGGER.debug("Current time = {}", todaysDateTime);
 		LOGGER.debug("Comparing currentEpoch {} to marketOpenEpoch {} and marketCloseEpoch {} ",
-				todaysDateTime, marketOpenTime, marketCloseTime);
-		if ((todaysDateTime.toLocalTime().isBefore(marketOpenTime))
+				todaysDateTime, MARKET_OPEN_TIME, marketCloseTime);
+		if ((todaysDateTime.toLocalTime().isBefore(MARKET_OPEN_TIME))
 				|| (todaysDateTime.toLocalTime().isAfter(marketCloseTime))) {
 			LOGGER.debug("Outside market trading hours");
 			return false;
@@ -465,5 +464,11 @@ class YahooMarket implements Market {
 			LOGGER.debug("Caught (MalformedURLException)", mue);
 			return "";
 		}
+	}
+
+	@Override
+	public Duration timeUntilMarketOpens() {
+		LOGGER.debug("Entering timeUntilMarketOpens()");
+		return Duration.between(MARKET_OPEN_TIME, LocalTime.from(Instant.now().atZone(Constants.MARKET_ZONE)));
 	}
 }

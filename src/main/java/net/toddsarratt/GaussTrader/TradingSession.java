@@ -3,22 +3,25 @@ package net.toddsarratt.GaussTrader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.Period;
+import java.util.LinkedHashSet;
 
 public class TradingSession {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TradingSession.class);
-	private Market market;
-	private WatchList watchList;
+	private Market market = GaussTrader.getMarket();
+	private LinkedHashSet<Stock> stockSet;
 	private Portfolio portfolio;
 	/* Time variables */
 	private static DateTime todaysDateTime = new DateTime(DateTimeZone.forID("America/New_York"));
 	private static int dayToday = todaysDateTime.getDayOfWeek();
 
-	TradingSession(Market market, Portfolio portfolio, WatchList watchList) {
+	TradingSession(Market market, Portfolio portfolio, WatchList stockSet) {
 		LOGGER.debug("Creating new TradingSession() in market {} with portfolio {} and watchlist {}",
-				market.getName(), portfolio.getName(), watchList);
+				market.getName(), portfolio.getName(), stockSet);
 		this.market = market;
 		this.portfolio = portfolio;
-		this.watchList = watchList;
+		this.stockSet = stockSet;
 	}
 
 	/**
@@ -31,9 +34,9 @@ public class TradingSession {
 		if (market.isOpenToday()) {
 			sleepUntilMarketOpen();
 			while (market.isOpenRightNow()) {
-				stock = watchList.getNextStockToCheck();
+				stock = stockSet.getNextStockToCheck();
 				if (findMispricedStock(stock) == -1) {
-					watchList.deactivateStock(stock);
+					stockSet.deactivateStock(stock);
 				}
 				checkOpenOrders();
 				portfolio.updateOptionPositions(stock);
@@ -55,31 +58,28 @@ public class TradingSession {
 		LOGGER.info("End of trading day.");
 	}
 
-	private void sleepUntilMarketOpen() {
-		LOGGER.debug("Entering TradingSession.sleepUntilMarketOpen()");
-		LOGGER.debug("Calculating time until market open");
-		long msUntilMarketOpen = marketOpenEpoch - System.currentTimeMillis();
-		LOGGER.debug("msUntilMarketOpen == {} ({})", msUntilMarketOpen, (new Period(msUntilMarketOpen).toString(PeriodFormat.wordBased())));
-		if (msUntilMarketOpen > 0) {
-			try {
-				LOGGER.debug("Sleeping");
-				Thread.sleep(msUntilMarketOpen);
-			} catch (InterruptedException ie) {
-				LOGGER.info("InterruptedException attempting Thread.sleep in method sleepUntilMarketOpen");
-				LOGGER.debug("Caught (InterruptedException ie)", ie);
-			}
+private void sleepUntilMarketOpen() {
+	long msUntilMarketOpen = market.timeUntilMarketOpens().toMillis();
+	LOGGER.debug("msUntilMarketOpen == {} ", msUntilMarketOpen);
+	if (msUntilMarketOpen > 0) {
+		try {
+			LOGGER.debug("Sleeping");
+			Thread.sleep(msUntilMarketOpen);
+		} catch (InterruptedException ie) {
+			LOGGER.info("InterruptedException attempting Thread.sleep in method sleepUntilMarketOpen");
+			LOGGER.debug("Caught (InterruptedException ie)", ie);
 		}
 	}
-
+}
 
 	private int findMispricedStock(Stock stock) {
 		LOGGER.debug("Entering TradingSession.findMispricedStocks()");
 		String ticker;
 		ticker = stock.getTicker();
-		double currentPrice;
+		BigDecimal currentPrice;
 		LOGGER.debug("Retrieved stock with ticker {} from stockIterator", ticker);
 		try {
-			currentPrice = stock.lastTick();
+			currentPrice = MARKET.lastTick(ticker);
 			LOGGER.debug("stock.lastTick() returns ${}", currentPrice);
 			if ((currentPrice == -1.0)) {
 				LOGGER.warn("Could not get valid price for ticker {}", ticker);

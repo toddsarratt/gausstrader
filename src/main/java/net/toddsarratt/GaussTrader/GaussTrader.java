@@ -26,9 +26,8 @@ import java.time.Instant;
 
 public class GaussTrader {
 	private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
-	private static WatchList watchList = WatchList.getInstance();
-	// TODO: Read dataStore and market info from config.properties, when more than one of either/each is supported
-	private static DataStore dataStore = new PostgresStore();
+	// TODO: Read DATA_STORE and market info from config.properties, when more than one of either/each is supported
+	private static final DataStore DATA_STORE = new PostgresStore();
 	private static Market market = new YahooMarket();
 	private static Portfolio portfolio = Portfolio.of(Constants.PORTFOLIO_NAME);
 
@@ -36,7 +35,7 @@ public class GaussTrader {
 	 * @return DataStore associated with the application.
 	 */
 	static DataStore getDataStore() {
-		return dataStore;
+		return DATA_STORE;
 	}
 
 	/**
@@ -51,12 +50,12 @@ public class GaussTrader {
 		LOGGER.info("*** START PROGRAM ***");
 		LOGGER.info("Starting GaussTrader at {}", programStartTime);
 		watchList.watch(Constants.TICKERS);
-      /* Past price history is collected from the network when Stock objects are created. Save to the dataStore for
+      /* Past price history is collected from the network when Stock objects are created. Save to the DATA_STORE for
        cheaper future retrieval. Why is this being done here and not in the Stock class? */
-		dataStore.writeStockMetrics(watchList.getStockSet());
+		DATA_STORE.writeStockMetrics(watchList.getStockSet());
 		LOGGER.debug("watchList.getTickers() = {}", watchList.getTickerSet());
 		/* This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? */
-		watchList.reset();
+		DATA_STORE.resetWatchList();
 		LOGGER.debug("Creating new TradingSession() with new Portfolio({})", portfolio.getName());
 		TradingSession todaysSession = new TradingSession(portfolio, watchList);
 		todaysSession.runTradingDay();

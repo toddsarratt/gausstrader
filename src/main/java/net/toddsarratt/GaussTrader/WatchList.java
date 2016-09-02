@@ -73,6 +73,5 @@ class WatchList {
 	// TODO : What the hell did this do? Why don't I document better?
 	void reset() {
 		LOGGER.debug("Entering reset()");
-		DATA_STORE.resetWatchList();
 	}
 }
