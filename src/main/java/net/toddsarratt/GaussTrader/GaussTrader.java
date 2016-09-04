@@ -51,7 +51,7 @@ public class GaussTrader {
 		LOGGER.info("Starting GaussTrader at {}", programStartTime);
 		watchList.watch(Constants.TICKERS);
       /* Past price history is collected from the network when Stock objects are created. Save to the DATA_STORE for
-       cheaper future retrieval. Why is this being done here and not in the Stock class? */
+       cheaper future retrieval. TODO: Why is this being done here and not in another class? */
 		DATA_STORE.writeStockMetrics(watchList.getStockSet());
 		LOGGER.debug("watchList.getTickers() = {}", watchList.getTickerSet());
 		/* This has something to do with active / inactive... Or something TODO: WHAT DOES THIS DO? */

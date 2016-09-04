@@ -8,8 +8,8 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * InstantPrice is a tuple representing a price and the epoch instant that price was quoted. The static factory method
- * {@code .of()} is used to create object of this class and is overloaded to accept dates of string (CharSequence) or
+ * InstantPrice is a tuple representing a price and the instant that price was quoted. The static factory method
+ * {@code .of()} is used to create object of this class and is overloaded to accept dates of string or
  * epoch in milliseconds.
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
@@ -34,13 +34,12 @@ public class InstantPrice {
    /**
     * Static factory method for creating InstantPrice objects. The CharSequence date (of which String is a subclass)
     * understood must represent a valid instant in UTC and is parsed using {@code DateTimeFormatter.ISO_INSTANT}
-    * TODO: Can CharSequence argument be a String? Does it matter?
     *
     * @param priceString string representing the price quoted
     * @param date charSequence(usually a string) representing the date and time the price quote was assumed to be valid
     * @return InstantPrice object
     */
-   public static InstantPrice of(String priceString, CharSequence date) {
+   public static InstantPrice of(String priceString, String date) {
       if (priceString == null) {
          throw new IllegalArgumentException("priceString may not be null");
       }
@@ -139,7 +138,7 @@ public class InstantPrice {
     * @param stringToCheck string representing a numeric value, usually a price
     * @return true if the string represents a valid number.
     */
-   public static boolean isNumeric(String stringToCheck) {
+   static boolean isNumeric(String stringToCheck) {
       return stringToCheck.matches("-?\\d+(\\.\\d+)?");  //match a number with optional '-' and decimal.
    }
 

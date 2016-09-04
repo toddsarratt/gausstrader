@@ -2,21 +2,23 @@ package net.toddsarratt.GaussTrader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.time.Period;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 
 public class TradingSession {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TradingSession.class);
 	private Market market = GaussTrader.getMarket();
+	private DataStore dataStore = GaussTrader.getDataStore();
 	private LinkedHashSet<Stock> stockSet;
 	private Portfolio portfolio;
 	/* Time variables */
 	private static DateTime todaysDateTime = new DateTime(DateTimeZone.forID("America/New_York"));
 	private static int dayToday = todaysDateTime.getDayOfWeek();
 
-	TradingSession(Market market, Portfolio portfolio, WatchList stockSet) {
+	TradingSession(Market market, Portfolio portfolio, LinkedHashSet<Stock> stockSet) {
 		LOGGER.debug("Creating new TradingSession() in market {} with portfolio {} and watchlist {}",
 				market.getName(), portfolio.getName(), stockSet);
 		this.market = market;
@@ -28,24 +30,12 @@ public class TradingSession {
 	 * Main method for the TradingSession class. Runs a loop from the start of the trading day until the end, performing
 	 * various stock checks and portfolio updates.
 	 */
-	public void runTradingDay() {
+	void runTradingDay() {
 		LOGGER.debug("Start of runTradingDay()");
-		Stock stock;
 		if (market.isOpenToday()) {
 			sleepUntilMarketOpen();
-			while (market.isOpenRightNow()) {
-				stock = stockSet.getNextStockToCheck();
-				if (findMispricedStock(stock) == -1) {
-					stockSet.deactivateStock(stock);
-				}
-				checkOpenOrders();
-				portfolio.updateOptionPositions(stock);
-				portfolio.updateStockPositions(stock);
-				portfolio.calculateNetAssetValue();
-				portfolio.dbSummaryWrite();
-				pauseBetweenCycles();
-			}
-	     /* End of day tasks */
+			tradeUntilMarketClose();
+		 /* End of day tasks */
 			closeGoodForDayOrders();
 			writeClosingPricesToDb();
 		} else {
@@ -54,82 +44,88 @@ public class TradingSession {
 		reconcileExpiringOptions();
 		// TODO : portfolio.updatePositionsNetAssetValues() or something similar needs to be written and called here
 		portfolio.calculateNetAssetValue();
-		writePortfolioToDb();
+		dataStore.write(portfolio.getSummary());
 		LOGGER.info("End of trading day.");
 	}
 
-private void sleepUntilMarketOpen() {
-	long msUntilMarketOpen = market.timeUntilMarketOpens().toMillis();
-	LOGGER.debug("msUntilMarketOpen == {} ", msUntilMarketOpen);
-	if (msUntilMarketOpen > 0) {
-		try {
-			LOGGER.debug("Sleeping");
-			Thread.sleep(msUntilMarketOpen);
-		} catch (InterruptedException ie) {
-			LOGGER.info("InterruptedException attempting Thread.sleep in method sleepUntilMarketOpen");
-			LOGGER.debug("Caught (InterruptedException ie)", ie);
+	private void tradeUntilMarketClose() {
+		Stock stock;
+		Iterator<Stock> stockIterator = stockSet.iterator();
+		while (market.isOpenRightNow()) {
+			if (!stockIterator.hasNext()) {
+				stockIterator = stockSet.iterator();
+				if (!stockIterator.hasNext()) {
+					LOGGER.warn("No stocks to trade");
+					break;
+				}
+			}
+			stock = stockIterator.next();
+			handleMispricedStock(stock);
+			pauseBetweenCycles();
+
+		}
+		checkOpenOrders();
+		portfolio.updateOptionPositions(stock);
+		portfolio.updateStockPositions(stock);
+		portfolio.calculateNetAssetValue();
+		dataStore.write(portfolio.getSummary());
+	}
+
+	private void sleepUntilMarketOpen() {
+		long msUntilMarketOpen = market.timeUntilMarketOpens().toMillis();
+		LOGGER.debug("msUntilMarketOpen == {} ", msUntilMarketOpen);
+		if (msUntilMarketOpen > 0) {
+			try {
+				LOGGER.debug("Sleeping");
+				Thread.sleep(msUntilMarketOpen);
+			} catch (InterruptedException ie) {
+				LOGGER.warn("InterruptedException attempting Thread.sleep in method sleepUntilMarketOpen()");
+				LOGGER.debug("", ie);
+			}
 		}
 	}
-}
 
-	private int findMispricedStock(Stock stock) {
-		LOGGER.debug("Entering TradingSession.findMispricedStocks()");
-		String ticker;
-		ticker = stock.getTicker();
-		BigDecimal currentPrice;
+	private void handleMispricedStock(Stock stock) {
+		LOGGER.debug("Entering handleMispricedStock()");
+		String ticker = stock.getTicker();
+		InstantPrice currentPrice;
 		LOGGER.debug("Retrieved stock with ticker {} from stockIterator", ticker);
-		try {
-			currentPrice = MARKET.lastTick(ticker);
-			LOGGER.debug("stock.lastTick() returns ${}", currentPrice);
-			if ((currentPrice == -1.0)) {
-				LOGGER.warn("Could not get valid price for ticker {}", ticker);
-			} else {
-				PostgresStore.updateStockPriceToStorage(stock);
-				PriceBasedAction actionToTake = priceActionable(stock);
-				if (actionToTake.doSomething) {
-					Option optionToSell = Option.getOption(ticker, actionToTake.optionType, currentPrice);
-					if (optionToSell == null) {
-						LOGGER.warn("Cannot find a valid option for {}", ticker);
-						LOGGER.warn("Removing from list of tradeable securities");
-						return -1;   // Tells caller to remove stock from iterator
-					} else {
-						try {
-							portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.contractsToTransact, "GFD"));
-						} catch (InsufficientFundsException ife) {
-							LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
-						}
+		currentPrice = market.lastTick(ticker);
+		LOGGER.debug("stock.lastTick() returns ${}", currentPrice);
+		if ((currentPrice == InstantPrice.NO_PRICE)) {
+			LOGGER.warn("Could not get valid price for ticker {}", ticker);
+		} else {
+			dataStore.writeStockPrice(ticker, currentPrice);
+			PriceBasedAction actionToTake = priceActionable(stock);
+			if (actionToTake.doSomething) {
+
+				Option optionToSell = Option.getOption(ticker, actionToTake.optionType, currentPrice);
+				if (optionToSell == null) {
+				/*Handle bad option searching */
+
+				} else {
+					try {
+						portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", actionToTake.contractsToTransact, "GFD"));
+					} catch (InsufficientFundsException ife) {
+						LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
 					}
 				}
 			}
-		} catch (IOException ioe) {
-			LOGGER.info("IO exception attempting to get information on ticker {}", ticker);
-			LOGGER.debug("Caught (IOException ioe)", ioe);
 		}
-		return 1;   // Generic non-error return. Value not used
+
 	}
 
 	private void checkOpenOrders() {
 		LOGGER.debug("Entering TradingSession.checkOpenOrders()");
-		double lastTick;
+		InstantPrice lastTick;
 		for (Order openOrder : portfolio.getListOfOpenOrders()) {
 			LOGGER.debug("Checking current open orderId {} for ticker {}", openOrder.getOrderId(), openOrder.getTicker());
-			try {
-				/** TODO : Replace if / else with Security.lastTick(ticker) */
-				if (openOrder.isOption()) {
-					lastTick = Option.lastTick(openOrder.getTicker());
-				} else {
-		    /* openOrder.isStock() */
-					lastTick = Stock.lastTick(openOrder.getTicker());
-				}
+				lastTick = market.lastTick(openOrder.getTicker());
 				LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
-				if (openOrder.canBeFilled(lastTick)) {
+				if (openOrder.canBeFilled(lastTick.getPrice())) {
 					LOGGER.debug("openOrder.canBeFilled({}) returned true for ticker {}", lastTick, openOrder.getTicker());
-					portfolio.fillOrder(openOrder, lastTick);
+					portfolio.fillOrder(openOrder, lastTick.getPrice());
 				}
-			} catch (IOException ioe) {
-				LOGGER.warn("Unable to connect to Yahoo! to retrieve the stock price for {}", openOrder.getTicker());
-				LOGGER.debug("Caught (IOException ioe)", ioe);
-			}
 		}
 	}
 
@@ -151,7 +147,7 @@ private void sleepUntilMarketOpen() {
 	}
 
 	private PriceBasedAction priceActionable(Stock stock) {
-        /* Decide if a security's current price triggers a predetermined event */
+	    /* Decide if a security's current price triggers a predetermined event */
 		LOGGER.debug("Entering TradingSession.priceActionable(Stock {})", stock.getTicker());
 		double currentStockPrice = stock.getPrice();
 		LOGGER.debug("Comparing current price ${} against Bollinger Bands {}", currentStockPrice, stock.describeBollingerBands());
@@ -277,46 +273,27 @@ private void sleepUntilMarketOpen() {
 		}
 	}
 
-	private void writePortfolioToDb() {
-		LOGGER.debug("Entering TradingSession.writePortfolioToDb()");
-		LOGGER.info("Writing portfolio information to DB");
-		portfolio.endOfDayDbWrite();
-	}
-
 	/**
 	 * This method is NOT called if options expiration occurs on a Friday when the market is closed
 	 * Do not make any change to this logic assuming that it will always be run on a day when
 	 * option positions have been opened, closed, or updated
 	 */
 	private void writeClosingPricesToDb() {
-		LOGGER.debug("Entering TradingSession.writeClosingPricesToDb()");
+		LOGGER.debug("Entering writeClosingPricesToDb()");
 		LOGGER.info("Writing closing prices to DB");
-		double closingPrice;
-		/**
-		 * The last price returned from Yahoo! must be later than market close.
-		 * Removing yahoo quote delay from previous market close calculation in TradingSession.marketIsOpenToday()
-		 */
-		long earliestAcceptableLastPriceUpdateEpoch = Constants.DELAYED_QUOTES ? (marketCloseEpoch - (20 * 60 * 1000)) : marketCloseEpoch;
-   /* Default all closing epochs to 420pm of the closing day, to keep consistent, and because epoch is the key value, not the date (epoch is much more granular)*/
-		long closingEpoch = new DateTime(DateTimeZone.forID("America/New_York")).withTime(16, 20, 0, 0).getMillis();
-		for (Stock stock : stockList) {
-			closingPrice = stock.lastTick();
-			if (closingPrice == -1.0) {
+		InstantPrice closingPrice;
+		for (Stock stock : stockSet) {
+			closingPrice = market.lastTick(stock);
+			if (closingPrice == InstantPrice.NO_PRICE) {
 				LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
 				return;
 			}
-			if (stock.getLastPriceUpdateEpoch() < earliestAcceptableLastPriceUpdateEpoch) {
+			if (closingPrice.getInstant().isBefore(market.getClosingTime)) {
 				LOGGER.warn("stock.getLastPriceUpdateEpoch() {} < earliestAcceptableLastPriceUpdateEpoch {}",
 						stock.getLastPriceUpdateEpoch(), earliestAcceptableLastPriceUpdateEpoch);
 				return;
 			}
-			DBHistoricalPrices.addStockPrice(stock.getTicker(), closingEpoch, closingPrice);
+			dataStore.writeStockPrice(stock.getTicker(), closingPrice);
 		}
-	}
-
-	public static void main(String[] args) {
-		LOGGER.info("The market is open today : {}", marketIsOpenToday());
-		LOGGER.info("The market is open right now : {}", (marketIsOpenToday() && marketIsOpenThisInstant()));
-		LOGGER.info("Yahoo! prices are current : {}", yahooPricesCurrent());
 	}
 }

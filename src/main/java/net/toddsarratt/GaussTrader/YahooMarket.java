@@ -46,12 +46,12 @@ class YahooMarket implements Market {
 	/**
 	 * Uses the Yahoo! finance API, referenced here: http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
 	 *
-	 * @param ticker    stock symbol
+	 * @param ticker stock symbol
 	 * @param arguments requested data, as documented
-	 * @return string array
+	 * @return string array of Yahoo! results
 	 */
 	private static String[] yahooGummyApi(String ticker, String arguments) {
-		LOGGER.debug("Entering Stock.yahooGummyApi(String {}, String {})", ticker, arguments);
+		LOGGER.debug("Entering yahooGummyApi(String {}, String {})", ticker, arguments);
 		try {
 			URL yahooUrl = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
 			for (int yahooAttempt = 1; yahooAttempt <= Constants.MARKET_QUERY_RETRIES; yahooAttempt++) {
@@ -60,20 +60,21 @@ class YahooMarket implements Market {
 				     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
 				) {
 					String[] yahooResults = yahooReader.readLine().replaceAll("[\"+%]", "").split("[,]");
-					LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
+					LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}",
+							ticker, arguments, Arrays.toString(yahooResults));
 					return yahooResults;
 				} catch (IOException ioe) {
 					LOGGER.warn("Attempt {} : Caught IOException in yahooGummyApi()", yahooAttempt);
-					LOGGER.debug("Caught (IOException ioe)", ioe);
+					LOGGER.debug("", ioe);
 				} catch (NullPointerException npe) {
-				/* Added this logic after catching NullPointer 3/10/14 */
+				/* yahooReader.readLine() may return null */
 					LOGGER.warn("Attempt {} : Caught NullPointerException in yahooGummyApi()", yahooAttempt);
-					LOGGER.debug("Caught (NullPointerException)", npe);
+					LOGGER.debug("", npe);
 				}
 			}
 		} catch (MalformedURLException mue) {
 			LOGGER.warn("Caught MalformedURLException in yahooGummyApi()");
-			LOGGER.debug("Caught (MalformedURLException)", mue);
+			LOGGER.debug("", mue);
 		}
 		return new String[]{"No valid response from Yahoo! market"};
 	}
