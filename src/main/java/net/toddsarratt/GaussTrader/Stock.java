@@ -137,7 +137,7 @@ public class Stock implements Security {
 					.reduce(BigDecimal.ZERO, BigDecimal::add);
 			LOGGER.debug("currentSMASum = {}", currentSMASum);
 			BigDecimal period = new BigDecimal(Constants.BOLL_BAND_PERIOD);
-			currentSMA = currentSMASum.divide(period, 3, RoundingMode.HALF_EVEN);
+			currentSMA = currentSMASum.divide(period, 3, RoundingMode.HALF_UP);
 			LOGGER.debug("currentSMA = {}", currentSMA);
 			currentSDSum = historicalPriceArray
 					.stream()
@@ -146,14 +146,14 @@ public class Stock implements Security {
 					.reduce(BigDecimal.ZERO, BigDecimal::add);
 			LOGGER.debug("currentSDSum = {}", currentSDSum);
 			// Seriously, is there no square root method in BigDecimal?
-			currentSD = BigDecimal.valueOf(Math.sqrt(currentSDSum.divide(period, 3, RoundingMode.HALF_EVEN).doubleValue()));
+			currentSD = BigDecimal.valueOf(Math.sqrt(currentSDSum.divide(period, 3, RoundingMode.HALF_UP).doubleValue()));
 			LOGGER.debug("currentSD = {}", currentSD);
 			bollingerBands[0] = currentSMA;
-			bollingerBands[1] = currentSMA.add(currentSD).multiply(Constants.BOLLINGER_SD1);
-			bollingerBands[2] = currentSMA.add(currentSD).multiply(Constants.BOLLINGER_SD2);
-			bollingerBands[3] = currentSMA.subtract(currentSD).multiply(Constants.BOLLINGER_SD1);
-			bollingerBands[4] = currentSMA.subtract(currentSD).multiply(Constants.BOLLINGER_SD2);
-			bollingerBands[5] = currentSMA.subtract(currentSD).multiply(Constants.BOLLINGER_SD3);
+			bollingerBands[1] = currentSMA.add(currentSD.multiply(Constants.BOLLINGER_SD1));
+			bollingerBands[2] = currentSMA.add(currentSD.multiply(Constants.BOLLINGER_SD2));
+			bollingerBands[3] = currentSMA.subtract(currentSD.multiply(Constants.BOLLINGER_SD1));
+			bollingerBands[4] = currentSMA.subtract(currentSD.multiply(Constants.BOLLINGER_SD2));
+			bollingerBands[5] = currentSMA.subtract(currentSD.multiply(Constants.BOLLINGER_SD3));
 		return bollingerBands;
 	}
 

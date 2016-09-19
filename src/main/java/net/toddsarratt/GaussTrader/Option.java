@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -79,7 +80,7 @@ public class Option implements Security {
       pattern = Pattern.compile("\\d{8}");
       matcher = pattern.matcher(ticker);
       if (matcher.find()) {
-         strike = new BigDecimal(matcher.group(0)).divide(BigDecimal.valueOf(1000), 3);
+         strike = new BigDecimal(matcher.group(0)).divide(BigDecimal.valueOf(1000), 3, RoundingMode.HALF_UP);
       }
       LOGGER.info("Created {} option {} for underlying {} expiry {} for strike ${}",
               secType, ticker, underlyingTicker, expiry.format(expiryFormat), strike);
