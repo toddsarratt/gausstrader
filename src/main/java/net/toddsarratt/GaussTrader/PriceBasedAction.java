@@ -8,14 +8,32 @@ package net.toddsarratt.GaussTrader;
  */
 
 public class PriceBasedAction {
-	private static final PriceBasedAction DO_NOTHING = new PriceBasedAction(false, "", 0);
-	boolean doSomething;
-	String optionType;
-	int contractsToTransact;
+	static final PriceBasedAction DO_NOTHING = new PriceBasedAction(false, "", "", 0);
+	private final boolean doSomething;
+	private final String buyOrSell;
+	private final String securityType;
+	private final int contractsToTransact;
 
-	PriceBasedAction(boolean doSomething, String optionType, int contractsToTransact) {
+	PriceBasedAction(boolean doSomething, String buyOrSell, String securityType, int contractsToTransact) {
 		this.doSomething = doSomething;
-		this.optionType = optionType;
+		this.buyOrSell = buyOrSell;
+		this.securityType = securityType;
 		this.contractsToTransact = contractsToTransact;
+	}
+
+	public boolean doSomething() {
+		return doSomething;
+	}
+
+	public String getBuyOrSell() {
+		return buyOrSell;
+	}
+
+	public String getSecurityType() {
+		return securityType;
+	}
+
+	public int getContractsToTransact() {
+		return contractsToTransact;
 	}
 }
