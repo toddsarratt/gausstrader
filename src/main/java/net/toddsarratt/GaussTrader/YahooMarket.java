@@ -1,8 +1,5 @@
 package net.toddsarratt.GaussTrader;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.*;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
@@ -22,25 +19,33 @@ import java.util.LinkedHashMap;
  * @author Todd Sarratt todd.sarratt@gmail.com
  * @since v0.2
  */
-class YahooMarket implements Market {
+class YahooMarket extends Market {
+	private static LocalTime marketClosingTime;
 	//	Add 20 minutes to market open (9:30am) to allow for Yahoo! 20 minute delay
 	private static final LocalTime MARKET_OPEN_TIME = LocalTime.of(9, 50);
 	private static final String VALID_OPTION_TICKER_FORMAT = "^[A-Z]{1,4}\\d{6}[CP]\\d{8}$";
 	private static final DateTimeFormatter YAHOO_API_FORMATTER = DateTimeFormatter.ofPattern("MM/dd/yyyyhh:mmaa");
-	private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
+
+	static {
+		if(isEarlyClose(LocalDate.now())) {
+			marketClosingTime = LocalTime.of(13, 20);
+		} else {
+			marketClosingTime = LocalTime.of(16, 20);
+		}
+	}
 
 	/**
-	 * Retrieves a past stock closing price.
+	 * Returns the market closing time. Generally 4pm America/New_York plus 20min for Yahoo! delay. A few days out of
+	 * the year the market closes early at 1pm America/New_York (July 3rd, day after Thanksgiving).
 	 *
-	 * @param ticker         string representing stock symbol
-	 * @param historicalDate LocalDate for the close price being requested
-	 * @return BigDecimal of the closing price of the stock on the date requrested
+	 * @return market close time
 	 */
 	@Override
-	public BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
-		HashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, historicalDate);
-		LOGGER.debug("Map {}", priceMap.toString());
-		return priceMap.get(historicalDate);
+	public LocalTime getClosingTime() {
+		if(marketClosingTime == null) {
+			throw new IllegalStateException("marketClosingTime has not been set");
+		}
+		return marketClosingTime;
 	}
 
 	/**
@@ -50,8 +55,8 @@ class YahooMarket implements Market {
 	 * @param arguments requested data, as documented
 	 * @return string array of Yahoo! results
 	 */
-	private static String[] yahooGummyApi(String ticker, String arguments) {
-		LOGGER.debug("Entering yahooGummyApi(String {}, String {})", ticker, arguments);
+	private String[] yahooGummyApi(String ticker, String arguments) {
+		logger.debug("Entering yahooGummyApi(String {}, String {})", ticker, arguments);
 		try {
 			URL yahooUrl = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
 			for (int yahooAttempt = 1; yahooAttempt <= Constants.MARKET_QUERY_RETRIES; yahooAttempt++) {
@@ -60,105 +65,26 @@ class YahooMarket implements Market {
 				     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
 				) {
 					String[] yahooResults = yahooReader.readLine().replaceAll("[\"+%]", "").split("[,]");
-					LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}",
+					logger.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}",
 							ticker, arguments, Arrays.toString(yahooResults));
 					return yahooResults;
 				} catch (IOException ioe) {
-					LOGGER.warn("Attempt {} : Caught IOException in yahooGummyApi()", yahooAttempt);
-					LOGGER.debug("", ioe);
+					logger.warn("Attempt {} : Caught IOException in yahooGummyApi()", yahooAttempt);
+					logger.debug("", ioe);
 				} catch (NullPointerException npe) {
 				/* yahooReader.readLine() may return null */
-					LOGGER.warn("Attempt {} : Caught NullPointerException in yahooGummyApi()", yahooAttempt);
-					LOGGER.debug("", npe);
+					logger.warn("Attempt {} : Caught NullPointerException in yahooGummyApi()", yahooAttempt);
+					logger.debug("", npe);
 				}
 			}
 		} catch (MalformedURLException mue) {
-			LOGGER.warn("Caught MalformedURLException in yahooGummyApi()");
-			LOGGER.debug("", mue);
+			logger.warn("Caught MalformedURLException in yahooGummyApi()");
+			logger.debug("", mue);
 		}
 		return new String[]{"No valid response from Yahoo! market"};
 	}
 
-	/**
-	 * Checks if the specified date is a weekend or market holiday, in which case the market is closed on that date.
-	 *
-	 * @return true if the market is open on the specified date
-	 */
-	@Override
-	public boolean isOpenMarketDate(LocalDate dateToCheck) {
-		LOGGER.debug("Entering isOpenMarketDate()");
-		LOGGER.debug("Comparing to list of holidays {}", Constants.HOLIDAY_MAP.entrySet());
-		if (isHoliday(dateToCheck)) {
-			LOGGER.debug("{} is a market holiday.", dateToCheck);
-			return false;
-		}
-		if ((dateToCheck.getDayOfWeek() == DayOfWeek.SATURDAY) || (dateToCheck.getDayOfWeek() == DayOfWeek.SUNDAY)) {
-			LOGGER.warn("Market is closed the weekend day of {}", dateToCheck);
-			return false;
-		}
-		return true;
-	}
 
-	/**
-	 * Checks if the day and year supplied is a market holiday, per the map of holidays created at application runtime.
-	 *
-	 * @param julianDay integer representing the day of the year (Julian day)
-	 * @param year      integer representing year in format YYYY
-	 * @return true if the day specified is found in the holiday map
-	 */
-	@Override
-	public boolean isHoliday(int julianDay, int year) {
-		return Constants.HOLIDAY_MAP.get(year).contains(julianDay);
-	}
-
-	/**
-	 * Checks if the LocalDate supplied are market holidays, per the map of holidays created at application runtime.
-	 *
-	 * @param date LocalDate to compare against holiday map
-	 * @return true if the date specified is found in the holiday map
-	 */
-	@Override
-	public boolean isHoliday(LocalDate date) {
-		return isHoliday(date.getDayOfYear(), date.getYear());
-	}
-
-	/**
-	 * Checks if the day and year supplied is an early close day for the market, per the map of early closings created
-	 * at application runtime.
-	 *
-	 * @param julianDay integer representing the day of the year (Julian day)
-	 * @param year      integer representing year in format YYYY
-	 * @return true if the day specified is found in the early close map
-	 */
-	@Override
-	public boolean isEarlyClose(int julianDay, int year) {
-		return Constants.EARLY_CLOSE_MAP.get(year).contains(julianDay);
-	}
-
-	/**
-	 * Checks if the date supplied is an early close day for the market, per the map of early closings created
-	 * at application runtime.
-	 *
-	 * @param date LocalDate to compare against early close map
-	 * @return true if the date specified is found in the holiday map
-	 */
-	@Override
-	public boolean isEarlyClose(LocalDate date) {
-		return isEarlyClose(date.getDayOfYear(), date.getYear());
-	}
-
-	/**
-	 * Takes the current day in New York and checks to see if the market is open today. It may be after market close
-	 * as this is a date and not time based check. If time is a consideration use isOpenRightNow()
-	 *
-	 * @return true if the market is open on today's date
-	 */
-	@Override
-	public boolean isOpenToday() {
-		// This method contains some DateTime objects without TZ arguments to display local time in DEBUG logs
-		ZonedDateTime todaysDateTime = ZonedDateTime.now(Constants.MARKET_ZONE);
-		return isOpenMarketDate(todaysDateTime.toLocalDate());
-	}
 
 	/**
 	 * Verifies that today is not a weekend or market holiday and that current NY time is within market trading hours.
@@ -167,21 +93,21 @@ class YahooMarket implements Market {
 	 */
 	@Override
 	public boolean isOpenRightNow() {
-		LOGGER.debug("Inside marketIsOpenThisInstant()");
+		logger.debug("Inside marketIsOpenThisInstant()");
 		ZonedDateTime todaysDateTime = ZonedDateTime.now(Constants.MARKET_ZONE);
 		//	Add 20 minutes to market close (4pm) to allow for Yahoo! 20 minute delay
 		// 1:20 pm will be used for early close days
 		LocalTime marketCloseTime = isEarlyClose(todaysDateTime.toLocalDate()) ?
 				LocalTime.of(13, 20) : LocalTime.of(16, 20);
-		LOGGER.debug("Current time = {}", todaysDateTime);
-		LOGGER.debug("Comparing currentEpoch {} to marketOpenEpoch {} and marketCloseEpoch {} ",
+		logger.debug("Current time = {}", todaysDateTime);
+		logger.debug("Comparing currentEpoch {} to marketOpenEpoch {} and marketCloseEpoch {} ",
 				todaysDateTime, MARKET_OPEN_TIME, marketCloseTime);
 		if ((todaysDateTime.toLocalTime().isBefore(MARKET_OPEN_TIME))
 				|| (todaysDateTime.toLocalTime().isAfter(marketCloseTime))) {
-			LOGGER.debug("Outside market trading hours");
+			logger.debug("Outside market trading hours");
 			return false;
 		}
-		LOGGER.debug("Within market trading hours");
+		logger.debug("Within market trading hours");
 		return true;
 	}
 
@@ -196,7 +122,7 @@ class YahooMarket implements Market {
 	 */
 	@Override
 	public InstantPrice lastTick(String ticker) {
-		LOGGER.debug("Entering lastTick(String {})", ticker);
+		logger.debug("Entering lastTick(String {})", ticker);
 		String[] tickString = yahooGummyApi(ticker, "sl1d1t1");
 		if (ticker.equals(tickString[0])) {
 			return InstantPrice.of(tickString[1], tickString[2] + tickString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
@@ -215,14 +141,14 @@ class YahooMarket implements Market {
 	 */
 	@Override
 	public InstantPrice lastTick(Security security) {
-		LOGGER.debug("Entering lastTick(Security {})", security);
+		logger.debug("Entering lastTick(Security {})", security);
 		if (security.isStock()) {
 			return lastTick(security.getTicker());
 		} else if (security.isOption()) {
 			String prefix = "},\"currency\":\"USD\",\"regularMarketPrice\":{\"raw\":";
 			String suffix = ",\"";
 			String scrapedPrice = yahooOptionScraper(security.getTicker(), prefix, suffix);
-			LOGGER.debug("Received {} from yahooOptionScraper() ", scrapedPrice);
+			logger.debug("Received {} from yahooOptionScraper() ", scrapedPrice);
 			if (InstantPrice.isNumeric(scrapedPrice)) {
 				return InstantPrice.of(scrapedPrice);
 			} else {
@@ -247,7 +173,7 @@ class YahooMarket implements Market {
 	 */
 	@Override
 	public InstantPrice lastBid(String ticker) {
-		LOGGER.debug("Entering lastBid(String {})", ticker);
+		logger.debug("Entering lastBid(String {})", ticker);
 		String[] bidString = yahooGummyApi(ticker, "sbd1t1");
 		if (ticker.equals(bidString[0])) {
 			return InstantPrice.of(bidString[1], bidString[2] + bidString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
@@ -269,7 +195,7 @@ class YahooMarket implements Market {
 	 */
 	@Override
 	public InstantPrice lastAsk(String ticker) {
-		LOGGER.debug("Entering lastAsk(String {})", ticker);
+		logger.debug("Entering lastAsk(String {})", ticker);
 		String[] askString = yahooGummyApi(ticker, "sad1t1");
 		if (ticker.equals(askString[0])) {
 			return InstantPrice.of(askString[1], askString[2] + askString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
@@ -287,7 +213,7 @@ class YahooMarket implements Market {
 	 */
 	@Override
 	public HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestDate) {
-		LOGGER.debug("Entering retrieveYahooHistoricalPrices()");
+		logger.debug("Entering retrieveYahooHistoricalPrices()");
 		LinkedHashMap<LocalDate, BigDecimal> yahooPriceReturns = new LinkedHashMap<>();
 		String inputLine;
 		try {
@@ -295,18 +221,18 @@ class YahooMarket implements Market {
 			BufferedReader yahooBufferedReader = new BufferedReader(new InputStreamReader(yahooUrl.openStream()));
 			/* First line is not added to array : "	Date,Open,High,Low,Close,Volume,Adj Close" so we swallow it
 			* in a log entry where it looks nice. */
-			LOGGER.debug(yahooBufferedReader.readLine().replace("Date,", "Date         ").replaceAll(",", "    "));
+			logger.debug(yahooBufferedReader.readLine().replace("Date,", "Date         ").replaceAll(",", "    "));
 			while ((inputLine = yahooBufferedReader.readLine()) != null) {
 				String[] yahooLine = inputLine.replaceAll("[\"+%]", "").split("[,]");
-				LOGGER.debug(Arrays.toString(yahooLine));
+				logger.debug(Arrays.toString(yahooLine));
 				LocalDate yahooDate = LocalDate.parse(yahooLine[0]);
 				BigDecimal closePrice = new BigDecimal(yahooLine[6]);
 				yahooPriceReturns.put(yahooDate, closePrice);
 			}
 			return yahooPriceReturns;
 		} catch (IOException ioe) {
-			LOGGER.warn("Caught IOException in readHistoricalPrices()");
-			LOGGER.debug("Caught (IOException ioe)", ioe);
+			logger.warn("Caught IOException in readHistoricalPrices()");
+			logger.debug("Caught (IOException ioe)", ioe);
 		}
 		return new LinkedHashMap<>(Collections.EMPTY_MAP);
 	}
@@ -318,8 +244,8 @@ class YahooMarket implements Market {
 	 * @param earlyDate MissingPriceDateRange of prices needed
 	 * @return string representing an URL to retrieve historical prices
 	 */
-	private static String createYahooHistUrl(String ticker, LocalDate earlyDate) {
-		LOGGER.debug("Entering createYahooHistUrl()");
+	private String createYahooHistUrl(String ticker, LocalDate earlyDate) {
+		logger.debug("Entering createYahooHistUrl()");
 		LocalDate today = LocalDate.now(Constants.MARKET_ZONE);
 		StringBuilder yahooPriceArgs = new StringBuilder("http://ichart.finance.yahoo.com/table.csv?s=");
 		yahooPriceArgs.append(ticker)
@@ -330,7 +256,7 @@ class YahooMarket implements Market {
 				.append("&e=").append(today.getDayOfMonth())
 				.append("&f=").append(today.getYear())
 				.append("&g=d&ignore=.csv");
-		LOGGER.debug("yahooPriceArgs = {}", yahooPriceArgs);
+		logger.debug("yahooPriceArgs = {}", yahooPriceArgs);
 		return yahooPriceArgs.toString();
 	}
 
@@ -340,8 +266,8 @@ class YahooMarket implements Market {
 	 * @param optionTicker string representing an option ticker to check for validity
 	 * @return true if this option ticker is found on Yahoo!
 	 */
-	private static boolean optionTickerValid(String optionTicker) {
-		LOGGER.debug("Entering optionTickerValid(String {})", optionTicker);
+	private boolean optionTickerValid(String optionTicker) {
+		logger.debug("Entering optionTickerValid(String {})", optionTicker);
 		if (!optionTicker.matches(VALID_OPTION_TICKER_FORMAT)) {
 			return false;
 		}
@@ -361,17 +287,17 @@ class YahooMarket implements Market {
 	@Override
 	public boolean marketPricesCurrent() {
    /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
-		LOGGER.debug("Inside yahooPricesCurrent()");
+		logger.debug("Inside yahooPricesCurrent()");
 		ZonedDateTime currentTime = Instant.now().atZone(Constants.MARKET_ZONE);
-		LOGGER.debug("currentTime = {}", currentTime);
+		logger.debug("currentTime = {}", currentTime);
 		String[] yahooDateTime = yahooGummyApi("BAC", "d1t1");
-		LOGGER.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
+		logger.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
 		ZonedDateTime lastBacTick = ZonedDateTime.of(
 				LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], YAHOO_API_FORMATTER), Constants.MARKET_ZONE);
-		LOGGER.debug("lastBacTick == {}", lastBacTick);
-		LOGGER.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
+		logger.debug("lastBacTick == {}", lastBacTick);
+		logger.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
 		if (lastBacTick.isBefore(currentTime.minusHours(1))) {
-			LOGGER.debug("Yahoo! last tick for BAC differs from current time by over an hour.");
+			logger.debug("Yahoo! last tick for BAC differs from current time by over an hour.");
 			return false;
 		}
 		return true;
@@ -410,7 +336,7 @@ class YahooMarket implements Market {
 	 */
 	@Override
 	public boolean tickerValid(String ticker) {
-		LOGGER.debug("Entering tickerValid(String ticker)");
+		logger.debug("Entering tickerValid(String ticker)");
 		if (ticker.length() <= 4) {
 			return yahooGummyApi(ticker, "e1")[0].equals("N/A");
 		} else {
@@ -430,12 +356,12 @@ class YahooMarket implements Market {
 	 * @param suffix       boundary for the end of the information
 	 * @return string of the information being web scraped
 	 */
-	private static String yahooOptionScraper(String optionTicker, String prefix, String suffix) {
-		LOGGER.debug("Entering yahooOptionScraper(String {}, String {}, String {})",
+	private String yahooOptionScraper(String optionTicker, String prefix, String suffix) {
+		logger.debug("Entering yahooOptionScraper(String {}, String {}, String {})",
 				optionTicker, prefix, suffix);
 		try {
 			URL yahooUrl = new URL("http://finance.yahoo.com/quote/" + optionTicker);
-			LOGGER.debug("Calling to URL: {}", yahooUrl);
+			logger.debug("Calling to URL: {}", yahooUrl);
 			try (InputStream inputStream = yahooUrl.openStream();
 			     InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
 			     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
@@ -447,29 +373,29 @@ class YahooMarket implements Market {
 				}
 				String yahooSource = yahooSourceBuilder.toString();
 				int scrapeStart = yahooSource.indexOf(prefix);
-				LOGGER.debug("scrapeStart = {}", scrapeStart);
+				logger.debug("scrapeStart = {}", scrapeStart);
 				int scrapeFrom = scrapeStart + prefix.length();
-				LOGGER.debug("scrapeFrom = {}", scrapeFrom);
+				logger.debug("scrapeFrom = {}", scrapeFrom);
 				int scrapeTo = yahooSource.indexOf(suffix, scrapeFrom);
-				LOGGER.debug("scrapeTo = {}", scrapeTo);
+				logger.debug("scrapeTo = {}", scrapeTo);
 				String finalScrape = yahooSource.substring(scrapeFrom, scrapeTo);
-				LOGGER.debug("Scraped from Yahoo! : {}", finalScrape);
+				logger.debug("Scraped from Yahoo! : {}", finalScrape);
 				return finalScrape;
 			} catch (IOException ioe) {
-				LOGGER.warn("Attempt {} : Caught IOException in yahooOptionTick()");
-				LOGGER.debug("Caught (IOException ioe)", ioe);
+				logger.warn("Attempt {} : Caught IOException in yahooOptionTick()");
+				logger.debug("Caught (IOException ioe)", ioe);
 				return "";
 			}
 		} catch (MalformedURLException mue) {
-			LOGGER.warn("Caught MalformedURLException in yahooOptionTick()");
-			LOGGER.debug("Caught (MalformedURLException)", mue);
+			logger.warn("Caught MalformedURLException in yahooOptionTick()");
+			logger.debug("Caught (MalformedURLException)", mue);
 			return "";
 		}
 	}
 
 	@Override
 	public Duration timeUntilMarketOpens() {
-		LOGGER.debug("Entering timeUntilMarketOpens()");
+		logger.debug("Entering timeUntilMarketOpens()");
 		return Duration.between(MARKET_OPEN_TIME, LocalTime.from(Instant.now().atZone(Constants.MARKET_ZONE)));
 	}
 }
