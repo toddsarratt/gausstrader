@@ -67,6 +67,10 @@ abstract class Market {
 
 	abstract LocalDateTime getCurrentDateTime();
 
+	abstract ZonedDateTime getClosingZonedDateTime();
+
+	abstract ZonedDateTime getCurrentZonedDateTime();
+
 	/**
 	 * Retrieves a past stock closing price.
 	 *
@@ -79,6 +83,8 @@ abstract class Market {
 		logger.debug("Map {}", priceMap.toString());
 		return priceMap.get(historicalDate);
 	}
+
+	abstract ZoneId getMarketZone();
 
 	abstract BigDecimal[] getMovingAverages(String ticker);
 
@@ -105,17 +111,7 @@ abstract class Market {
 
 	abstract boolean isOpenRightNow();
 
-	/**
-	 * Takes the current day in New York and checks to see if the market is open today. It may be after market close
-	 * as this is a date and not time based check. If time is a consideration use isOpenRightNow()
-	 *
-	 * @return true if the market is open on today's date
-	 */
-	boolean isOpenToday() {
-		// This method contains some DateTime objects without TZ arguments to display local time in DEBUG logs
-		ZonedDateTime todaysDateTime = ZonedDateTime.now(Constants.MARKET_ZONE);
-		return isOpenMarketDate(todaysDateTime.toLocalDate());
-	}
+	abstract boolean isOpenToday();
 
 	abstract InstantPrice lastAsk(String ticker);
 

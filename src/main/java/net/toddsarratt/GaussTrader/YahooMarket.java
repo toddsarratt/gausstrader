@@ -1,6 +1,9 @@
 package net.toddsarratt.GaussTrader;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -22,6 +25,7 @@ import java.util.LinkedHashMap;
 class YahooMarket extends Market {
 	//	Add 20 minutes to market open (9:30am) to allow for Yahoo! 20 minute delay
 	private static final LocalTime MARKET_OPEN_TIME = LocalTime.of(9, 50);
+	private static final ZoneId MARKET_ZONE = ZoneId.of("America/New_York");
 	private static final String VALID_OPTION_TICKER_FORMAT = "^[A-Z]{1,4}\\d{6}[CP]\\d{8}$";
 	private static final DateTimeFormatter YAHOO_API_FORMATTER = DateTimeFormatter.ofPattern("MM/dd/yyyyhh:mmaa");
 	private static LocalTime marketClosingTime;
@@ -47,6 +51,7 @@ class YahooMarket extends Market {
 
 	/**
 	 * Adds the current date to the market closing time to return a LocalDateTime
+	 *
 	 * @return LocalDateTime of today's date and market close time
 	 */
 	@Override
@@ -70,6 +75,21 @@ class YahooMarket extends Market {
 		String[] yahooDateTime = yahooGummyApi("BAC", "d1t1");
 		logger.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
 		return LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], YAHOO_API_FORMATTER);
+	}
+
+	@Override
+	public ZonedDateTime getClosingZonedDateTime() {
+		return getClosingDateTime().atZone(MARKET_ZONE);
+	}
+
+	@Override
+	public ZonedDateTime getCurrentZonedDateTime() {
+		return getCurrentDateTime().atZone(MARKET_ZONE);
+	}
+
+	@Override
+	public ZoneId getMarketZone() {
+		return MARKET_ZONE;
 	}
 
 	/**
@@ -108,7 +128,7 @@ class YahooMarket extends Market {
 	@Override
 	public boolean isOpenRightNow() {
 		logger.debug("Inside marketIsOpenThisInstant()");
-		ZonedDateTime todaysDateTime = ZonedDateTime.now(Constants.MARKET_ZONE);
+		ZonedDateTime todaysDateTime = ZonedDateTime.now(MARKET_ZONE);
 		//	Add 20 minutes to market close (4pm) to allow for Yahoo! 20 minute delay
 		// 1:20 pm will be used for early close days
 		LocalTime marketCloseTime = isEarlyClose(todaysDateTime.toLocalDate()) ?
@@ -123,6 +143,18 @@ class YahooMarket extends Market {
 		}
 		logger.debug("Within market trading hours");
 		return true;
+	}
+
+	/**
+	 * Takes the current day in New York and checks to see if the market is open today. It may be after market close
+	 * as this is a date and not time based check. If time is a consideration use isOpenRightNow()
+	 *
+	 * @return true if the market is open on today's date
+	 */
+	@Override
+	boolean isOpenToday() {
+		ZonedDateTime todaysDateTime = ZonedDateTime.now(MARKET_ZONE);
+		return isOpenMarketDate(todaysDateTime.toLocalDate());
 	}
 
 	/**
@@ -142,7 +174,7 @@ class YahooMarket extends Market {
 		logger.debug("Entering lastAsk(String {})", ticker);
 		String[] askString = yahooGummyApi(ticker, "sad1t1");
 		if (ticker.equals(askString[0])) {
-			return InstantPrice.of(askString[1], askString[2] + askString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
+			return InstantPrice.of(askString[1], askString[2] + askString[3], YAHOO_API_FORMATTER, MARKET_ZONE);
 		}
 		return InstantPrice.NO_PRICE;
 	}
@@ -164,7 +196,7 @@ class YahooMarket extends Market {
 		logger.debug("Entering lastBid(String {})", ticker);
 		String[] bidString = yahooGummyApi(ticker, "sbd1t1");
 		if (ticker.equals(bidString[0])) {
-			return InstantPrice.of(bidString[1], bidString[2] + bidString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
+			return InstantPrice.of(bidString[1], bidString[2] + bidString[3], YAHOO_API_FORMATTER, MARKET_ZONE);
 		}
 		return InstantPrice.NO_PRICE;
 	}
@@ -212,7 +244,7 @@ class YahooMarket extends Market {
 		logger.debug("Entering lastTick(String {})", ticker);
 		String[] tickString = yahooGummyApi(ticker, "sl1d1t1");
 		if (ticker.equals(tickString[0])) {
-			return InstantPrice.of(tickString[1], tickString[2] + tickString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
+			return InstantPrice.of(tickString[1], tickString[2] + tickString[3], YAHOO_API_FORMATTER, MARKET_ZONE);
 		}
 		return InstantPrice.NO_PRICE;
 	}
@@ -226,9 +258,9 @@ class YahooMarket extends Market {
 	public boolean marketPricesCurrent() {
    /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
 		logger.debug("Inside yahooPricesCurrent()");
-		ZonedDateTime currentTime = Instant.now().atZone(Constants.MARKET_ZONE);
+		ZonedDateTime currentTime = Instant.now().atZone(MARKET_ZONE);
 		logger.debug("currentTime = {}", currentTime);
-		ZonedDateTime lastBacTick = ZonedDateTime.of(getCurrentDateTime(), Constants.MARKET_ZONE);
+		ZonedDateTime lastBacTick = ZonedDateTime.of(getCurrentDateTime(), MARKET_ZONE);
 		logger.debug("lastBacTick == {}", lastBacTick);
 		logger.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
 		if (lastBacTick.isBefore(currentTime.minusHours(1))) {
@@ -299,7 +331,7 @@ class YahooMarket extends Market {
 	@Override
 	public Duration timeUntilMarketOpens() {
 		logger.debug("Entering timeUntilMarketOpens()");
-		return Duration.between(MARKET_OPEN_TIME, LocalTime.from(Instant.now().atZone(Constants.MARKET_ZONE)));
+		return Duration.between(MARKET_OPEN_TIME, LocalTime.from(Instant.now().atZone(MARKET_ZONE)));
 	}
 
 	/**
@@ -347,7 +379,7 @@ class YahooMarket extends Market {
 	 */
 	private String createYahooHistUrl(String ticker, LocalDate earlyDate) {
 		logger.debug("Entering createYahooHistUrl()");
-		LocalDate today = LocalDate.now(Constants.MARKET_ZONE);
+		LocalDate today = LocalDate.now(MARKET_ZONE);
 		StringBuilder yahooPriceArgs = new StringBuilder("http://ichart.finance.yahoo.com/table.csv?s=");
 		yahooPriceArgs.append(ticker)
 				.append("&a=").append(earlyDate.getMonthValue() - 1)
