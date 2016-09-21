@@ -17,23 +17,6 @@ import java.util.HashMap;
 abstract class Market {
 	final Logger logger = LoggerFactory.getLogger(getClass());
 
-	abstract LocalTime getClosingTime();
-
-	/**
-	 * Retrieves a past stock closing price.
-	 *
-	 * @param ticker         string representing stock symbol
-	 * @param historicalDate LocalDate for the close price being requested
-	 * @return BigDecimal of the closing price of the stock on the date requrested
-	 */
-	BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
-		HashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, historicalDate);
-		logger.debug("Map {}", priceMap.toString());
-		return priceMap.get(historicalDate);
-	}
-
-	abstract BigDecimal[] getMovingAverages(String ticker);
-
 	/**
 	 * Checks if the day and year supplied is a market holiday, per the map of holidays created at application runtime.
 	 *
@@ -78,6 +61,29 @@ abstract class Market {
 		return isEarlyClose(date.getDayOfYear(), date.getYear());
 	}
 
+	abstract LocalTime getClosingTime();
+
+	abstract LocalDateTime getClosingDateTime();
+
+	abstract LocalDateTime getCurrentDateTime();
+
+	/**
+	 * Retrieves a past stock closing price.
+	 *
+	 * @param ticker         string representing stock symbol
+	 * @param historicalDate LocalDate for the close price being requested
+	 * @return BigDecimal of the closing price of the stock on the date requrested
+	 */
+	BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
+		HashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, historicalDate);
+		logger.debug("Map {}", priceMap.toString());
+		return priceMap.get(historicalDate);
+	}
+
+	abstract BigDecimal[] getMovingAverages(String ticker);
+
+	abstract String getName();
+
 	/**
 	 * Checks if the specified date is a weekend or market holiday, in which case the market is closed on that date.
 	 *
@@ -96,6 +102,7 @@ abstract class Market {
 		}
 		return true;
 	}
+
 	abstract boolean isOpenRightNow();
 
 	/**

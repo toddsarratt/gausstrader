@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.Period;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -64,13 +65,13 @@ public class TradingSession {
 			BigDecimal stockPrice = currentInstantPrice.getPrice();
 			dataStore.writeStockPrice(stock.getTicker(), stockPrice);
 			PriceBasedAction actionToTake = findActionToTake(stock, stockPrice);
-			if (actionToTake.doSomething()) {
+			if (actionToTake.isActionable()) {
 				takeActionOnStock(stock, actionToTake);
 			}
 			try {
 				portfolio.updateOptionPositions(stock);
 				portfolio.updateStockPositions(stock);
-			} catch(IOException | SQLException e) {
+			} catch (IOException | SQLException e) {
 				LOGGER.warn("Caught exception attempting to update portfolio");
 			}
 			portfolio.calculateNetAssetValue();
@@ -97,43 +98,42 @@ public class TradingSession {
 	private void takeActionOnStock(Stock stock, PriceBasedAction action) {
 		LOGGER.debug("Entering takeActionOnStock()");
 		String ticker = stock.getTicker();
-		if(action.doSomething()) {
+		if (action.isActionable()) {
 
-				Option optionToSell = Option.getOption(ticker, action.g, currentPrice);
-				if (optionToSell == null) {
+			Option optionToSell = Option.getOption(ticker, action.g, currentPrice);
+			if (optionToSell == null) {
 				/*Handle bad option searching */
 
-				} else {
-					try {
-						portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", action.contractsToTransact, "GFD"));
-					} catch (InsufficientFundsException ife) {
-						LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
-					}
+			} else {
+				try {
+					portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", action.contractsToTransact, "GFD"));
+				} catch (InsufficientFundsException ife) {
+					LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
 				}
 			}
 		}
-
 	}
+
+}
 
 	private void checkOpenOrders() {
 		LOGGER.debug("Entering TradingSession.checkOpenOrders()");
 		for (Order openOrder : portfolio.getListOfOpenOrders()) {
 			LOGGER.debug("Checking current open orderId {} for ticker {}", openOrder.getOrderId(), openOrder.getTicker());
-				InstantPrice lastTick = market.lastTick(openOrder.getTicker());
-				LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
-				if (openOrder.canBeFilled(lastTick.getPrice())) {
-					LOGGER.debug("openOrder.canBeFilled({}) returned true for ticker {}", lastTick, openOrder.getTicker());
-					portfolio.fillOrder(openOrder, lastTick.getPrice());
-				}
+			InstantPrice lastTick = market.lastTick(openOrder.getTicker());
+			LOGGER.debug("{} lastTick == {}", openOrder.getTicker(), lastTick);
+			if (openOrder.canBeFilled(lastTick.getPrice())) {
+				LOGGER.debug("openOrder.canBeFilled({}) returned true for ticker {}", lastTick, openOrder.getTicker());
+				portfolio.fillOrder(openOrder, lastTick.getPrice());
+			}
 		}
 	}
 
 	private void pauseBetweenCycles() {
 		LOGGER.debug("Entering TradingSession.pauseBetweenCycles()");
-		long sleepTimeMs;
-		long msUntilMarketClose = marketCloseEpoch - System.currentTimeMillis();
+		long msUntilMarketClose =
 		LOGGER.debug("Comparing msUntilMarketClose {} with GaussTrader.delayMs {}", msUntilMarketClose, Constants.DELAY_MS);
-		sleepTimeMs = (msUntilMarketClose < Constants.DELAY_MS) ? msUntilMarketClose : Constants.DELAY_MS;
+		long sleepTimeMs = (msUntilMarketClose < Constants.DELAY_MS) ? msUntilMarketClose : Constants.DELAY_MS;
 		if (sleepTimeMs > 0) {
 			try {
 				LOGGER.debug("Sleeping for {} ms ({})", sleepTimeMs, (new Period(sleepTimeMs).toString(PeriodFormat.wordBased())));
@@ -173,7 +173,7 @@ public class TradingSession {
 			LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(2));
 			return new PriceBasedAction(true, "SELL", "CALL", Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
 		}
-      /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
+	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
 		if (stockPrice.compareTo(stock.getBollingerBand(1)) >= 0) {
 			LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(1));
 			return new PriceBasedAction(true, "SELL", "CALL", Math.min(portfolio.numberOfOpenStockLongs(stock), 5));

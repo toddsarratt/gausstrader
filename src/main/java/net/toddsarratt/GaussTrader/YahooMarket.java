@@ -20,14 +20,14 @@ import java.util.LinkedHashMap;
  * @since v0.2
  */
 class YahooMarket extends Market {
-	private static LocalTime marketClosingTime;
 	//	Add 20 minutes to market open (9:30am) to allow for Yahoo! 20 minute delay
 	private static final LocalTime MARKET_OPEN_TIME = LocalTime.of(9, 50);
 	private static final String VALID_OPTION_TICKER_FORMAT = "^[A-Z]{1,4}\\d{6}[CP]\\d{8}$";
 	private static final DateTimeFormatter YAHOO_API_FORMATTER = DateTimeFormatter.ofPattern("MM/dd/yyyyhh:mmaa");
+	private static LocalTime marketClosingTime;
 
 	static {
-		if(isEarlyClose(LocalDate.now())) {
+		if (isEarlyClose(LocalDate.now())) {
 			marketClosingTime = LocalTime.of(13, 20);
 		} else {
 			marketClosingTime = LocalTime.of(16, 20);
@@ -42,49 +42,63 @@ class YahooMarket extends Market {
 	 */
 	@Override
 	public LocalTime getClosingTime() {
-		if(marketClosingTime == null) {
-			throw new IllegalStateException("marketClosingTime has not been set");
-		}
 		return marketClosingTime;
 	}
 
 	/**
-	 * Uses the Yahoo! finance API, referenced here: http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
-	 *
-	 * @param ticker stock symbol
-	 * @param arguments requested data, as documented
-	 * @return string array of Yahoo! results
+	 * Adds the current date to the market closing time to return a LocalDateTime
+	 * @return LocalDateTime of today's date and market close time
 	 */
-	private String[] yahooGummyApi(String ticker, String arguments) {
-		logger.debug("Entering yahooGummyApi(String {}, String {})", ticker, arguments);
-		try {
-			URL yahooUrl = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
-			for (int yahooAttempt = 1; yahooAttempt <= Constants.MARKET_QUERY_RETRIES; yahooAttempt++) {
-				try (InputStream inputStream = yahooUrl.openStream();
-				     InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-				     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
-				) {
-					String[] yahooResults = yahooReader.readLine().replaceAll("[\"+%]", "").split("[,]");
-					logger.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}",
-							ticker, arguments, Arrays.toString(yahooResults));
-					return yahooResults;
-				} catch (IOException ioe) {
-					logger.warn("Attempt {} : Caught IOException in yahooGummyApi()", yahooAttempt);
-					logger.debug("", ioe);
-				} catch (NullPointerException npe) {
-				/* yahooReader.readLine() may return null */
-					logger.warn("Attempt {} : Caught NullPointerException in yahooGummyApi()", yahooAttempt);
-					logger.debug("", npe);
-				}
-			}
-		} catch (MalformedURLException mue) {
-			logger.warn("Caught MalformedURLException in yahooGummyApi()");
-			logger.debug("", mue);
-		}
-		return new String[]{"No valid response from Yahoo! market"};
+	@Override
+	public LocalDateTime getClosingDateTime() {
+		return LocalDateTime.now().with(getClosingTime());
 	}
 
+	/**
+	 * Calls Yahoo! and finds the last trade date and time of Bank of America (BAC) stock. BAC is far and away the most
+	 * actively traded stock with the highest daily volume and should be representative of current Yahoo! market time.
+	 * Yahoo! API arguments:
+	 * <p><pre>
+	 *     d1   Last Trade Date
+	 *     t1   Last Trade Time
+	 * </pre>
+	 *
+	 * @return LocalDateTime parsed from last trade date and time of BAC
+	 */
+	@Override
+	public LocalDateTime getCurrentDateTime() {
+		String[] yahooDateTime = yahooGummyApi("BAC", "d1t1");
+		logger.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
+		return LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], YAHOO_API_FORMATTER);
+	}
 
+	/**
+	 * Calls Yahoo! API with arguments:
+	 * <p><pre>
+	 *     m3   50-day Moving Average
+	 *     m4   200-day Moving Average
+	 * </pre>
+	 * <p>
+	 * Returns a BigDecimal array of the form [BigDecimal(50 dma), BigDecimal(200 dma)]
+	 *
+	 * @param ticker string representing a stock or option symbol
+	 * @return BigDecimal array of the 50 and 200 daily moving averages
+	 */
+	@Override
+	public BigDecimal[] getMovingAverages(String ticker) {
+		return Arrays.stream(yahooGummyApi(ticker, "m3m4")).toArray(BigDecimal[]::new);
+	}
+
+	/**
+	 * This class contains methods to access Yahoo! specifically for market information and returns a market name
+	 * of "Yahoo! market"
+	 *
+	 * @return string of market name, "Yahoo! market"
+	 */
+	@Override
+	public String getName() {
+		return "Yahoo! market";
+	}
 
 	/**
 	 * Verifies that today is not a weekend or market holiday and that current NY time is within market trading hours.
@@ -112,20 +126,45 @@ class YahooMarket extends Market {
 	}
 
 	/**
-	 * Returns an InstantPrice of the last tick of the stock represented by ticker. If the ticker is not a valid
-	 * stock ticker this method returns InstantPrice.NO_PRICE.
-	 * <p>
-	 * TODO: Support option tickers
+	 * Calls Yahoo! API with arguments:
+	 * <p><pre>
+	 *     s	Symbol
+	 *     a    Ask
+	 *     d1	Last Trade Date
+	 *     t1	Last Trade Time
+	 * </pre>
 	 *
-	 * @param ticker string representing a stock ticker
-	 * @return InstantPrice of the last tick of the stock, or InstantPrice.NO_PRICE
+	 * @param ticker string representing a stock symbol
+	 * @return InstantPrice of this stock's last bid, or InstantPrice.NO_PRICE if result is invalid
 	 */
 	@Override
-	public InstantPrice lastTick(String ticker) {
-		logger.debug("Entering lastTick(String {})", ticker);
-		String[] tickString = yahooGummyApi(ticker, "sl1d1t1");
-		if (ticker.equals(tickString[0])) {
-			return InstantPrice.of(tickString[1], tickString[2] + tickString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
+	public InstantPrice lastAsk(String ticker) {
+		logger.debug("Entering lastAsk(String {})", ticker);
+		String[] askString = yahooGummyApi(ticker, "sad1t1");
+		if (ticker.equals(askString[0])) {
+			return InstantPrice.of(askString[1], askString[2] + askString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
+		}
+		return InstantPrice.NO_PRICE;
+	}
+
+	/**
+	 * Calls Yahoo! API with arguments:
+	 * <p><pre>
+	 *     s    Symbol
+	 *     b    Bid
+	 *     d1   Last Trade Date
+	 *     t1   Last Trade Time
+	 * </pre>
+	 *
+	 * @param ticker string representing a stock symbol
+	 * @return InstantPrice of this stock's last bid, or InstantPrice.NO_PRICE if result is invalid
+	 */
+	@Override
+	public InstantPrice lastBid(String ticker) {
+		logger.debug("Entering lastBid(String {})", ticker);
+		String[] bidString = yahooGummyApi(ticker, "sbd1t1");
+		if (ticker.equals(bidString[0])) {
+			return InstantPrice.of(bidString[1], bidString[2] + bidString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
 		}
 		return InstantPrice.NO_PRICE;
 	}
@@ -160,54 +199,50 @@ class YahooMarket extends Market {
 	}
 
 	/**
-	 * Calls Yahoo! API with arguments:
-	 * <p><pre>
-	 *     s    Symbol
-	 *     b    Bid
-	 *     d1   Last Trade Date
-	 *     t1   Last Trade Time
-	 * </pre>
+	 * Returns an InstantPrice of the last tick of the stock represented by ticker. If the ticker is not a valid
+	 * stock ticker this method returns InstantPrice.NO_PRICE.
+	 * <p>
+	 * TODO: Support option tickers
 	 *
-	 * @param ticker string representing a stock symbol
-	 * @return InstantPrice of this stock's last bid, or InstantPrice.NO_PRICE if result is invalid
+	 * @param ticker string representing a stock ticker
+	 * @return InstantPrice of the last tick of the stock, or InstantPrice.NO_PRICE
 	 */
 	@Override
-	public InstantPrice lastBid(String ticker) {
-		logger.debug("Entering lastBid(String {})", ticker);
-		String[] bidString = yahooGummyApi(ticker, "sbd1t1");
-		if (ticker.equals(bidString[0])) {
-			return InstantPrice.of(bidString[1], bidString[2] + bidString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
+	public InstantPrice lastTick(String ticker) {
+		logger.debug("Entering lastTick(String {})", ticker);
+		String[] tickString = yahooGummyApi(ticker, "sl1d1t1");
+		if (ticker.equals(tickString[0])) {
+			return InstantPrice.of(tickString[1], tickString[2] + tickString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
 		}
 		return InstantPrice.NO_PRICE;
 	}
 
 	/**
-	 * Calls Yahoo! API with arguments:
-	 * <p><pre>
-	 *     s	Symbol
-	 *     a    Ask
-	 *     d1	Last Trade Date
-	 *     t1	Last Trade Time
-	 * </pre>
+	 * Returns false if last tick for BAC was over one hour ago.
 	 *
-	 * @param ticker string representing a stock symbol
-	 * @return InstantPrice of this stock's last bid, or InstantPrice.NO_PRICE if result is invalid
+	 * @return true if Yahoo! updated BAC last tick within the last hour
 	 */
 	@Override
-	public InstantPrice lastAsk(String ticker) {
-		logger.debug("Entering lastAsk(String {})", ticker);
-		String[] askString = yahooGummyApi(ticker, "sad1t1");
-		if (ticker.equals(askString[0])) {
-			return InstantPrice.of(askString[1], askString[2] + askString[3], YAHOO_API_FORMATTER, Constants.MARKET_ZONE);
+	public boolean marketPricesCurrent() {
+   /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
+		logger.debug("Inside yahooPricesCurrent()");
+		ZonedDateTime currentTime = Instant.now().atZone(Constants.MARKET_ZONE);
+		logger.debug("currentTime = {}", currentTime);
+		ZonedDateTime lastBacTick = ZonedDateTime.of(getCurrentDateTime(), Constants.MARKET_ZONE);
+		logger.debug("lastBacTick == {}", lastBacTick);
+		logger.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
+		if (lastBacTick.isBefore(currentTime.minusHours(1))) {
+			logger.debug("Yahoo! last tick for BAC differs from current time by over an hour.");
+			return false;
 		}
-		return InstantPrice.NO_PRICE;
+		return true;
 	}
 
 	/**
 	 * Retrieves a series of stock closing prices from Yahoo!. Returns a HashMap of the closing epoch and the
 	 * adjusted close price.
 	 *
-	 * @param ticker    string representing the stock represented by this ticker
+	 * @param ticker       string representing the stock represented by this ticker
 	 * @param earliestDate LocalDate of the earliest missing prive from the data store
 	 * @return HashMap of missing prices
 	 */
@@ -235,6 +270,72 @@ class YahooMarket extends Market {
 			logger.debug("Caught (IOException ioe)", ioe);
 		}
 		return new LinkedHashMap<>(Collections.EMPTY_MAP);
+	}
+
+	/**
+	 * If ticker is 4 characters or under it is assumed to represent a stock symbol. Yahoo! API is called with the
+	 * following argument:
+	 * <p><pre>
+	 *     e1   Error Indication (returned for symbol changed / invalid)
+	 * </pre></p>
+	 * If this call returns "N/A" then the stock exists (a double negative).
+	 * <p>
+	 * If ticker is greater than 4 characters it is assumed to represent an option. optionTickerValid() is called and
+	 * its result returned.
+	 *
+	 * @param ticker string representing a stock or option symbol, to be checked for validity
+	 * @return true if ticker represents a stock or option
+	 */
+	@Override
+	public boolean tickerValid(String ticker) {
+		logger.debug("Entering tickerValid(String ticker)");
+		if (ticker.length() <= 4) {
+			return yahooGummyApi(ticker, "e1")[0].equals("N/A");
+		} else {
+			return optionTickerValid(ticker);
+		}
+	}
+
+	@Override
+	public Duration timeUntilMarketOpens() {
+		logger.debug("Entering timeUntilMarketOpens()");
+		return Duration.between(MARKET_OPEN_TIME, LocalTime.from(Instant.now().atZone(Constants.MARKET_ZONE)));
+	}
+
+	/**
+	 * Uses the Yahoo! finance API, referenced here: http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
+	 *
+	 * @param ticker    stock symbol
+	 * @param arguments requested data, as documented
+	 * @return string array of Yahoo! results
+	 */
+	private String[] yahooGummyApi(String ticker, String arguments) {
+		logger.debug("Entering yahooGummyApi(String {}, String {})", ticker, arguments);
+		try {
+			URL yahooUrl = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
+			for (int yahooAttempt = 1; yahooAttempt <= Constants.MARKET_QUERY_RETRIES; yahooAttempt++) {
+				try (InputStream inputStream = yahooUrl.openStream();
+				     InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+				     BufferedReader yahooReader = new BufferedReader(inputStreamReader)
+				) {
+					String[] yahooResults = yahooReader.readLine().replaceAll("[\"+%]", "").split("[,]");
+					logger.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}",
+							ticker, arguments, Arrays.toString(yahooResults));
+					return yahooResults;
+				} catch (IOException ioe) {
+					logger.warn("Attempt {} : Caught IOException in yahooGummyApi()", yahooAttempt);
+					logger.debug("", ioe);
+				} catch (NullPointerException npe) {
+				/* yahooReader.readLine() may return null */
+					logger.warn("Attempt {} : Caught NullPointerException in yahooGummyApi()", yahooAttempt);
+					logger.debug("", npe);
+				}
+			}
+		} catch (MalformedURLException mue) {
+			logger.warn("Caught MalformedURLException in yahooGummyApi()");
+			logger.debug("", mue);
+		}
+		return new String[]{"No valid response from Yahoo! market"};
 	}
 
 	/**
@@ -275,73 +376,6 @@ class YahooMarket extends Market {
 		String suffix = "</p>";
 		String price = yahooOptionScraper(optionTicker, prefix, suffix);
 		return InstantPrice.isNumeric(price);
-	}
-
-	/**
-	 * Calls Yahoo! and finds the last time Bank of America (BAC) recorded a tick. BAC is far and away the most actively
-	 * traded stock with the highest daily volume and should be representative of how current Yahoo! prices are.
-	 * Returns false if last tick for BAC was over one hour ago.
-	 *
-	 * @return true if Yahoo! updated BAC last tick within the last hour
-	 */
-	@Override
-	public boolean marketPricesCurrent() {
-   /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
-		logger.debug("Inside yahooPricesCurrent()");
-		ZonedDateTime currentTime = Instant.now().atZone(Constants.MARKET_ZONE);
-		logger.debug("currentTime = {}", currentTime);
-		String[] yahooDateTime = yahooGummyApi("BAC", "d1t1");
-		logger.debug("yahooDateTime == {}", Arrays.toString(yahooDateTime));
-		ZonedDateTime lastBacTick = ZonedDateTime.of(
-				LocalDateTime.parse(yahooDateTime[0] + yahooDateTime[1], YAHOO_API_FORMATTER), Constants.MARKET_ZONE);
-		logger.debug("lastBacTick == {}", lastBacTick);
-		logger.debug("Comparing currentTime {} to lastBacTick {} ", currentTime, lastBacTick);
-		if (lastBacTick.isBefore(currentTime.minusHours(1))) {
-			logger.debug("Yahoo! last tick for BAC differs from current time by over an hour.");
-			return false;
-		}
-		return true;
-	}
-
-	/**
-	 * Calls Yahoo! API with arguments:
-	 * <p><pre>
-	 *     m3   50-day Moving Average
-	 *     m4   200-day Moving Average
-	 * </pre>
-	 * <p>
-	 * Returns a BigDecimal array of the form [BigDecimal(50 dma), BigDecimal(200 dma)]
-	 *
-	 * @param ticker string representing a stock or option symbol
-	 * @return BigDecimal array of the 50 and 200 daily moving averages
-	 */
-	@Override
-	public BigDecimal[] getMovingAverages(String ticker) {
-		return Arrays.stream(yahooGummyApi(ticker, "m3m4")).toArray(BigDecimal[]::new);
-	}
-
-	/**
-	 * If ticker is 4 characters or under it is assumed to represent a stock symbol. Yahoo! API is called with the
-	 * following argument:
-	 * <p><pre>
-	 *     e1   Error Indication (returned for symbol changed / invalid)
-	 * </pre></p>
-	 * If this call returns "N/A" then the stock exists (a double negative).
-	 * <p>
-	 * If ticker is greater than 4 characters it is assumed to represent an option. optionTickerValid() is called and
-	 * its result returned.
-	 *
-	 * @param ticker string representing a stock or option symbol, to be checked for validity
-	 * @return true if ticker represents a stock or option
-	 */
-	@Override
-	public boolean tickerValid(String ticker) {
-		logger.debug("Entering tickerValid(String ticker)");
-		if (ticker.length() <= 4) {
-			return yahooGummyApi(ticker, "e1")[0].equals("N/A");
-		} else {
-			return optionTickerValid(ticker);
-		}
 	}
 
 	/**
@@ -391,11 +425,5 @@ class YahooMarket extends Market {
 			logger.debug("Caught (MalformedURLException)", mue);
 			return "";
 		}
-	}
-
-	@Override
-	public Duration timeUntilMarketOpens() {
-		logger.debug("Entering timeUntilMarketOpens()");
-		return Duration.between(MARKET_OPEN_TIME, LocalTime.from(Instant.now().atZone(Constants.MARKET_ZONE)));
 	}
 }

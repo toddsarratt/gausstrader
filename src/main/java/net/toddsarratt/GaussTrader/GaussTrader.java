@@ -8,15 +8,15 @@ import java.time.Instant;
 /**
  * Class {@code GaussTrader} is the entry class for the GaussTrader application.
  * <p>
- * GaussTrader (abbreviated "GT") is an an algorithm driven security trading simulator. GT monitors blue chip equities
- * and attempts to identify mispriced stocks.
+ * GaussTrader is an an algorithm driven security trading simulator. GaussTrader monitors blue chip equities and
+ * attempts to identify mispriced stocks.
  * <p>
  * GaussTrader is intended to track the DOW 30 and Apple. These are large cap companies which, because of their size,
  * should not have large share price changes. When a share price makes a large move an option is sold against the stock.
  * The option is held until maturity. If the option expires out of the money then GT pockets the premium. If the option
  * expires in the money, then the stock is purchased against the short put or sold against the short call, as
  * appropriate.
- * <p>
+ * <p> TODO:
  * On initialization...
  * <p>
  *
