@@ -18,7 +18,7 @@ public class PriceBasedAction {
 	private final int numberToTransact;
 
 	PriceBasedAction(BigDecimal triggerPrice, boolean isActionable, String buyOrSell, String securityType, int numberToTransact) {
-		this.triggerPrice = triggerPrice
+		this.triggerPrice = triggerPrice;
 		this.isActionable = isActionable;
 		this.buyOrSell = buyOrSell;
 		this.securityType = securityType;
