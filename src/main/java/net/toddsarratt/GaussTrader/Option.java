@@ -20,17 +20,24 @@ import java.util.regex.Pattern;
  */
 
 public class Option implements Security {
+	private final static Market MARKET = GaussTrader.getMarket();
+	private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
    private final String ticker;
    private final String secType;
    private final LocalDateTime expiry;
    private final String underlyingTicker;
    private final BigDecimal strike;
    private final BigDecimal price;
-   private final static Market MARKET = GaussTrader.getMarket();
-   private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
+	IOException ioe
 
-   private Option(String ticker,
-                  String secType,
+	{
+		LOGGER.warn("IOException generated trying to get lastTick for {}", ticker);
+		LOGGER.debug("Caught (IOException ioe)", ioe);
+	}
+
+
+	private Option(String ticker,
+	               String secType,
                   LocalDateTime expiry,
                   String underlyingTicker,
                   BigDecimal strike,
@@ -41,8 +48,7 @@ public class Option implements Security {
       this.underlyingTicker = underlyingTicker;
       this.strike = strike;
       this.price = price;
-   }
-
+	} catch(
    public static Option of(String ticker) {
       // Receive an option ticker such as : XOM130720P00070000
       LOGGER.debug("Entering static constructor of(String {})", ticker);
@@ -85,21 +91,7 @@ public class Option implements Security {
       LOGGER.info("Created {} option {} for underlying {} expiry {} for strike ${}",
               secType, ticker, underlyingTicker, expiry.format(expiryFormat), strike);
       return new Option()
-   }
-
-
-      @Override
-      InstantPrice lastTick() {
-
-         price = Double.parseDouble(tickPrice);
-         return price;
-      } catch (IOException ioe) {
-         LOGGER.warn("IOException generated trying to get lastTick for {}", ticker);
-         LOGGER.debug("Caught (IOException ioe)", ioe);
-      }
-      return -1.0;
-   }
-
+   })
    public static double lastTick(String ticker) throws IOException {
       String input;
       URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
@@ -129,55 +121,7 @@ public class Option implements Security {
       }
       return -1.0;
    }
-
-   double lastBid() throws IOException {
-      /* reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
-      String input;
-      URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-      for(int attempt = 1; attempt <= GaussTrader.YAHOO_RETRIES; attempt++) {
-         Scanner yahooScan = new Scanner(yahoo_url.openStream());
-         if (!yahooScan.hasNextLine()) {
-            yahooScan.close();
-            return -1.0;
-         }
-         input = yahooScan.useDelimiter("\\A").next();
-         yahooScan.close();
-         int yahooBid = input.indexOf("Bid:", 0);
-         int from = input.indexOf("<span", yahooBid);
-         from = input.indexOf(">", from + 4);
-         int to = input.indexOf("</span>", from);
-         String bidPrice = input.substring(from + 1, to);
-         try {
-            return Double.parseDouble(bidPrice);
-         } catch(NumberFormatException nfe) {
-            LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, bidPrice, ticker);
-            LOGGER.debug("Caught NumberFormatException", nfe);
-            if( (attempt == 1) && (!Option.optionTickerValid(ticker)) ) {
-               LOGGER.warn("Option ticker {} is invalid. ");
-               return -1.0;
-            }
-         }
-      }
       return -1.0;
-   }
-
-   double lastAsk() throws IOException {
-      // reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html
-      String input;
-      URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
-      Scanner yahooScan = new Scanner(yahoo_url.openStream());
-      if (!yahooScan.hasNextLine()) {
-         yahooScan.close();
-         return -1.0;
-      }
-      input = yahooScan.useDelimiter("\\A").next();
-      yahooScan.close();
-      int yahooAsk = input.indexOf("Ask:", 0);
-      int from = input.indexOf("<span", yahooAsk);
-      from = input.indexOf(">", from + 4);
-      int to = input.indexOf("</span>", from);
-      String askPrice = input.substring(from + 1, to);
-      return Double.parseDouble(askPrice);
    }
 
    /**
@@ -214,8 +158,8 @@ public class Option implements Security {
       return tickerBuilder.toString();
    }
 
-   public static Option getOption(String stockTicker, String optionType, double limitStrikePrice) {
-      LOGGER.debug("Entering Option.getOption(String {}, String {}, double {})", stockTicker, optionType, limitStrikePrice);
+	public static Option getOption(String stockTicker, String optionType, BigDecimal limitStrikePrice) {
+		LOGGER.debug("Entering Option.getOption(String {}, String {}, double {})", stockTicker, optionType, limitStrikePrice);
       double strikePrice;
       String optionTickerToTry;
       int expirationSaturday;
@@ -286,6 +230,63 @@ public class Option implements Security {
       }
       LOGGER.debug("Returning null from Option.getOption()");
       return null;  // Failed to supply valid information
+	}
+
+	@Override
+	InstantPrice lastTick() {
+
+		price = Double.parseDouble(tickPrice);
+		return price;
+	}
+
+	double lastBid() throws IOException {
+	  /* reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html */
+		String input;
+		URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
+		for (int attempt = 1; attempt <= GaussTrader.YAHOO_RETRIES; attempt++) {
+			Scanner yahooScan = new Scanner(yahoo_url.openStream());
+			if (!yahooScan.hasNextLine()) {
+				yahooScan.close();
+				return -1.0;
+			}
+			input = yahooScan.useDelimiter("\\A").next();
+			yahooScan.close();
+			int yahooBid = input.indexOf("Bid:", 0);
+			int from = input.indexOf("<span", yahooBid);
+			from = input.indexOf(">", from + 4);
+			int to = input.indexOf("</span>", from);
+			String bidPrice = input.substring(from + 1, to);
+			try {
+				return Double.parseDouble(bidPrice);
+			} catch (NumberFormatException nfe) {
+				LOGGER.warn("Attempt {} : Bad price {} recovered from Yahoo for ticker {}", attempt, bidPrice, ticker);
+				LOGGER.debug("Caught NumberFormatException", nfe);
+				if ((attempt == 1) && (!Option.optionTickerValid(ticker))) {
+					LOGGER.warn("Option ticker {} is invalid. ");
+					return -1.0;
+				}
+			}
+		}
+		return -1.0;
+	}
+
+	double lastAsk() throws IOException {
+		// reference: http://weblogs.java.net/blog/pat/archive/2004/10/stupid_yahooScan_1.html
+		String input;
+		URL yahoo_url = new URL("http://finance.yahoo.com/q?s=" + ticker);
+		Scanner yahooScan = new Scanner(yahoo_url.openStream());
+		if (!yahooScan.hasNextLine()) {
+			yahooScan.close();
+			return -1.0;
+		}
+		input = yahooScan.useDelimiter("\\A").next();
+		yahooScan.close();
+		int yahooAsk = input.indexOf("Ask:", 0);
+		int from = input.indexOf("<span", yahooAsk);
+		from = input.indexOf(">", from + 4);
+		int to = input.indexOf("</span>", from);
+		String askPrice = input.substring(from + 1, to);
+		return Double.parseDouble(askPrice);
    }
 
    @Override

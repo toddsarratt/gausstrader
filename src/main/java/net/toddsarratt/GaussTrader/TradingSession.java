@@ -8,8 +8,6 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.Period;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 
@@ -95,26 +93,54 @@ public class TradingSession {
 		}
 	}
 
+	/**
+	 * This is the heart of the matter. All trading strategy lives in this gold nuggets. Too bad it currently looks
+	 * more like a polished turd. TODO: Turn shit into shinola.
+	 *
+	 * @param stock  stock that we're buying or selling or transacting a derivative against
+	 * @param action action to take based on the stock price that triggered the action
+	 */
 	private void takeActionOnStock(Stock stock, PriceBasedAction action) {
 		LOGGER.debug("Entering takeActionOnStock()");
-		String ticker = stock.getTicker();
-		if (action.isActionable()) {
-
-			Option optionToSell = Option.getOption(ticker, action.g, currentPrice);
-			if (optionToSell == null) {
-				/*Handle bad option searching */
-
-			} else {
-				try {
-					portfolio.addNewOrder(new Order(optionToSell, optionToSell.lastBid(), "SELL", action.contractsToTransact, "GFD"));
-				} catch (InsufficientFundsException ife) {
-					LOGGER.warn("Not enough free cash to initiate order for {} @ ${}", optionToSell.getTicker(), optionToSell.lastBid(), ife);
+		String stockTicker = stock.getTicker();
+		Option optionToTrade;
+		try {
+			if (action.isActionable()) {
+				switch (action.getBuyOrSell()) {
+					case "SELL":
+						switch (action.getSecurityType()) {
+							case "OPTION":
+								optionToTrade = Option.getOption(stockTicker,
+										action.getSecurityType(),
+										action.getTriggerPrice());
+								if (optionToTrade == null) {
+									LOGGER.warn("Couldn't find valid option");
+									break;
+								}
+								portfolio.addNewOrder(
+										new Order(optionToTrade,
+												action.getTriggerPrice(),
+												"SELL",
+												action.getNumberToTransact(),
+												"GFD"));
+								break;
+							case "STOCK":
+								// TODO: This.
+								break;
+						}
+					case "BUY":
+						//TODO: This.
+						break;
 				}
+			} else {
+				LOGGER.error("Do not call this method with a non-actionable action. This is an improper use of the API");
+				LOGGER.error("Don't make me throw an IllegalArgumentException. Really. Don't.");
 			}
+		} catch (InsufficientFundsException ife) {
+			LOGGER.warn("Not enough free cash to initiate order for {}, {} @ ${}",
+					stockTicker, action.getBuyOrSell(), action.getNumberToTransact(), ife);
 		}
 	}
-
-}
 
 	private void checkOpenOrders() {
 		LOGGER.debug("Entering TradingSession.checkOpenOrders()");
@@ -130,13 +156,14 @@ public class TradingSession {
 	}
 
 	private void pauseBetweenCycles() {
-		LOGGER.debug("Entering TradingSession.pauseBetweenCycles()");
-		long msUntilMarketClose =
-		LOGGER.debug("Comparing msUntilMarketClose {} with GaussTrader.delayMs {}", msUntilMarketClose, Constants.DELAY_MS);
+		LOGGER.debug("Entering pauseBetweenCycles()");
+		long msUntilMarketClose = market.getClosingZonedDateTime().toEpochSecond() -
+				market.getCurrentZonedDateTime().toEpochSecond();
+		LOGGER.debug("Comparing msUntilMarketClose {} with Constants.DELAY_MS {}", msUntilMarketClose, Constants.DELAY_MS);
 		long sleepTimeMs = (msUntilMarketClose < Constants.DELAY_MS) ? msUntilMarketClose : Constants.DELAY_MS;
 		if (sleepTimeMs > 0) {
 			try {
-				LOGGER.debug("Sleeping for {} ms ({})", sleepTimeMs, (new Period(sleepTimeMs).toString(PeriodFormat.wordBased())));
+				LOGGER.debug("Sleeping for {}ms ({}min)", sleepTimeMs, sleepTimeMs / 60_000);
 				Thread.sleep(sleepTimeMs);
 			} catch (InterruptedException ie) {
 				LOGGER.warn("Interrupted exception trying to sleep {} ms", sleepTimeMs);
@@ -171,12 +198,20 @@ public class TradingSession {
 		}
 		if (stockPrice.compareTo(stock.getBollingerBand(2)) >= 0) {
 			LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(2));
-			return new PriceBasedAction(true, "SELL", "CALL", Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
+			return new PriceBasedAction(stockPrice,
+					true,
+					"SELL",
+					"CALL",
+					Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
 		}
 	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
 		if (stockPrice.compareTo(stock.getBollingerBand(1)) >= 0) {
 			LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(1));
-			return new PriceBasedAction(true, "SELL", "CALL", Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
+			return new PriceBasedAction(stockPrice,
+					true,
+					"SELL",
+					"CALL",
+					Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
 		}
 		return PriceBasedAction.DO_NOTHING;
 	}
@@ -191,7 +226,7 @@ public class TradingSession {
 		if (stockPrice.compareTo(stock.getBollingerBand(5)) <= 0) {
 			LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(5));
 			if (openPutShorts < maximumContracts) {
-				return new PriceBasedAction(true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
+				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}
 			LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
 			return PriceBasedAction.DO_NOTHING;
@@ -199,16 +234,16 @@ public class TradingSession {
 		if (stockPrice.compareTo(stock.getBollingerBand(4)) <= 0) {
 			LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(4));
 			if (openPutShorts < maximumContracts / 2) {
-				return new PriceBasedAction(true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
+				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}
 			LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
 			return PriceBasedAction.DO_NOTHING;
 		}
-      /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
+	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
 		if (stockPrice.compareTo(stock.getBollingerBand(3)) <= 0) {
 			LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(3));
 			if (openPutShorts < maximumContracts / 4) {
-				return new PriceBasedAction(true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
+				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}
 			LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
 		}
@@ -289,9 +324,9 @@ public class TradingSession {
 				LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
 				return;
 			}
-			if (closingPrice.getInstant().isBefore(market.getClosingTime)) {
-				LOGGER.warn("stock.getLastPriceUpdateEpoch() {} < earliestAcceptableLastPriceUpdateEpoch {}",
-						stock.getLastPriceUpdateEpoch(), earliestAcceptableLastPriceUpdateEpoch);
+			if (closingPrice.getInstant().isBefore(market.getClosingZonedDateTime().toInstant())) {
+				LOGGER.warn("closingPrice.getInstant() {} is before market.getClosingZonedDateTime() {}",
+						closingPrice.getInstant(), market.getClosingZonedDateTime());
 				return;
 			}
 			dataStore.writeStockPrice(stock.getTicker(), closingPrice);
