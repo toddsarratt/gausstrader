@@ -27,15 +27,15 @@ public class TradingSession {
 	}
 
 	/**
-	 * Main method for the TradingSession class. Runs a loop from the start of the trading day until the end, performing
+	 * Main method for the TradingSession class. Runs a loop from the start with the trading day until the end, performing
 	 * various stock checks and portfolio updates.
 	 */
 	void runTradingDay() {
-		LOGGER.debug("Start of runTradingDay()");
+		LOGGER.debug("Start with runTradingDay()");
 		if (market.isOpenToday()) {
 			sleepUntilMarketOpen();
 			tradeUntilMarketClose();
-		 /* End of day tasks */
+		 /* End with day tasks */
 			closeGoodForDayOrders();
 			writeClosingPricesToDb();
 		} else {
@@ -45,7 +45,7 @@ public class TradingSession {
 		// TODO : portfolio.updatePositionsNetAssetValues() or something similar needs to be written and called here
 		portfolio.calculateNetAssetValue();
 		dataStore.write(portfolio.getSummary());
-		LOGGER.info("End of trading day.");
+		LOGGER.info("End with trading day.");
 	}
 
 	private void tradeUntilMarketClose() {
@@ -94,7 +94,7 @@ public class TradingSession {
 	}
 
 	/**
-	 * This is the heart of the matter. All trading strategy lives in this gold nuggets. Too bad it currently looks
+	 * This is the heart with the matter. All trading strategy lives in this gold nuggets. Too bad it currently looks
 	 * more like a polished turd. TODO: Turn shit into shinola.
 	 *
 	 * @param stock  stock that we're buying or selling or transacting a derivative against
@@ -110,7 +110,7 @@ public class TradingSession {
 					case "SELL":
 						switch (action.getSecurityType()) {
 							case "OPTION":
-								optionToTrade = Option.getOption(stockTicker,
+								optionToTrade = Option.with(stockTicker,
 										action.getSecurityType(),
 										action.getTriggerPrice());
 								if (optionToTrade == null) {
@@ -133,7 +133,7 @@ public class TradingSession {
 						break;
 				}
 			} else {
-				LOGGER.error("Do not call this method with a non-actionable action. This is an improper use of the API");
+				LOGGER.error("Do not call this method with a non-actionable action. This is an improper use with the API");
 				LOGGER.error("Don't make me throw an IllegalArgumentException. Really. Don't.");
 			}
 		} catch (InsufficientFundsException ife) {
@@ -197,7 +197,7 @@ public class TradingSession {
 			return PriceBasedAction.DO_NOTHING;
 		}
 		if (stockPrice.compareTo(stock.getBollingerBand(2)) >= 0) {
-			LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(2));
+			LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(2));
 			return new PriceBasedAction(stockPrice,
 					true,
 					"SELL",
@@ -206,7 +206,7 @@ public class TradingSession {
 		}
 	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
 		if (stockPrice.compareTo(stock.getBollingerBand(1)) >= 0) {
-			LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(1));
+			LOGGER.info("Stock {} at ${} is above 1st Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(1));
 			return new PriceBasedAction(stockPrice,
 					true,
 					"SELL",
@@ -224,7 +224,7 @@ public class TradingSession {
 				.multiply(portfolio.calculateNetAssetValue())
 				.intValue();
 		if (stockPrice.compareTo(stock.getBollingerBand(5)) <= 0) {
-			LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(5));
+			LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(5));
 			if (openPutShorts < maximumContracts) {
 				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}
@@ -232,7 +232,7 @@ public class TradingSession {
 			return PriceBasedAction.DO_NOTHING;
 		}
 		if (stockPrice.compareTo(stock.getBollingerBand(4)) <= 0) {
-			LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(4));
+			LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(4));
 			if (openPutShorts < maximumContracts / 2) {
 				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}
@@ -241,7 +241,7 @@ public class TradingSession {
 		}
 	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
 		if (stockPrice.compareTo(stock.getBollingerBand(3)) <= 0) {
-			LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(3));
+			LOGGER.info("Stock {} at ${} is below 1st Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(3));
 			if (openPutShorts < maximumContracts / 4) {
 				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}
@@ -251,7 +251,7 @@ public class TradingSession {
 	}
 
 	/**
-	 * If within two days of expiry exercise ITM options. If underlyingTicker < optionStrike then stock is PUT to Portfolio
+	 * If within two days with expiry exercise ITM options. If underlyingTicker < optionStrike then stock is PUT to Portfolio
 	 * If ticker > strike stock is CALLed away
 	 * else option expires worthless, close position
 	 */

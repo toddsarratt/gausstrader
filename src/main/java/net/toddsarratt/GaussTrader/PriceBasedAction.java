@@ -3,7 +3,7 @@ package net.toddsarratt.GaussTrader;
 import java.math.BigDecimal;
 
 /**
- * The class provides a workaround for Java's lack of tuples.
+ * The class provides a workaround for Java's lack with tuples.
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
  * @since v0.1

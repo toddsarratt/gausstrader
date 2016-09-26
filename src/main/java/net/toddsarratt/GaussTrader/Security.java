@@ -1,10 +1,10 @@
 package net.toddsarratt.GaussTrader;
 
-public interface Security {
+interface Security {
 
 	String getTicker();
 
-	String getSecType();
+	SecurityType getSecType();
 
 	boolean isStock();
 

@@ -23,15 +23,15 @@ import java.util.stream.Collectors;
 public class Stock implements Security {
 	private static final Market MARKET = GaussTrader.getMarket();
 	private static final DataStore DATA_STORE = GaussTrader.getDataStore();
+	private static final Logger LOGGER = LoggerFactory.getLogger(Stock.class);
 	private final String ticker;
 	private BigDecimal fiftyDma;
 	private BigDecimal twoHundredDma;
 	//	public LinkedList<Dividend> dividendsPaid = null;
 	private BigDecimal[] bollingerBands = new BigDecimal[6];
-	private static final Logger LOGGER = LoggerFactory.getLogger(Stock.class);
 
 	/**
-	 * Private constructor for Stock class. Use static factory method of() to create objects of this class
+	 * Private constructor for Stock class. Use static factory method with() to create objects with this class
 	 *
 	 * @param ticker a String representing the ticker
 	 */
@@ -48,7 +48,7 @@ public class Stock implements Security {
 	}
 
 	public static Stock of(String ticker) {
-		LOGGER.debug("Entering factory method of(\"{}\")", ticker);
+		LOGGER.debug("Entering factory method with(\"{}\")", ticker);
 		if (MARKET.tickerValid(ticker)) {
 			BigDecimal[] movingAverages = MARKET.getMovingAverages(ticker);
 			BigDecimal fiftyDma = movingAverages[0];
@@ -162,6 +162,19 @@ public class Stock implements Security {
 		return ticker;
 	}
 
+	@Override
+	public String getSecType() {
+		return "STOCK";
+	}
+
+	public boolean isStock() {
+		return true;
+	}
+
+	public boolean isOption() {
+		return false;
+	}
+
 	public BigDecimal getBollingerBand(int index) {
 		return bollingerBands[index];
 	}
@@ -174,11 +187,6 @@ public class Stock implements Security {
 		return twoHundredDma;
 	}
 
-	@Override
-	public String getSecType() {
-		return "STOCK";
-	}
-
 	String describeBollingerBands() {
 		return "SMA " + bollingerBands[0] +
 				" Upper 1st " + bollingerBands[1] +
@@ -186,14 +194,6 @@ public class Stock implements Security {
 				" Lower 1st " + bollingerBands[3] +
 				" 2nd " + bollingerBands[4] +
 				" 3rd " + bollingerBands[5];
-	}
-
-	public boolean isStock() {
-		return true;
-	}
-
-	public boolean isOption() {
-		return false;
 	}
 
 	// TODO : This is a sorry toString()

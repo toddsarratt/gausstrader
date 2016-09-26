@@ -21,8 +21,8 @@ import java.util.Set;
  * @since GaussTrader v0.2
  */
 public class PostgresStore implements DataStore {
-   private static PGSimpleDataSource pgDataSource = new PGSimpleDataSource();
    private static final Logger LOGGER = LoggerFactory.getLogger(PostgresStore.class);
+	private static PGSimpleDataSource pgDataSource = new PGSimpleDataSource();
 
    /**
     * Set up Postgres database connection
@@ -39,8 +39,49 @@ public class PostgresStore implements DataStore {
       pgDataSource.setPassword(Constants.DB_PASSWORD);
    }
 
+	public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
+		LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
+		Position positionFromDb = new Position();
+		positionFromDb.setPositionId(dbResult.getLong("position_id"));
+		positionFromDb.setOpen(dbResult.getBoolean("open"));
+		positionFromDb.setTicker(dbResult.getString("ticker"));
+		positionFromDb.setSecType(dbResult.getString("sec_type"));
+		positionFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
+		positionFromDb.setStrikePrice(dbResult.getDouble("strike_price"));
+		positionFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
+		positionFromDb.setLongPosition(dbResult.getBoolean("long_position"));
+		positionFromDb.setNumberTransacted(dbResult.getInt("number_transacted"));
+		positionFromDb.setPriceAtOpen(dbResult.getDouble("price_at_open"));
+		positionFromDb.setCostBasis(dbResult.getDouble("cost_basis"));
+		positionFromDb.setPrice(dbResult.getDouble("last_tick"));
+		positionFromDb.setNetAssetValue(dbResult.getDouble("net_asset_value"));
+		positionFromDb.setExpiry(new DateTime(dbResult.getLong("epoch_expiry"), DateTimeZone.forID("America/New_York")));
+		positionFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
+		positionFromDb.setOriginatingOrderId(dbResult.getLong("originating_order_id"));
+		return positionFromDb;
+	}
+
+	public static Order dbToPortfolioOrder(ResultSet dbResult) throws SQLException {
+		LOGGER.debug("Entering Portfolio.dbToPortfolioOrder(ResultSet dbResult)");
+		Order orderFromDb = new Order();
+		orderFromDb.setOrderId(dbResult.getLong("order_id"));
+		orderFromDb.setOpen(true);
+		orderFromDb.setTicker(dbResult.getString("ticker"));
+		orderFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
+		orderFromDb.setStrikePrice(dbResult.getDouble("strike_price"));
+		orderFromDb.setLimitPrice(dbResult.getDouble("limit_price"));
+		orderFromDb.setAction(dbResult.getString("action"));
+		orderFromDb.setTotalQuantity(dbResult.getInt("total_quantity"));
+		orderFromDb.setSecType(dbResult.getString("sec_type"));
+		orderFromDb.setTif(dbResult.getString("tif"));
+		orderFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
+		orderFromDb.setExpiry(dbResult.getLong("epoch_expiry"));
+		orderFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
+		return orderFromDb;
+	}
+
    /**
-    * Writes the last known price of a stock to the database
+    * Writes the last known price with a stock to the database
     *
     * @param stock stock whose price needs to be written to the database
     */
@@ -92,41 +133,6 @@ public class PostgresStore implements DataStore {
    }
 
    @Override
-   public LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, DateTime earliestCloseDate) {
-      LOGGER.debug("Entering getDBPrices(String {}, DateTime {} ({})",
-              ticker, earliestCloseDate.getMillis(), earliestCloseDate.toString());
-      LinkedHashMap<Long, BigDecimal> queriedPrices = new LinkedHashMap<>();
-      int pricesNeeded = Constants.BOLL_BAND_PERIOD;
-      int dbPricesFound = 0;
-      try {
-         LOGGER.debug("Getting connection to {}", Constants.DB_NAME);
-         Connection dbConnection = pgDataSource.getConnection();
-         PreparedStatement sqlStatement = dbConnection.prepareStatement("SELECT * FROM prices WHERE ticker = ? AND close_epoch >= ?");
-         sqlStatement.setString(1, ticker);
-         sqlStatement.setLong(2, earliestCloseDate.getMillis());
-         LOGGER.debug("SELECT * FROM prices WHERE ticker = {} AND close_epoch >= {}", ticker, earliestCloseDate.getMillis());
-         ResultSet historicalPriceResultSet = sqlStatement.executeQuery();
-         while (historicalPriceResultSet.next() && (dbPricesFound < pricesNeeded)) {
-            long closeEpoch = historicalPriceResultSet.getLong("close_epoch");
-            double adjClose = historicalPriceResultSet.getDouble("adj_close");
-            LOGGER.debug("Adding {}, {}", closeEpoch, adjClose);
-            queriedPrices.put(closeEpoch, BigDecimal.valueOf(adjClose));
-            dbPricesFound++;
-         }
-         dbConnection.close();
-      } catch (SQLException sqle) {
-         LOGGER.info("Unable to get connection to {}", Constants.DB_NAME);
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
-      LOGGER.debug("Found {} prices in db", dbPricesFound);
-      LOGGER.debug("Returning from database LinkedHashMap of size {}", queriedPrices.size());
-      if (dbPricesFound != queriedPrices.size()) {
-         LOGGER.warn("Mismatch between prices found {} and number returned {}, possible duplication?", dbPricesFound, queriedPrices.size());
-      }
-      return queriedPrices;
-   }
-
-   @Override
    public void writeStockMetrics(Stock stockToUpdate) {
       LOGGER.debug("Entering WatchList.updateDb(Stock {})", stockToUpdate.getTicker());
       PreparedStatement sqlUniquenessStatement;
@@ -169,30 +175,6 @@ public class PostgresStore implements DataStore {
    }
 
    @Override
-   public void addStockPriceToStore(String ticker, long dateEpoch, double adjClose) {
-      LOGGER.debug("Entering DBHistoricalPrices.addStockPrice(String {}, long {}, double {})", ticker, dateEpoch, adjClose);
-      Connection dbConnection;
-      int insertedRowCount;
-      try {
-         LOGGER.debug("Getting connection to {}", Constants.DB_NAME);
-         LOGGER.debug("Inserting historical stock price data for ticker {} into the database.", ticker);
-         dbConnection = pgDataSource.getConnection();
-         PreparedStatement sqlStatement = dbConnection.prepareStatement("INSERT INTO prices (ticker, adj_close, close_epoch) VALUES (?, ?, ?)");
-         sqlStatement.setString(1, ticker);
-         sqlStatement.setDouble(2, adjClose);
-         sqlStatement.setLong(3, dateEpoch);
-         LOGGER.debug("Executing INSERT INTO prices (ticker, adj_close, close_epoch) VALUES ({}, {}, {})", ticker, adjClose, dateEpoch);
-         if ((insertedRowCount = sqlStatement.executeUpdate()) != 1) {
-            LOGGER.warn("Inserted {} rows. Should have inserted 1 row.", insertedRowCount);
-         }
-         dbConnection.close();
-      } catch (SQLException sqle) {
-         LOGGER.info("Unable to get connection to {}", Constants.DB_NAME);
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
-   }
-
-   @Override
    public boolean tickerPriceInStore(String ticker) {
       LOGGER.debug("Entering DBHistoricalPrices.tickerPriceInDb()");
       Connection dbConnection;
@@ -228,6 +210,137 @@ public class PostgresStore implements DataStore {
    }
 
    @Override
+   public Set<Position> getPortfolioPositions() throws SQLException {
+	   LOGGER.debug("Entering Portfolio.getDbPortfolioPositions()");
+	   Connection dbConnection = pgDataSource.getConnection();
+	   Position portfolioPositionEntry;
+	   PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND open = true");
+	   positionSqlStatement.setString(1, name);
+	   LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND open = true", name);
+	   ResultSet openPositionsResultSet = positionSqlStatement.executeQuery();
+	   while (openPositionsResultSet.next()) {
+		   portfolioPositionEntry = dbToPortfolioPosition(openPositionsResultSet);
+		   if (portfolioPositionEntry.isExpired()) {
+			   LOGGER.warn("Position {} read from the database has expired", portfolioPositionEntry.getTicker());
+			   reconcileExpiredOptionPosition(portfolioPositionEntry);
+		   } else {
+			   LOGGER.debug("Adding {} {}", portfolioPositionEntry.getPositionId(), portfolioPositionEntry.getTicker());
+			   portfolioPositions.add(portfolioPositionEntry);
+		   }
+	   }
+	   dbConnection.close();
+   }
+
+	@Override
+	public void write(Order order) {
+		try {
+			throw new SQLException();
+		} catch (SQLException sqle) {
+			LOGGER.warn("Unable to add order {} to DB", order.getOrderId());
+			LOGGER.debug("Caught (SQLException sqle)", sqle);
+		}
+	}
+
+	@Override
+	public void write(Position position) {
+		try {
+			throw new SQLException();
+		} catch (SQLException sqle) {
+			LOGGER.warn("Unable to add position {} to DB", position.getPositionId());
+			LOGGER.debug("Caught (SQLException sqle)", sqle);
+		}
+	}
+
+	@Override
+	public void write(PortfolioSummary summary) {
+		if (portfolioInDb()) {
+			LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead with inserts", name);
+			updateDbSummary();
+		} else {
+			LOGGER.debug("Inserting portfolio \"{}\" newly into database", name);
+			insertDbSummary();
+		}
+	}
+
+	@Override
+	public void close(Position positionToClose) throws SQLException {
+		int updatedRowCount;
+		Connection dbConnection = pgDataSource.getConnection();
+		String sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
+		PreparedStatement newPositionSqlStatement;
+		newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
+		newPositionSqlStatement.setLong(1, positionToClose.getEpochClosed());
+		newPositionSqlStatement.setDouble(2, positionToClose.getPriceAtClose());
+		newPositionSqlStatement.setDouble(3, positionToClose.getProfit());
+		newPositionSqlStatement.setLong(4, positionToClose.getPositionId());
+		LOGGER.debug("Executing UPDATE positions SET epoch_closed = {}, price_at_close = {}, profit = {}, open = 'false' WHERE position_id = {}",
+				positionToClose.getEpochClosed(), positionToClose.getPriceAtClose(), positionToClose.getProfit(), positionToClose.getPositionId());
+		if ((updatedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
+			LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
+		}
+		dbConnection.close();
+	}
+
+	@Override
+	public LinkedHashMap<Long, BigDecimal> readHistoricalPrices(String ticker, DateTime earliestCloseDate) {
+		LOGGER.debug("Entering getDBPrices(String {}, DateTime {} ({})",
+				ticker, earliestCloseDate.getMillis(), earliestCloseDate.toString());
+		LinkedHashMap<Long, BigDecimal> queriedPrices = new LinkedHashMap<>();
+		int pricesNeeded = Constants.BOLL_BAND_PERIOD;
+		int dbPricesFound = 0;
+		try {
+			LOGGER.debug("Getting connection to {}", Constants.DB_NAME);
+			Connection dbConnection = pgDataSource.getConnection();
+			PreparedStatement sqlStatement = dbConnection.prepareStatement("SELECT * FROM prices WHERE ticker = ? AND close_epoch >= ?");
+			sqlStatement.setString(1, ticker);
+			sqlStatement.setLong(2, earliestCloseDate.getMillis());
+			LOGGER.debug("SELECT * FROM prices WHERE ticker = {} AND close_epoch >= {}", ticker, earliestCloseDate.getMillis());
+			ResultSet historicalPriceResultSet = sqlStatement.executeQuery();
+			while (historicalPriceResultSet.next() && (dbPricesFound < pricesNeeded)) {
+				long closeEpoch = historicalPriceResultSet.getLong("close_epoch");
+				double adjClose = historicalPriceResultSet.getDouble("adj_close");
+				LOGGER.debug("Adding {}, {}", closeEpoch, adjClose);
+				queriedPrices.put(closeEpoch, BigDecimal.valueOf(adjClose));
+				dbPricesFound++;
+			}
+			dbConnection.close();
+		} catch (SQLException sqle) {
+			LOGGER.info("Unable to get connection to {}", Constants.DB_NAME);
+			LOGGER.debug("Caught (SQLException sqle)", sqle);
+		}
+		LOGGER.debug("Found {} prices in db", dbPricesFound);
+		LOGGER.debug("Returning from database LinkedHashMap with size {}", queriedPrices.size());
+		if (dbPricesFound != queriedPrices.size()) {
+			LOGGER.warn("Mismatch between prices found {} and number returned {}, possible duplication?", dbPricesFound, queriedPrices.size());
+		}
+		return queriedPrices;
+	}
+
+	@Override
+	public void addStockPriceToStore(String ticker, long dateEpoch, double adjClose) {
+		LOGGER.debug("Entering DBHistoricalPrices.addStockPrice(String {}, long {}, double {})", ticker, dateEpoch, adjClose);
+		Connection dbConnection;
+		int insertedRowCount;
+		try {
+			LOGGER.debug("Getting connection to {}", Constants.DB_NAME);
+			LOGGER.debug("Inserting historical stock price data for ticker {} into the database.", ticker);
+			dbConnection = pgDataSource.getConnection();
+			PreparedStatement sqlStatement = dbConnection.prepareStatement("INSERT INTO prices (ticker, adj_close, close_epoch) VALUES (?, ?, ?)");
+			sqlStatement.setString(1, ticker);
+			sqlStatement.setDouble(2, adjClose);
+			sqlStatement.setLong(3, dateEpoch);
+			LOGGER.debug("Executing INSERT INTO prices (ticker, adj_close, close_epoch) VALUES ({}, {}, {})", ticker, adjClose, dateEpoch);
+			if ((insertedRowCount = sqlStatement.executeUpdate()) != 1) {
+				LOGGER.warn("Inserted {} rows. Should have inserted 1 row.", insertedRowCount);
+			}
+			dbConnection.close();
+		} catch (SQLException sqle) {
+			LOGGER.info("Unable to get connection to {}", Constants.DB_NAME);
+			LOGGER.debug("Caught (SQLException sqle)", sqle);
+		}
+	}
+
+	@Override
    private void insertOrder(Order portfolioOrder) throws SQLException {
       LOGGER.debug("Entering Portfolio.insertDbOrder(Order {})", portfolioOrder.getOrderId());
       Connection dbConnection = pgDataSource.getConnection();
@@ -295,25 +408,6 @@ public class PostgresStore implements DataStore {
          if ((updatedRowCount = updateOrderSqlStatement.executeUpdate()) != 1) {
             LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
          }
-      }
-      dbConnection.close();
-   }
-
-   @Override
-   public void close(Position positionToClose) throws SQLException {
-      int updatedRowCount;
-      Connection dbConnection = pgDataSource.getConnection();
-      String sqlString = "UPDATE positions SET epoch_closed = ?, price_at_close = ?, profit = ?, open = 'false' WHERE position_id = ?";
-      PreparedStatement newPositionSqlStatement;
-      newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
-      newPositionSqlStatement.setLong(1, positionToClose.getEpochClosed());
-      newPositionSqlStatement.setDouble(2, positionToClose.getPriceAtClose());
-      newPositionSqlStatement.setDouble(3, positionToClose.getProfit());
-      newPositionSqlStatement.setLong(4, positionToClose.getPositionId());
-      LOGGER.debug("Executing UPDATE positions SET epoch_closed = {}, price_at_close = {}, profit = {}, open = 'false' WHERE position_id = {}",
-              positionToClose.getEpochClosed(), positionToClose.getPriceAtClose(), positionToClose.getProfit(), positionToClose.getPositionId());
-      if ((updatedRowCount = newPositionSqlStatement.executeUpdate()) != 1) {
-         LOGGER.warn("Updated {} rows. Should have updated 1 row", updatedRowCount);
       }
       dbConnection.close();
    }
@@ -463,8 +557,8 @@ public class PostgresStore implements DataStore {
          LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND position_id = {}", name, portfolioPosition.getPositionId());
          positionResultSet = positionSqlStatement.executeQuery();
          if (positionResultSet.next()) {
-            LOGGER.debug("positionResultSet.next() == true, position {} exists in database. Running update instead of insert", portfolioPosition.getPositionId());
-            updateDbPosition(portfolioPosition);
+	         LOGGER.debug("positionResultSet.next() == true, position {} exists in database. Running update instead with insert", portfolioPosition.getPositionId());
+	         updateDbPosition(portfolioPosition);
          } else {
             LOGGER.debug("positionResultSet.next() == false, inserting position {} newly into database", portfolioPosition.getPositionId());
             insertDbPosition(portfolioPosition);
@@ -489,99 +583,5 @@ public class PostgresStore implements DataStore {
       }
       dbConnection.close();
       LOGGER.info("Returning from DB netAssetValue {} freeCash {} reservedCash {}", netAssetValue, freeCash, reservedCash);
-   }
-
-   @Override
-   public Set<Position> getPortfolioPositions() throws SQLException {
-      LOGGER.debug("Entering Portfolio.getDbPortfolioPositions()");
-      Connection dbConnection = pgDataSource.getConnection();
-      Position portfolioPositionEntry;
-      PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND open = true");
-      positionSqlStatement.setString(1, name);
-      LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND open = true", name);
-      ResultSet openPositionsResultSet = positionSqlStatement.executeQuery();
-      while (openPositionsResultSet.next()) {
-         portfolioPositionEntry = dbToPortfolioPosition(openPositionsResultSet);
-         if (portfolioPositionEntry.isExpired()) {
-            LOGGER.warn("Position {} read from the database has expired", portfolioPositionEntry.getTicker());
-            reconcileExpiredOptionPosition(portfolioPositionEntry);
-         } else {
-            LOGGER.debug("Adding {} {}", portfolioPositionEntry.getPositionId(), portfolioPositionEntry.getTicker());
-            portfolioPositions.add(portfolioPositionEntry);
-         }
-      }
-      dbConnection.close();
-   }
-
-   @Override
-   public void write(Order order) {
-      try {
-         throw new SQLException();
-      } catch (SQLException sqle) {
-         LOGGER.warn("Unable to add order {} to DB", order.getOrderId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
-   }
-
-   @Override
-   public void write(Position position) {
-      try {
-         throw new SQLException();
-      } catch (SQLException sqle) {
-         LOGGER.warn("Unable to add position {} to DB", position.getPositionId());
-         LOGGER.debug("Caught (SQLException sqle)", sqle);
-      }
-   }
-
-   @Override
-   public void write(PortfolioSummary summary) {
-      if (portfolioInDb()) {
-         LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
-         updateDbSummary();
-      } else {
-         LOGGER.debug("Inserting portfolio \"{}\" newly into database", name);
-         insertDbSummary();
-      }
-   }
-
-   public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
-      LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
-      Position positionFromDb = new Position();
-      positionFromDb.setPositionId(dbResult.getLong("position_id"));
-      positionFromDb.setOpen(dbResult.getBoolean("open"));
-      positionFromDb.setTicker(dbResult.getString("ticker"));
-      positionFromDb.setSecType(dbResult.getString("sec_type"));
-      positionFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
-      positionFromDb.setStrikePrice(dbResult.getDouble("strike_price"));
-      positionFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
-      positionFromDb.setLongPosition(dbResult.getBoolean("long_position"));
-      positionFromDb.setNumberTransacted(dbResult.getInt("number_transacted"));
-      positionFromDb.setPriceAtOpen(dbResult.getDouble("price_at_open"));
-      positionFromDb.setCostBasis(dbResult.getDouble("cost_basis"));
-      positionFromDb.setPrice(dbResult.getDouble("last_tick"));
-      positionFromDb.setNetAssetValue(dbResult.getDouble("net_asset_value"));
-      positionFromDb.setExpiry(new DateTime(dbResult.getLong("epoch_expiry"), DateTimeZone.forID("America/New_York")));
-      positionFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
-      positionFromDb.setOriginatingOrderId(dbResult.getLong("originating_order_id"));
-      return positionFromDb;
-   }
-
-   public static Order dbToPortfolioOrder(ResultSet dbResult) throws SQLException {
-      LOGGER.debug("Entering Portfolio.dbToPortfolioOrder(ResultSet dbResult)");
-      Order orderFromDb = new Order();
-      orderFromDb.setOrderId(dbResult.getLong("order_id"));
-      orderFromDb.setOpen(true);
-      orderFromDb.setTicker(dbResult.getString("ticker"));
-      orderFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
-      orderFromDb.setStrikePrice(dbResult.getDouble("strike_price"));
-      orderFromDb.setLimitPrice(dbResult.getDouble("limit_price"));
-      orderFromDb.setAction(dbResult.getString("action"));
-      orderFromDb.setTotalQuantity(dbResult.getInt("total_quantity"));
-      orderFromDb.setSecType(dbResult.getString("sec_type"));
-      orderFromDb.setTif(dbResult.getString("tif"));
-      orderFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
-      orderFromDb.setExpiry(dbResult.getLong("epoch_expiry"));
-      orderFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
-      return orderFromDb;
    }
 }

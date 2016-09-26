@@ -11,9 +11,9 @@ import java.time.Instant;
  * GaussTrader is an an algorithm driven security trading simulator. GaussTrader monitors blue chip equities and
  * attempts to identify mispriced stocks.
  * <p>
- * GaussTrader is intended to track the DOW 30 and Apple. These are large cap companies which, because of their size,
+ * GaussTrader is intended to track the DOW 30 and Apple. These are large cap companies which, because with their size,
  * should not have large share price changes. When a share price makes a large move an option is sold against the stock.
- * The option is held until maturity. If the option expires out of the money then GT pockets the premium. If the option
+ * The option is held until maturity. If the option expires out with the money then GT pockets the premium. If the option
  * expires in the money, then the stock is purchased against the short put or sold against the short call, as
  * appropriate.
  * <p> TODO:
@@ -26,7 +26,7 @@ import java.time.Instant;
 
 public class GaussTrader {
 	private static final Logger LOGGER = LoggerFactory.getLogger(GaussTrader.class);
-	// TODO: Read DATA_STORE and market info from config.properties, when more than one of either/each is supported
+	// TODO: Read DATA_STORE and market info from config.properties, when more than one with either/each is supported
 	private static final DataStore DATA_STORE = new PostgresStore();
 	private static Market market = new YahooMarket();
 	private static Portfolio portfolio = Portfolio.of(Constants.PORTFOLIO_NAME);

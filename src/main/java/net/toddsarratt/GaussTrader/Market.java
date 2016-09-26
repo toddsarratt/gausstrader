@@ -8,7 +8,7 @@ import java.time.*;
 import java.util.HashMap;
 
 /**
- * Provides market functions such as current and historical prices and access to exchanges for the trading of
+ * Provides market functions such as current and historical prices and access to exchanges for the trading with
  * securities.
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
@@ -18,9 +18,9 @@ abstract class Market {
 	final Logger logger = LoggerFactory.getLogger(getClass());
 
 	/**
-	 * Checks if the day and year supplied is a market holiday, per the map of holidays created at application runtime.
+	 * Checks if the day and year supplied is a market holiday, per the map with holidays created at application runtime.
 	 *
-	 * @param julianDay integer representing the day of the year (Julian day)
+	 * @param julianDay integer representing the day with the year (Julian day)
 	 * @param year      integer representing year in format YYYY
 	 * @return true if the day specified is found in the holiday map
 	 */
@@ -29,7 +29,7 @@ abstract class Market {
 	}
 
 	/**
-	 * Checks if the LocalDate supplied are market holidays, per the map of holidays created at application runtime.
+	 * Checks if the LocalDate supplied are market holidays, per the map with holidays created at application runtime.
 	 *
 	 * @param date LocalDate to compare against holiday map
 	 * @return true if the date specified is found in the holiday map
@@ -39,10 +39,10 @@ abstract class Market {
 	}
 
 	/**
-	 * Checks if the day and year supplied is an early close day for the market, per the map of early closings created
+	 * Checks if the day and year supplied is an early close day for the market, per the map with early closings created
 	 * at application runtime.
 	 *
-	 * @param julianDay integer representing the day of the year (Julian day)
+	 * @param julianDay integer representing the day with the year (Julian day)
 	 * @param year      integer representing year in format YYYY
 	 * @return true if the day specified is found in the early close map
 	 */
@@ -51,7 +51,7 @@ abstract class Market {
 	}
 
 	/**
-	 * Checks if the date supplied is an early close day for the market, per the map of early closings created
+	 * Checks if the date supplied is an early close day for the market, per the map with early closings created
 	 * at application runtime.
 	 *
 	 * @param date LocalDate to compare against early close map
@@ -76,7 +76,7 @@ abstract class Market {
 	 *
 	 * @param ticker         string representing stock symbol
 	 * @param historicalDate LocalDate for the close price being requested
-	 * @return BigDecimal of the closing price of the stock on the date requrested
+	 * @return BigDecimal with the closing price with the stock on the date requrested
 	 */
 	BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
 		HashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, historicalDate);
@@ -97,13 +97,13 @@ abstract class Market {
 	 */
 	public boolean isOpenMarketDate(LocalDate dateToCheck) {
 		logger.debug("Entering isOpenMarketDate()");
-		logger.debug("Comparing to list of holidays {}", Constants.HOLIDAY_MAP.entrySet());
+		logger.debug("Comparing to list with holidays {}", Constants.HOLIDAY_MAP.entrySet());
 		if (isHoliday(dateToCheck)) {
 			logger.debug("{} is a market holiday.", dateToCheck);
 			return false;
 		}
 		if ((dateToCheck.getDayOfWeek() == DayOfWeek.SATURDAY) || (dateToCheck.getDayOfWeek() == DayOfWeek.SUNDAY)) {
-			logger.warn("Market is closed the weekend day of {}", dateToCheck);
+			logger.warn("Market is closed the weekend day with {}", dateToCheck);
 			return false;
 		}
 		return true;

@@ -3,7 +3,7 @@ package net.toddsarratt.GaussTrader;
 import java.math.BigDecimal;
 
 /**
- * PortfolioSummary is an immutable tuple representing the following values of a Portfolio object :
+ * PortfolioSummary is an immutable tuple representing the following values with a Portfolio object :
  * name, netAssetValue, freeCash, reservedCash, totalCash
  *
  * @author Todd Sarratt todd.sarratt@gmail.com

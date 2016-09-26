@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * This represents a list of stocks being watched by GaussTrader. Only one watch list is currently supported per
+ * This represents a list with stocks being watched by GaussTrader. Only one watch list is currently supported per
  * application instance. Use getInstance() to reference this singleton.
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
@@ -30,7 +30,15 @@ class WatchList {
 	private WatchList() {}
 
 	/**
-	 * Adds a ticker or tickers to the list of securities for the application to watch, which is held by tickerSet.
+	 * Supports singleton pattern.
+	 * @return singleton object with the WatchList class
+	 */
+	static WatchList getInstance() {
+		return INSTANCE;
+	}
+
+	/**
+	 * Adds a ticker or tickers to the list with securities for the application to watch, which is held by tickerSet.
 	 *
 	 * @param tickers String vararg representing tickers to watch
 	 */
@@ -38,20 +46,12 @@ class WatchList {
 		tradeableStockSet.addAll(
 				tickers.stream()
 						.map(Stock::of)
-						// If "ticker" is not valid, Stock.of(ticker) might return null TODO: Handle invalid ticker
+						// If "ticker" is not valid, Stock.with(ticker) might return null TODO: Handle invalid ticker
 						.filter(stock -> stock != null)
 						// Make sure Bollinger bands have been calculated TODO: There is probably a better way to do this
 						.filter(stock -> stock.getBollingerBand(0).compareTo(BigDecimal.ZERO) > 0)
 						.collect(Collectors.toList())
 		);
-	}
-
-	/**
-	 * Supports singleton pattern.
-	 * @return singleton object of the WatchList class
-	 */
-	static WatchList getInstance() {
-		return INSTANCE;
 	}
 
 	/**

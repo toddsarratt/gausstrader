@@ -25,6 +25,7 @@ import java.time.Instant;
 
 class Order {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(Order.class);
    private long orderId = GaussTrader.getNewId();
    private boolean open;
    private String ticker;
@@ -41,7 +42,6 @@ class Order {
    private Instant instantClosed;
    private String closeReason;
    private BigDecimal fillPrice;
-   private static final Logger LOGGER = LoggerFactory.getLogger(Order.class);
 
    public Order() {
    }
@@ -49,8 +49,8 @@ class Order {
    public Order(Security security, BigDecimal limitPrice, String action, int totalQuantity, String tif) {
       LOGGER.debug("Entering constructor Order(Security {}, double {}, String {}, int {}, String {})",
          security, limitPrice, action, totalQuantity, tif);
-      LOGGER.debug("Security is of type {}", security.getClass());
-      ticker = security.getTicker();
+	   LOGGER.debug("Security is with type {}", security.getClass());
+	   ticker = security.getTicker();
       LOGGER.debug("Assigning ticker = {} from security.getTicker() = {}", ticker, security.getTicker());
       this.limitPrice = limitPrice;
       LOGGER.debug("limitPrice = ${}", limitPrice);
@@ -71,7 +71,7 @@ class Order {
       this.tif = tif;
       open = true;
       instantOpened = Instant.now();
-      LOGGER.info("Created order ID {} for {} to {} {} of {} @ ${} TIF : {}", orderId, underlyingTicker, action, totalQuantity, ticker, limitPrice, tif);
+	   LOGGER.info("Created order ID {} for {} to {} {} with {} @ ${} TIF : {}", orderId, underlyingTicker, action, totalQuantity, ticker, limitPrice, tif);
    }
 
    public long getOrderId() {
@@ -190,64 +190,64 @@ class Order {
 
    }
 
-   void setInstantOpened(Instant instantOpened) {
-      this.instantOpened = instantOpened;
-   }
-
    Instant getInstantOpened() {
       return instantOpened;
    }
 
-   void setInstantClosed(Instant instantClosed) {
-      this.instantClosed = instantClosed;
+	void setInstantOpened(Instant instantOpened) {
+		this.instantOpened = instantOpened;
    }
 
    Instant getInstantClosed() {
       return instantClosed;
    }
 
-   void setCloseReason(String closeReason) {
-      this.closeReason = closeReason;
+	void setInstantClosed(Instant instantClosed) {
+		this.instantClosed = instantClosed;
    }
 
    public String getCloseReason() {
       return closeReason;
    }
 
-   void setFillPrice(BigDecimal fillPrice) {
-      this.fillPrice = fillPrice;
+	void setCloseReason(String closeReason) {
+		this.closeReason = closeReason;
    }
 
    BigDecimal getFillPrice() {
       return fillPrice;
    }
 
+	void setFillPrice(BigDecimal fillPrice) {
+		this.fillPrice = fillPrice;
+	}
+
    void setExpiry(Instant expiry) {
       this.expiry = expiry;
-   }
-
-   void setExpiry(long expiryMillis) {
-      this.expiry = Instant.ofEpochMilli(expiryMillis);
    }
 
    Instant getExpiry() {
       return expiry;
    }
 
-   void setUnderlyingTicker(String underlyingTicker) {
-      this.underlyingTicker = underlyingTicker;
+	void setExpiry(long expiryMillis) {
+		this.expiry = Instant.ofEpochMilli(expiryMillis);
    }
 
    String getUnderlyingTicker() {
       return underlyingTicker;
    }
 
-   void setStrikePrice(BigDecimal strikePrice) {
-      this.strikePrice = strikePrice;
+	void setUnderlyingTicker(String underlyingTicker) {
+		this.underlyingTicker = underlyingTicker;
    }
 
    BigDecimal getStrikePrice() {
       return strikePrice;
+   }
+
+	void setStrikePrice(BigDecimal strikePrice) {
+		this.strikePrice = strikePrice;
    }
 
    BigDecimal getClaimAgainstCash() {

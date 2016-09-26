@@ -1,6 +1,5 @@
 package net.toddsarratt.GaussTrader;
 
-import javafx.beans.binding.When;
 import org.joda.time.MutableDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,14 +10,6 @@ import java.sql.SQLException;
 import java.util.*;
 
 public class Portfolio {
-   private String name;
-   private BigDecimal netAssetValue;
-   private BigDecimal freeCash;
-   private BigDecimal reservedCash;
-   private BigDecimal totalCash;
-   private Set<Position> positions;
-   private Set<Order> orders;
-   private static DataStore dataStore = GaussTrader.getDataStore();
    private static final Logger LOGGER = LoggerFactory.getLogger(Portfolio.class);
    private static final PortfolioSummary INITIAL_SUMMARY = new PortfolioSummary(
            "INITIAL",
@@ -29,9 +20,17 @@ public class Portfolio {
    );
    private static final Set<Position> NO_POSITIONS = Collections.EMPTY_SET;
    private static final Set<Order> NO_ORDERS = Collections.EMPTY_SET;
+	private static DataStore dataStore = GaussTrader.getDataStore();
+	private String name;
+	private BigDecimal netAssetValue;
+	private BigDecimal freeCash;
+	private BigDecimal reservedCash;
+	private BigDecimal totalCash;
+	private Set<Position> positions;
+	private Set<Order> orders;
 
    /**
-    * Use static factory method .of() to create objects of the Portfolio class.
+    * Use static factory method .with() to create objects with the Portfolio class.
     */
    private Portfolio(String portfolioName,
                      BigDecimal netAssetValue,
@@ -74,8 +73,8 @@ public class Portfolio {
    }
 
    public static Portfolio of(String portfolioName, BigDecimal startingCash) {
-      LOGGER.debug("Entering of(String {}, BigDecimal {})", portfolioName, startingCash);
-      if (dataStore.portfolioInStore(portfolioName)) {
+	   LOGGER.debug("Entering with(String {}, BigDecimal {})", portfolioName, startingCash);
+	   if (dataStore.portfolioInStore(portfolioName)) {
          LOGGER.error("Portfolio {} already exists", portfolioName);
          throw new IllegalArgumentException("Portfolio already exists.");
       }
@@ -100,13 +99,13 @@ public class Portfolio {
               orders);
    }
 
-   void setName(String name) {
-      this.name = name;
-   }
-
    public String getName() {
       return name;
    }
+
+	void setName(String name) {
+		this.name = name;
+	}
 
    public BigDecimal getNetAssetValue() {
       return netAssetValue;
@@ -123,21 +122,21 @@ public class Portfolio {
       return netAssetValue;
    }
 
-   private void setFreeCash(BigDecimal freeCash) {
-      this.freeCash = freeCash;
-   }
-
    public BigDecimal getFreeCash() {
       return freeCash;
    }
 
-   private void setReservedCash(BigDecimal reservedCash) {
-      this.reservedCash = reservedCash;
+	private void setFreeCash(BigDecimal freeCash) {
+		this.freeCash = freeCash;
    }
 
    public BigDecimal getReservedCash() {
       return reservedCash;
    }
+
+	private void setReservedCash(BigDecimal reservedCash) {
+		this.reservedCash = reservedCash;
+	}
 
    public BigDecimal calculateTotalCash() {
       totalCash = freeCash.add(reservedCash);
@@ -273,8 +272,8 @@ public class Portfolio {
       LOGGER.debug("Entering Portfolio.addNewOrder(Order {})", orderToAdd);
       BigDecimal orderRequiredCash = BigDecimal.valueOf(orderToAdd.getClaimAgainstCash());
       LOGGER.debug("orderRequiredCash = orderToAdd.getClaimAgainstCash() = ${}", orderRequiredCash);
-      // The suggested idiom for performing these comparisons is: (x.compareTo(y) <op> 0), where <op> is one of the six comparison operators.
-      if (freeCash.compareTo(orderRequiredCash) < 0) {
+	   // The suggested idiom for performing these comparisons is: (x.compareTo(y) <op> 0), where <op> is one with the six comparison operators.
+	   if (freeCash.compareTo(orderRequiredCash) < 0) {
          LOGGER.debug("freeCash {} < orderRequiredCash {}", freeCash, orderRequiredCash);
          throw new InsufficientFundsException(orderToAdd.getTicker(), orderRequiredCash.doubleValue(), freeCash.doubleValue());
       }
