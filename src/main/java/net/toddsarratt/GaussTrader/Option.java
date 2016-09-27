@@ -59,7 +59,7 @@ abstract class Option implements Security {
 		SecurityType secType = (optionType == 'C') ? SecurityType.CALL : (optionType == 'P') ? SecurityType.PUT : null;
 		if (secType == null) {
 			LOGGER.warn(" {}", optionType);
-			throw new IllegalArgumentException("Invalid parsing with option symbol. Expecting C or P (put or call), retrieved : " + optionType);
+			throw new IllegalArgumentException("Invalid parsing of option symbol. Expecting C or P (put or call), retrieved : " + optionType);
 		}
 		pattern = Pattern.compile("\\d{8}");
 		matcher = pattern.matcher(ticker);
@@ -67,15 +67,15 @@ abstract class Option implements Security {
 		LOGGER.info("Created {} option {} for underlying {} expiry {} for strike ${}",
 				secType, ticker, underlyingTicker, expiry.format(expiryFormat), strike);
 		if (secType.equals(SecurityType.PUT)) {
-			return new Put(ticker, secType, expiry, underlyingTicker, strike);
+			return new Put(ticker, expiry, underlyingTicker, strike);
 		} else {
-			return new Call(ticker, secType, expiry, underlyingTicker, strike);
+			return new Call(ticker, expiry, underlyingTicker, strike);
 		}
 	}
 
 	/**
-	 * This method replaces deprecated method getExpirySaturday(). As with 2/2015 options expire on Friday instead with
-	 * Saturday. See http://www.cboe.com/aboutcboe/xcal2015.pdf;  expiration date is now the third Friday with the month.
+	 * This method replaces deprecated method getExpirySaturday(). As of 2/2015 options expire on Friday instead of
+	 * Saturday. See http://www.cboe.com/aboutcboe/xcal2015.pdf;  expiration date is now the third Friday of the month.
 	 *
 	 * @param month month with the expiration
 	 * @param year  year with the expiration
@@ -105,7 +105,7 @@ abstract class Option implements Security {
 	}
 
 	static Option with(String stockTicker, String optionType, BigDecimal limitStrikePrice) {
-		LOGGER.debug("Entering Option.with(String {}, String {}, double {})", stockTicker, optionType, limitStrikePrice);
+		LOGGER.debug("Entering with(String {}, String {}, double {})", stockTicker, optionType, limitStrikePrice);
 		BigDecimal strikePrice;
 		String optionTickerToTry;
 		ZonedDateTime currentZonedDateTime = MARKET.getCurrentZonedDateTime();
@@ -147,7 +147,7 @@ abstract class Option implements Security {
 			}
 			LOGGER.warn("Couldn't find a PUT in the correct strike range");
 		} else {
-			LOGGER.warn("Couldn't make heads nor tails with option type {}", optionType);
+			LOGGER.warn("Couldn't make heads nor tails of option type {}", optionType);
 		}
 		LOGGER.debug("Returning null from Option.with()");
 		return null;  // Failed to supply valid information
@@ -161,6 +161,11 @@ abstract class Option implements Security {
 	@Override
 	public SecurityType getSecType() {
 		return secType;
+	}
+
+	@Override
+	public boolean isStock() {
+		return false;
 	}
 
 	@Override

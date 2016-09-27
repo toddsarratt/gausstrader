@@ -39,8 +39,8 @@ class YahooMarket extends Market {
 	}
 
 	/**
-	 * Returns the market closing time. Generally 4pm America/New_York plus 20min for Yahoo! delay. A few days out with
-	 * the year the market closes early at 1pm America/New_York (July 3rd, day after Thanksgiving).
+	 * Returns the market closing time. Generally 4pm America/New_York plus 20min for Yahoo! delay. A few days each
+	 * year the market closes early at 1pm America/New_York (usually July 3rd and the day after Thanksgiving).
 	 *
 	 * @return market close time
 	 */
@@ -52,7 +52,7 @@ class YahooMarket extends Market {
 	/**
 	 * Adds the current date to the market closing time to return a LocalDateTime
 	 *
-	 * @return LocalDateTime with today's date and market close time
+	 * @return LocalDateTime of today's date and market close time
 	 */
 	@Override
 	public LocalDateTime getClosingDateTime() {
@@ -60,15 +60,15 @@ class YahooMarket extends Market {
 	}
 
 	/**
-	 * Calls Yahoo! and finds the last trade date and time with Bank with America (BAC) stock. BAC is far and away the most
-	 * actively traded stock with the highest daily volume and should be representative with current Yahoo! market time.
+	 * Calls Yahoo! and finds the last trade date and time of Bank with America (BAC) stock. BAC is far and away the most
+	 * actively traded stock with the highest daily volume and should be representative of current Yahoo! market time.
 	 * Yahoo! API arguments:
 	 * <p><pre>
 	 *     d1   Last Trade Date
 	 *     t1   Last Trade Time
 	 * </pre>
 	 *
-	 * @return LocalDateTime parsed from last trade date and time with BAC
+	 * @return LocalDateTime parsed from last trade date and time of BAC
 	 */
 	@Override
 	public LocalDateTime getCurrentDateTime() {
@@ -111,7 +111,7 @@ class YahooMarket extends Market {
 
 	/**
 	 * This class contains methods to access Yahoo! specifically for market information and returns a market name
-	 * with "Yahoo! market"
+	 * of "Yahoo! market"
 	 *
 	 * @return string with market name, "Yahoo! market"
 	 */
@@ -256,7 +256,7 @@ class YahooMarket extends Market {
 	 */
 	@Override
 	public boolean marketPricesCurrent() {
-   /* Get date/time for last BAC tick. Very liquid, should be representative with how current Yahoo! prices are */
+   /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
 		logger.debug("Inside yahooPricesCurrent()");
 		ZonedDateTime currentTime = Instant.now().atZone(MARKET_ZONE);
 		logger.debug("currentTime = {}", currentTime);
@@ -271,12 +271,12 @@ class YahooMarket extends Market {
 	}
 
 	/**
-	 * Retrieves a series with stock closing prices from Yahoo!. Returns a HashMap with the closing epoch and the
+	 * Retrieves a series of stock closing prices from Yahoo!. Returns a HashMap with the closing epoch and the
 	 * adjusted close price.
 	 *
 	 * @param ticker       string representing the stock represented by this ticker
-	 * @param earliestDate LocalDate with the earliest missing prive from the data store
-	 * @return HashMap with missing prices
+	 * @param earliestDate LocalDate of the earliest missing price from the data store
+	 * @return HashMap of <date, missing price>
 	 */
 	@Override
 	public HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestDate) {
@@ -339,7 +339,7 @@ class YahooMarket extends Market {
 	 *
 	 * @param ticker    stock symbol
 	 * @param arguments requested data, as documented
-	 * @return string array with Yahoo! results
+	 * @return string array of Yahoo! results
 	 */
 	private String[] yahooGummyApi(String ticker, String arguments) {
 		logger.debug("Entering yahooGummyApi(String {}, String {})", ticker, arguments);
@@ -371,10 +371,10 @@ class YahooMarket extends Market {
 	}
 
 	/**
-	 * Creates an URL that can be used to retrieve a list with historical closing stock prices from Yahoo!.
+	 * Creates an URL that can be used to retrieve a list of historical closing stock prices from Yahoo!.
 	 *
 	 * @param ticker    stock ticker to retrieve prices for
-	 * @param earlyDate MissingPriceDateRange with prices needed
+	 * @param earlyDate LocalDate of earliest price needed
 	 * @return string representing an URL to retrieve historical prices
 	 */
 	private String createYahooHistUrl(String ticker, LocalDate earlyDate) {
@@ -414,13 +414,13 @@ class YahooMarket extends Market {
 	 * While Yahoo! provides a handy (if undocumented) API for stock information it does not appear to offer a similar
 	 * API for options. The current solution is to web scrape Yahoo! finance pages for the information. This method
 	 * takes the option ticker as its first parameter. The other two parameters define strings surrounding the
-	 * information that needs to be scraped out. The programmer (me, as it turns out) must view source with the web page
+	 * information that needs to be scraped out. The programmer (me, as it turns out) must view source of the web page
 	 * and tease out these boundaries and then change the code when the boundaries change.
 	 *
-	 * @param optionTicker ticker with the option we need to web scrape
-	 * @param prefix       boundary for the beginning with the information needed
-	 * @param suffix       boundary for the end with the information
-	 * @return string with the information being web scraped
+	 * @param optionTicker ticker of the option to web scrape
+	 * @param prefix       boundary for the beginning of the information needed
+	 * @param suffix       boundary for the end of the information
+	 * @return string of the information being web scraped
 	 */
 	private String yahooOptionScraper(String optionTicker, String prefix, String suffix) {
 		logger.debug("Entering yahooOptionScraper(String {}, String {}, String {})",

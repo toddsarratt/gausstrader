@@ -35,7 +35,7 @@ class Order {
    private BigDecimal limitPrice;
    private String action;
    private int totalQuantity;
-   private String secType;
+	private SecurityType secType;
    private BigDecimal claimAgainstCash;
    private String tif;
    private Instant instantOpened;
@@ -49,7 +49,7 @@ class Order {
    public Order(Security security, BigDecimal limitPrice, String action, int totalQuantity, String tif) {
       LOGGER.debug("Entering constructor Order(Security {}, double {}, String {}, int {}, String {})",
          security, limitPrice, action, totalQuantity, tif);
-	   LOGGER.debug("Security is with type {}", security.getClass());
+	   LOGGER.debug("Security is type {}", security.getSecType());
 	   ticker = security.getTicker();
       LOGGER.debug("Assigning ticker = {} from security.getTicker() = {}", ticker, security.getTicker());
       this.limitPrice = limitPrice;
@@ -57,8 +57,8 @@ class Order {
       this.action = action;
       this.totalQuantity = totalQuantity;
       secType = security.getSecType();
-      if ((secType.equals("CALL")) || (secType.equals("PUT"))) {
-         LOGGER.debug("Security is an option");
+	   if ((secType.equals(SecurityType.CALL)) || (secType.equals(SecurityType.PUT))) {
+		   LOGGER.debug("Security is an option");
          expiry = ((Option) security).getExpiry();
          LOGGER.debug("expiry = {}", expiry.toString("MMMM dd YYYY"));
          underlyingTicker = ((Option) security).getUnderlyingTicker();

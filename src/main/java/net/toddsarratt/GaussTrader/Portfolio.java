@@ -30,7 +30,7 @@ public class Portfolio {
 	private Set<Order> orders;
 
    /**
-    * Use static factory method .with() to create objects with the Portfolio class.
+    * Use static factory method .of() to create objects of the Portfolio class.
     */
    private Portfolio(String portfolioName,
                      BigDecimal netAssetValue,
@@ -73,7 +73,7 @@ public class Portfolio {
    }
 
    public static Portfolio of(String portfolioName, BigDecimal startingCash) {
-	   LOGGER.debug("Entering with(String {}, BigDecimal {})", portfolioName, startingCash);
+	   LOGGER.debug("Entering of(String {}, BigDecimal {})", portfolioName, startingCash);
 	   if (dataStore.portfolioInStore(portfolioName)) {
          LOGGER.error("Portfolio {} already exists", portfolioName);
          throw new IllegalArgumentException("Portfolio already exists.");
@@ -272,7 +272,7 @@ public class Portfolio {
       LOGGER.debug("Entering Portfolio.addNewOrder(Order {})", orderToAdd);
       BigDecimal orderRequiredCash = BigDecimal.valueOf(orderToAdd.getClaimAgainstCash());
       LOGGER.debug("orderRequiredCash = orderToAdd.getClaimAgainstCash() = ${}", orderRequiredCash);
-	   // The suggested idiom for performing these comparisons is: (x.compareTo(y) <op> 0), where <op> is one with the six comparison operators.
+	   // The suggested idiom for performing these comparisons is: (x.compareTo(y) <op> 0), where <op> is one of the six comparison operators.
 	   if (freeCash.compareTo(orderRequiredCash) < 0) {
          LOGGER.debug("freeCash {} < orderRequiredCash {}", freeCash, orderRequiredCash);
          throw new InsufficientFundsException(orderToAdd.getTicker(), orderRequiredCash.doubleValue(), freeCash.doubleValue());

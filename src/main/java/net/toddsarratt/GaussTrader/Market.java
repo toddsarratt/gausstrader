@@ -97,13 +97,13 @@ abstract class Market {
 	 */
 	public boolean isOpenMarketDate(LocalDate dateToCheck) {
 		logger.debug("Entering isOpenMarketDate()");
-		logger.debug("Comparing to list with holidays {}", Constants.HOLIDAY_MAP.entrySet());
+		logger.debug("Comparing to list of holidays {}", Constants.HOLIDAY_MAP.entrySet());
 		if (isHoliday(dateToCheck)) {
 			logger.debug("{} is a market holiday.", dateToCheck);
 			return false;
 		}
 		if ((dateToCheck.getDayOfWeek() == DayOfWeek.SATURDAY) || (dateToCheck.getDayOfWeek() == DayOfWeek.SUNDAY)) {
-			logger.warn("Market is closed the weekend day with {}", dateToCheck);
+			logger.warn("Market is closed the weekend day of {}", dateToCheck);
 			return false;
 		}
 		return true;

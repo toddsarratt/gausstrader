@@ -27,15 +27,15 @@ public class TradingSession {
 	}
 
 	/**
-	 * Main method for the TradingSession class. Runs a loop from the start with the trading day until the end, performing
+	 * Main method for the TradingSession class. Runs a loop from the start of the trading day until the end, performing
 	 * various stock checks and portfolio updates.
 	 */
 	void runTradingDay() {
-		LOGGER.debug("Start with runTradingDay()");
+		LOGGER.debug("Start runTradingDay()");
 		if (market.isOpenToday()) {
 			sleepUntilMarketOpen();
 			tradeUntilMarketClose();
-		 /* End with day tasks */
+		 /* End of day tasks */
 			closeGoodForDayOrders();
 			writeClosingPricesToDb();
 		} else {
@@ -45,7 +45,7 @@ public class TradingSession {
 		// TODO : portfolio.updatePositionsNetAssetValues() or something similar needs to be written and called here
 		portfolio.calculateNetAssetValue();
 		dataStore.write(portfolio.getSummary());
-		LOGGER.info("End with trading day.");
+		LOGGER.info("End trading day.");
 	}
 
 	private void tradeUntilMarketClose() {
@@ -133,7 +133,7 @@ public class TradingSession {
 						break;
 				}
 			} else {
-				LOGGER.error("Do not call this method with a non-actionable action. This is an improper use with the API");
+				LOGGER.error("Do not call this method with a non-actionable action. This is an improper use of the API");
 				LOGGER.error("Don't make me throw an IllegalArgumentException. Really. Don't.");
 			}
 		} catch (InsufficientFundsException ife) {
@@ -197,7 +197,7 @@ public class TradingSession {
 			return PriceBasedAction.DO_NOTHING;
 		}
 		if (stockPrice.compareTo(stock.getBollingerBand(2)) >= 0) {
-			LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(2));
+			LOGGER.info("Stock {} at ${} is above 2nd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(2));
 			return new PriceBasedAction(stockPrice,
 					true,
 					"SELL",
@@ -206,7 +206,7 @@ public class TradingSession {
 		}
 	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
 		if (stockPrice.compareTo(stock.getBollingerBand(1)) >= 0) {
-			LOGGER.info("Stock {} at ${} is above 1st Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(1));
+			LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(1));
 			return new PriceBasedAction(stockPrice,
 					true,
 					"SELL",
@@ -224,7 +224,7 @@ public class TradingSession {
 				.multiply(portfolio.calculateNetAssetValue())
 				.intValue();
 		if (stockPrice.compareTo(stock.getBollingerBand(5)) <= 0) {
-			LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(5));
+			LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(5));
 			if (openPutShorts < maximumContracts) {
 				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}
@@ -232,7 +232,7 @@ public class TradingSession {
 			return PriceBasedAction.DO_NOTHING;
 		}
 		if (stockPrice.compareTo(stock.getBollingerBand(4)) <= 0) {
-			LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(4));
+			LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(4));
 			if (openPutShorts < maximumContracts / 2) {
 				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}
@@ -241,7 +241,7 @@ public class TradingSession {
 		}
 	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
 		if (stockPrice.compareTo(stock.getBollingerBand(3)) <= 0) {
-			LOGGER.info("Stock {} at ${} is below 1st Bollinger Band with {}", stock.getTicker(), stockPrice, stock.getBollingerBand(3));
+			LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(3));
 			if (openPutShorts < maximumContracts / 4) {
 				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
 			}

@@ -31,7 +31,7 @@ public class Stock implements Security {
 	private BigDecimal[] bollingerBands = new BigDecimal[6];
 
 	/**
-	 * Private constructor for Stock class. Use static factory method with() to create objects with this class
+	 * Private constructor for Stock class. Use static factory method of() to create objects of this class
 	 *
 	 * @param ticker a String representing the ticker
 	 */
@@ -48,7 +48,7 @@ public class Stock implements Security {
 	}
 
 	public static Stock of(String ticker) {
-		LOGGER.debug("Entering factory method with(\"{}\")", ticker);
+		LOGGER.debug("Entering factory method of(\"{}\")", ticker);
 		if (MARKET.tickerValid(ticker)) {
 			BigDecimal[] movingAverages = MARKET.getMovingAverages(ticker);
 			BigDecimal fiftyDma = movingAverages[0];

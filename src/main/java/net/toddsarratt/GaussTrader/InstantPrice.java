@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * InstantPrice is a tuple representing a price and the instant that price was quoted. The static factory method
- * {@code .with()} is used to create object with this class and is overloaded to accept dates with string or
+ * {@code .of()} is used to create object of this class and is overloaded to accept dates of string or
  * epoch in milliseconds.
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
@@ -21,9 +21,9 @@ public class InstantPrice {
    private final Instant instant;
 
    /**
-    * Private constructor for InstantPrice class. Use static factory method with() to create objects with this class
+    * Private constructor for InstantPrice class. Use static factory method of() to create objects of this class
     *
-    * @param price   {@code BigDecimal} representing the price value with the quote
+    * @param price   {@code BigDecimal} representing the price value of the quote
     * @param instant {@code Instant} representing the moment in time the price quoted was assumed to be valid
     */
    private InstantPrice(BigDecimal price, Instant instant) {
@@ -32,7 +32,7 @@ public class InstantPrice {
    }
 
    /**
-    * Static factory method for creating InstantPrice objects. The CharSequence date (with which String is a subclass)
+    * Static factory method for creating InstantPrice objects. The CharSequence date (of which String is a subclass)
     * understood must represent a valid instant in UTC and is parsed using {@code DateTimeFormatter.ISO_INSTANT}
     *
     * @param priceString string representing the price quoted
@@ -54,10 +54,10 @@ public class InstantPrice {
    /**
     * Static factory method for creating InstantPrice objects. Uses current system clock to populate instance field,
     * which is probably not best practice and this method may be deprecated without notice. If the consuming API does
-    * not have a timestamp for the quote it should pass in its own clock value into one with the other static factory
+    * not have a timestamp for the quote it should pass in its own clock value into one of the other static factory
     * methods.
     *
-    * @param priceString string representing the price value with the quote
+    * @param priceString string representing the price value of the quote
     * @return InstantPrice object
     */
    public static InstantPrice of(String priceString) {
@@ -69,12 +69,12 @@ public class InstantPrice {
    }
 
    /**
-    * Static factory method for creating InstantPrice objects. The epoch value with the moment the price quoted was
+    * Static factory method for creating InstantPrice objects. The epoch value of the moment the price quoted was
     * assumed to be valid must be represented in milliseconds. Passing in the epoch time value in seconds will not be
     * corrected by the method and will break your code.
     *
-    * @param priceString string representing the price value with the quote
-    * @param epoch       Long representing in milliseconds the epoch value with the moment the price quote was assumed to
+    * @param priceString string representing the price value of the quote
+    * @param epoch       Long representing in milliseconds the epoch value of the moment the price quote was assumed to
     *                    be valid
     * @return InstantPrice object
     */
@@ -93,7 +93,7 @@ public class InstantPrice {
    /**
     * Static factory method for creating InstantPrice objects.
     *
-    * @param priceString string representing the price value with the quote
+    * @param priceString string representing the price value of the quote
     * @param instant     Instant representing the moment the price quote was assumed to be valid
     * @return InstantPrice object
     */
@@ -111,7 +111,7 @@ public class InstantPrice {
 	/**
 	 * Static factory method for creating InstantPrice objects.
 	 *
-	 * @param priceString string representing the price value with the quote
+	 * @param priceString string representing the price value of the quote
 	 * @param dateString  date and time representing the moment the price quote was assumed to be valid
 	 * @param formatter DateTimeFormatter for converting dateString to LocalDateTime
 	 * @param tz ZoneId for the date and time representing the market time zone where price quote originated
@@ -143,14 +143,14 @@ public class InstantPrice {
    }
 
    /**
-    * @return BigDecimal representing the price value with the quote
+    * @return BigDecimal representing the price value of the quote
     */
    public BigDecimal getPrice() {
       return price;
    }
 
    /**
-    * @return Double representing the price value with the quote
+    * @return Double representing the price value of the quote
     */
    public Double getPriceAsDouble() {
       return price.doubleValue();
@@ -164,7 +164,7 @@ public class InstantPrice {
    }
 
    /**
-    * @return Long representing in milliseconds the epoch value with the moment the price quote was assumed to be valid
+    * @return Long representing in milliseconds the epoch value of the moment the price quote was assumed to be valid
     */
    public long getEpoch() {
       return instant.toEpochMilli();

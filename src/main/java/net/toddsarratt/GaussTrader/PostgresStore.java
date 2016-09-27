@@ -81,7 +81,7 @@ public class PostgresStore implements DataStore {
 	}
 
    /**
-    * Writes the last known price with a stock to the database
+    * Writes the last known price of a stock to the database
     *
     * @param stock stock whose price needs to be written to the database
     */
@@ -254,7 +254,7 @@ public class PostgresStore implements DataStore {
 	@Override
 	public void write(PortfolioSummary summary) {
 		if (portfolioInDb()) {
-			LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead with inserts", name);
+			LOGGER.debug("Portfolio \"{}\" exists in database. Running updates instead of inserts", name);
 			updateDbSummary();
 		} else {
 			LOGGER.debug("Inserting portfolio \"{}\" newly into database", name);
@@ -557,7 +557,7 @@ public class PostgresStore implements DataStore {
          LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND position_id = {}", name, portfolioPosition.getPositionId());
          positionResultSet = positionSqlStatement.executeQuery();
          if (positionResultSet.next()) {
-	         LOGGER.debug("positionResultSet.next() == true, position {} exists in database. Running update instead with insert", portfolioPosition.getPositionId());
+	         LOGGER.debug("positionResultSet.next() == true, position {} exists in database. Running update instead of insert", portfolioPosition.getPositionId());
 	         updateDbPosition(portfolioPosition);
          } else {
             LOGGER.debug("positionResultSet.next() == false, inserting position {} newly into database", portfolioPosition.getPositionId());

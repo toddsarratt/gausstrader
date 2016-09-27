@@ -13,7 +13,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 /**
- * Collected constants for GaussTrader. All members with this class are static final. Google Guava library used
+ * Collected constants for GaussTrader. All members of this class are static final. Google Guava library used
  * (inconsistently, at this time) to ensure collections (only a subset) are immutable.
  *
  * @author Todd Sarratt todd.sarratt@gmail.com
