@@ -89,61 +89,92 @@ abstract class Option implements Security {
 	}
 
 	/**
-	 * Build option ticker. Example : Exxon Mobil 90 Strike Aug 13 expiry call = XOM130817C00090000
+	 * Build option ticker. Example : Exxon Mobil Aug 17 2013 expiry call 90 Strike = XOM130817C00090000
 	 */
-	static String createOptionTicker(String stockTicker, LocalDate expiry, char indicator, double strikeDouble) {
-		LOGGER.debug("Entering createOptionTicker(String {}, BaseDateTime {}, char {}, double {})", stockTicker, expiry.toString(), indicator, strikeDouble);
+	static String createOptionTicker(String stockTicker, LocalDate expiry, char indicator, BigDecimal strike) {
+		LOGGER.debug("Entering createOptionTicker(String {}, BaseDateTime {}, char {}, BigDecimal {})",
+				stockTicker, expiry.toString(), indicator, strike);
 		StringBuilder tickerBuilder = new StringBuilder(stockTicker);
 	/* Option strike format is xxxxx.yyy * 10^3 Example : Strike $82.50 = 00082500 */
-		int strikeInt = (int) (strikeDouble * 1000);
-		tickerBuilder.append(expiry.toString("yyMMdd"));
-		LOGGER.debug("Assembling option ticker with {} (expiry : {})", expiry.toString("yyMMdd"), expiry.toString("MMMM dd YYYY"));
+		tickerBuilder.append(expiry.format(DateTimeFormatter.ofPattern("yyMMdd")));
+		LOGGER.debug("Assembling option ticker with {} (expiry : {})",
+				expiry.format(DateTimeFormatter.ofPattern("yyMMdd")),
+				expiry.format(DateTimeFormatter.ofPattern("MMMM dd YYYY")));
 		tickerBuilder.append(indicator);
+		int strikeInt = (strike.multiply(BigDecimal.valueOf(1000))).intValue();
 		tickerBuilder.append(String.format("%08d", strikeInt));
 		LOGGER.debug("Returning assembled option ticker {}", tickerBuilder.toString());
 		return tickerBuilder.toString();
 	}
 
-	static Option with(String stockTicker, String optionType, BigDecimal limitStrikePrice) {
+	static Option with(String stockTicker, SecurityType optionType, BigDecimal limitStrikePrice) {
 		LOGGER.debug("Entering with(String {}, String {}, double {})", stockTicker, optionType, limitStrikePrice);
-		BigDecimal strikePrice;
 		String optionTickerToTry;
+		LocalDate expiry;
 		ZonedDateTime currentZonedDateTime = MARKET.getCurrentZonedDateTime();
 		int expirationSaturday = calculateFutureExpiry(currentZonedDateTime.getMonth().getValue(),
 				currentZonedDateTime.getYear());
 		/* If today is less than 7 days before this month's options expiration, go out a month */
 		if (currentZonedDateTime.getDayOfMonth() > (expirationSaturday - 7)) {
 			ZonedDateTime todayPlusOneMonth = currentZonedDateTime.plusMonths(1);
-			expirationSaturday = calculateFutureExpiry(todayPlusOneMonth.getMonth().getValue(), todayPlusOneMonth.getYear());
+			expirationSaturday = calculateFutureExpiry(
+					todayPlusOneMonth.getMonth().getValue(), todayPlusOneMonth.getYear());
+			expiry = LocalDate.of(
+					todayPlusOneMonth.getYear(), todayPlusOneMonth.getMonth(), expirationSaturday);
+		} else {
+			expiry = LocalDate.of(
+					currentZonedDateTime.getYear(), currentZonedDateTime.getMonth(), expirationSaturday);
 		}
 		/* Let's sell ITM options and generate some alpha. Or let's not, maybe OTM has more alpha. */
-		if (optionType.equals("CALL")) {
-			LOGGER.debug("Finding call to sell");
-			/* Should provide an ITM price either on the dollar or half dollar  */
-			strikePrice = Math.floor(limitStrikePrice * 2.0 - 0.1) / 2.0;
+		if (optionType.equals(SecurityType.CALL)) {
+			LOGGER.debug("Finding valid call");
+			/* Should provide a slightly OTM price either on the dollar or half dollar
+			   98.99 + (0.5 - 98.99 mod 0.5)
+			 = 98.99 + (0.5 - 0.49)
+			 = 98.99 + 0.01
+			 = 99.00
+			 or 67.27 + (0.5 - 67.27 mod 0.5)
+			 = 67.27 + (0.5 - 0.27)
+			 = 67.27 + 0.23
+			 = 67.50
+			*/
+			BigDecimal strikePrice = limitStrikePrice.add(
+					BigDecimal.valueOf(0.5).subtract(limitStrikePrice.remainder(BigDecimal.valueOf(0.5))));
 			LOGGER.debug("strikePrice = ${}, limitStrikePrice = ${}", strikePrice, limitStrikePrice);
 			/* While looking for an option don't go further than 10% out from current underlying security price */
-			while ((strikePrice - limitStrikePrice) / limitStrikePrice < 0.1) {
-				optionTickerToTry = createOptionTicker(stockTicker, expirationSaturday, 'C', strikePrice);
+			while ((strikePrice.subtract(limitStrikePrice)
+					.divide(limitStrikePrice, 3, RoundingMode.HALF_UP)
+					.compareTo(BigDecimal.valueOf(0.1))) < 0) {
+				optionTickerToTry = createOptionTicker(stockTicker, expiry, 'C', strikePrice);
 				LOGGER.debug("Trying option ticker {}", optionTickerToTry);
 				if (MARKET.tickerValid(optionTickerToTry)) {
 					return Option.with(optionTickerToTry);
 				}
-				strikePrice += 0.50;
+				strikePrice = strikePrice.add(BigDecimal.valueOf(0.50));
 			}
 			LOGGER.warn("Couldn't find a CALL in the correct strike range");
-		} else if (optionType.equals("PUT")) {
+		} else if (optionType.equals(SecurityType.PUT)) {
 			LOGGER.debug("Finding put to sell");
-			strikePrice = (int) limitStrikePrice + 0.50;
+			/* This should round down to the nearest half dollar. i.e.
+			   98.99 - (98.99 mod 0.5)
+			 = 98.99 - 0.49
+			 = 98.50
+			 or 67.27 - (67.27 mod 0.5)
+			 = 67.27 - 0.27
+			 = 67.00
+			*/
+			BigDecimal strikePrice = limitStrikePrice.subtract(limitStrikePrice.remainder(BigDecimal.valueOf(0.5)));
 			LOGGER.debug("strikePrice = {}, limitStrikePrice = {}", strikePrice, limitStrikePrice);
 			/* While looking for an option don't go further than 10% out from current underlying security price */
-			while ((strikePrice - limitStrikePrice) / limitStrikePrice > -0.1) {
-				optionTickerToTry = createOptionTicker(stockTicker, mutableExpiry, 'P', strikePrice);
+			while ((strikePrice.subtract(limitStrikePrice)
+					.divide(limitStrikePrice, 3, RoundingMode.HALF_UP)
+					.compareTo(BigDecimal.valueOf(0.1))) > 0) {
+				optionTickerToTry = createOptionTicker(stockTicker, expiry, 'P', strikePrice);
 				if (MARKET.tickerValid(optionTickerToTry)) {
 					LOGGER.debug("Returning new Option(\"{}\")", optionTickerToTry);
 					return Option.with(optionTickerToTry);
 				}
-				strikePrice -= 0.50;
+				strikePrice = strikePrice.subtract(BigDecimal.valueOf(0.50));
 			}
 			LOGGER.warn("Couldn't find a PUT in the correct strike range");
 		} else {
@@ -173,15 +204,15 @@ abstract class Option implements Security {
 		return true;
 	}
 
-	public BigDecimal getStrike() {
+	BigDecimal getStrike() {
 		return strike;
 	}
 
-	public LocalDate getExpiry() {
+	LocalDate getExpiry() {
 		return expiry;
 	}
 
-	public String getUnderlyingTicker() {
+	String getUnderlyingTicker() {
 		return underlyingTicker;
 	}
 }

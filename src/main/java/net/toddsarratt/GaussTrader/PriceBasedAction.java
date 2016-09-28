@@ -9,15 +9,15 @@ import java.math.BigDecimal;
  * @since v0.1
  */
 
-public class PriceBasedAction {
-	static final PriceBasedAction DO_NOTHING = new PriceBasedAction(Constants.BIGDECIMAL_MINUS_ONE, false, "", "", 0);
+class PriceBasedAction {
+	static final PriceBasedAction DO_NOTHING = new PriceBasedAction(Constants.BIGDECIMAL_MINUS_ONE, false, "", null, 0);
 	private final BigDecimal triggerPrice;
 	private final boolean isActionable;
 	private final String buyOrSell;
-	private final String securityType;
+	private final SecurityType securityType;
 	private final int numberToTransact;
 
-	PriceBasedAction(BigDecimal triggerPrice, boolean isActionable, String buyOrSell, String securityType, int numberToTransact) {
+	PriceBasedAction(BigDecimal triggerPrice, boolean isActionable, String buyOrSell, SecurityType securityType, int numberToTransact) {
 		this.triggerPrice = triggerPrice;
 		this.isActionable = isActionable;
 		this.buyOrSell = buyOrSell;
@@ -29,19 +29,19 @@ public class PriceBasedAction {
 		return triggerPrice;
 	}
 
-	public boolean isActionable() {
+	boolean isActionable() {
 		return isActionable;
 	}
 
-	public String getBuyOrSell() {
+	String getBuyOrSell() {
 		return buyOrSell;
 	}
 
-	public String getSecurityType() {
+	SecurityType getSecurityType() {
 		return securityType;
 	}
 
-	public int getNumberToTransact() {
+	int getNumberToTransact() {
 		return numberToTransact;
 	}
 }

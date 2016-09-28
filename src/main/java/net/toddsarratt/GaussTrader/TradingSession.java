@@ -109,7 +109,8 @@ public class TradingSession {
 				switch (action.getBuyOrSell()) {
 					case "SELL":
 						switch (action.getSecurityType()) {
-							case "OPTION":
+							case CALL:
+							case PUT:
 								optionToTrade = Option.with(stockTicker,
 										action.getSecurityType(),
 										action.getTriggerPrice());
@@ -124,7 +125,7 @@ public class TradingSession {
 												action.getNumberToTransact(),
 												"GFD"));
 								break;
-							case "STOCK":
+							case STOCK:
 								// TODO: This.
 								break;
 						}
@@ -143,7 +144,7 @@ public class TradingSession {
 	}
 
 	private void checkOpenOrders() {
-		LOGGER.debug("Entering TradingSession.checkOpenOrders()");
+		LOGGER.debug("Entering checkOpenOrders()");
 		for (Order openOrder : portfolio.getListOfOpenOrders()) {
 			LOGGER.debug("Checking current open orderId {} for ticker {}", openOrder.getOrderId(), openOrder.getTicker());
 			InstantPrice lastTick = market.lastTick(openOrder.getTicker());
