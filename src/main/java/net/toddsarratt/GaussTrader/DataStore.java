@@ -27,7 +27,9 @@ public interface DataStore {
 
 	void writeStockPrice(String ticker, LocalDate date, BigDecimal adjClose);
 
-	void writeStockPrice(Stock stock);
+	void writeStockPrice(String ticker, InstantPrice instantPrice);
+
+	void writeStockPrice(Stock stock, InstantPrice instantPrice);
 
 	boolean tickerPriceInStore(String ticker);
 

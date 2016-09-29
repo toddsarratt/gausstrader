@@ -1,7 +1,5 @@
 package net.toddsarratt.GaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,6 +8,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public class Position {
+	private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
+	private static Market market = GaussTrader.getMarket();
    private long positionId;
    private long originatingOrderId;
    private boolean open;
@@ -29,20 +29,18 @@ public class Position {
    private Instant instantClosed;
    private BigDecimal priceAtClose;
    private BigDecimal profit;
-   private static Market market = GaussTrader.getMarket();
-   private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
 
    Position() {
       LOGGER.debug("Entering Position default constructor");
-      positionId = getNewId();
-      instantOpened = Instant.now();
+	   positionId = generateNewId();
+	   instantOpened = Instant.now();
       open = true;
    }
 
    Position(Order orderToFill, BigDecimal priceAtOpen) {
       LOGGER.debug("Entering Position constructor Position(Order {}, price {})", orderToFill.getOrderId(), priceAtOpen);
-      positionId = getNewId();
-      originatingOrderId = orderToFill.getOrderId();
+	   positionId = generateNewId();
+	   originatingOrderId = orderToFill.getOrderId();
       open = true;
       ticker = orderToFill.getTicker();
       secType = orderToFill.getSecType();
@@ -93,15 +91,6 @@ public class Position {
       return newStockPosition;
    }
 
-   /**
-    * Returns current epoch time + least significant nano seconds to generate unique order and position ids
-    *
-    * @return
-    */
-   static long getNewId() {
-      return ((System.currentTimeMillis() << 20) & 0x7FFFFFFFFFF00000l) | (System.nanoTime() & 0x00000000000FFFFFl);
-   }
-
    public void close(BigDecimal closePrice) {
       open = false;
       instantClosed = Instant.now();
@@ -125,10 +114,6 @@ public class Position {
 
    void setOriginatingOrderId(long originatingOrderId) {
       this.originatingOrderId = originatingOrderId;
-   }
-
-   void setOpen(boolean open) {
-      this.open = open;
    }
 
    public String getTicker() {
@@ -250,13 +235,13 @@ public class Position {
       return price;
    }
 
-   void setPrice(BigDecimal lastTick) {
-      this.price = lastTick;
-   }
-
    public BigDecimal getPrice() {
       return price;
    }
+
+	void setPrice(BigDecimal lastTick) {
+		this.price = lastTick;
+	}
 
    void setNetAssetValue(BigDecimal netAssetValue) {
       this.netAssetValue = netAssetValue;
@@ -297,6 +282,10 @@ public class Position {
 
    public boolean isOpen() {
       return open;
+   }
+
+	void setOpen(boolean open) {
+		this.open = open;
    }
 
    public BigDecimal getClaimAgainstCash() {

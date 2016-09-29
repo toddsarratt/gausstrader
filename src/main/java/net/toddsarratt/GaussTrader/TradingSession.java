@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -61,7 +62,7 @@ public class TradingSession {
 			Stock stock = stockIterator.next();
 			InstantPrice currentInstantPrice = market.lastTick(stock.getTicker());
 			BigDecimal stockPrice = currentInstantPrice.getPrice();
-			dataStore.writeStockPrice(stock.getTicker(), stockPrice);
+			dataStore.writeStockPrice(stock.getTicker(), currentInstantPrice);
 			PriceBasedAction actionToTake = findActionToTake(stock, stockPrice);
 			if (actionToTake.isActionable()) {
 				takeActionOnStock(stock, actionToTake);
@@ -202,16 +203,17 @@ public class TradingSession {
 			return new PriceBasedAction(stockPrice,
 					true,
 					"SELL",
-					"CALL",
+					SecurityType.CALL,
 					Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
 		}
-	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met */
+	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met, though
+	  * it does protect against misuse of the API. Also, why is the PriceBasedAction exactly the same as above? */
 		if (stockPrice.compareTo(stock.getBollingerBand(1)) >= 0) {
 			LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(1));
 			return new PriceBasedAction(stockPrice,
 					true,
 					"SELL",
-					"CALL",
+					SecurityType.CALL,
 					Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
 		}
 		return PriceBasedAction.DO_NOTHING;
@@ -220,14 +222,14 @@ public class TradingSession {
 	private PriceBasedAction createPutAction(Stock stock, BigDecimal stockPrice) {
 		LOGGER.debug("Entering createPutAction(Stock {}, BigDecimal {})", stock.getTicker(), stockPrice);
 		int openPutShorts = portfolio.numberOfOpenPutShorts(stock);
-		int maximumContracts = Constants.STOCK_PCT_OF_PORTFOLIO.divide(Constants.BIGDECIMAL_ONE_HUNDRED)
-				.divide(stockPrice.multiply(Constants.BIGDECIMAL_ONE_HUNDRED))
+		int maximumContracts = Constants.STOCK_PCT_OF_PORTFOLIO.divide(Constants.BIGDECIMAL_ONE_HUNDRED, 3, RoundingMode.HALF_UP)
+				.divide(stockPrice.multiply(Constants.BIGDECIMAL_ONE_HUNDRED), 3, RoundingMode.HALF_UP)
 				.multiply(portfolio.calculateNetAssetValue())
 				.intValue();
 		if (stockPrice.compareTo(stock.getBollingerBand(5)) <= 0) {
 			LOGGER.info("Stock {} at ${} is below 3rd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(5));
 			if (openPutShorts < maximumContracts) {
-				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
+				return new PriceBasedAction(stockPrice, true, "SELL", SecurityType.PUT, Math.max(maximumContracts / 4, 1));
 			}
 			LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
 			return PriceBasedAction.DO_NOTHING;
@@ -235,7 +237,7 @@ public class TradingSession {
 		if (stockPrice.compareTo(stock.getBollingerBand(4)) <= 0) {
 			LOGGER.info("Stock {} at ${} is below 2nd Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(4));
 			if (openPutShorts < maximumContracts / 2) {
-				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
+				return new PriceBasedAction(stockPrice, true, "SELL", SecurityType.PUT, Math.max(maximumContracts / 4, 1));
 			}
 			LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
 			return PriceBasedAction.DO_NOTHING;
@@ -244,7 +246,7 @@ public class TradingSession {
 		if (stockPrice.compareTo(stock.getBollingerBand(3)) <= 0) {
 			LOGGER.info("Stock {} at ${} is below 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(3));
 			if (openPutShorts < maximumContracts / 4) {
-				return new PriceBasedAction(stockPrice, true, "SELL", "PUT", Math.max(maximumContracts / 4, 1));
+				return new PriceBasedAction(stockPrice, true, "SELL", SecurityType.PUT, Math.max(maximumContracts / 4, 1));
 			}
 			LOGGER.info("Open short put {} positions equals {}. Taking no action.", stock.getTicker(), openPutShorts);
 		}

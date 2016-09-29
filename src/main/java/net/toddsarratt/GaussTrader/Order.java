@@ -9,7 +9,7 @@ import java.time.Instant;
 /**
  *  Class to record each order
  * Fields :
- * orderId : Use GaussTrader.getNewId() to populate
+ * orderId : Use GaussTrader.generateNewId() to populate
  * open : boolean, open or closed order
  * ticker : security being traded
  * limitPrice : Limit orders only
@@ -26,7 +26,7 @@ import java.time.Instant;
 class Order {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Order.class);
-   private long orderId = GaussTrader.getNewId();
+	private TransactionId orderId;
    private boolean open;
    private String ticker;
    private Instant expiry;
@@ -74,12 +74,12 @@ class Order {
 	   LOGGER.info("Created order ID {} for {} to {} {} with {} @ ${} TIF : {}", orderId, underlyingTicker, action, totalQuantity, ticker, limitPrice, tif);
    }
 
-   public long getOrderId() {
-      return orderId;
+	public TransactionId getOrderId() {
+		return orderId;
    }
 
-   void setOrderId(long orderId) {
-      this.orderId = orderId;
+	void setOrderId(TransactionId orderId) {
+		this.orderId = orderId;
    }
 
    public boolean isOpen() {
@@ -126,8 +126,8 @@ class Order {
       return secType;
    }
 
-   void setSecType(String secType) {
-      this.secType = secType;
+	void setSecType(SecurityType secType) {
+		this.secType = secType;
    }
 
    public String getTif() {
