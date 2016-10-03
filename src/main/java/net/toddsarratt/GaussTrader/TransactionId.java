@@ -17,8 +17,8 @@ class TransactionId {
 	}
 
 	/**
-	 * Returns bit shifted epoch + (least significant nano seconds bitwise or with a random long and 22 bit bitmask)
-	 * to generate unique numbers to use as order and position ids. It looks something like this, in hex:
+	 * Returns bit shifted epoch + (random int and 22 bit bitmask) to generate unique numbers to use as order and
+	 * position ids. It looks something like this, in hex:
 	 * <p><pre>
 	 *     System.currentTimeMillis() = 0x15781ecc60e (41 significant bits)
 	 *         0x15772df8f85 << 22 = 0x55e07b3183800000 (63 significant bits)
