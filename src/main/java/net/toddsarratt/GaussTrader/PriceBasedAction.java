@@ -25,6 +25,11 @@ class PriceBasedAction {
 		this.numberToTransact = numberToTransact;
 	}
 
+	@Override
+	public static String toString() {
+		return "";
+	}
+
 	BigDecimal getTriggerPrice() {
 		return triggerPrice;
 	}

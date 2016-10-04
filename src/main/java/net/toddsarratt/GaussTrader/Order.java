@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- *  Class to record each order
+ * Class to record each order
  * Fields :
  * orderId : Use GaussTrader.generateNewId() to populate
  * open : boolean, open or closed order
@@ -23,263 +23,232 @@ import java.time.Instant;
  * fillPrice : price at which order was filled and closed
  */
 
-class Order {
+abstract class Order {
+	final Logger logger = LoggerFactory.getLogger(getClass());
+	TransactionId orderId;
+	boolean open;
+	String ticker;
+	BigDecimal limitPrice;
+	PriceBasedAction action;
+	BigDecimal claimAgainstCash;
+	String tif;
+	Instant instantOpened;
+	Instant instantClosed;
+	String closeReason;
+	BigDecimal fillPrice;
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Order.class);
-	private TransactionId orderId;
-   private boolean open;
-   private String ticker;
-   private Instant expiry;
-   private String underlyingTicker;
-   private BigDecimal strikePrice;
-   private BigDecimal limitPrice;
-   private String action;
-   private int totalQuantity;
-	private SecurityType secType;
-   private BigDecimal claimAgainstCash;
-   private String tif;
-   private Instant instantOpened;
-   private Instant instantClosed;
-   private String closeReason;
-   private BigDecimal fillPrice;
+	Order() {
+	}
 
-   public Order() {
-   }
+	Order of(Security security, BigDecimal limitPrice, PriceBasedAction action, String tif) {
+		logger.debug("Entering Order factory method of(Security {}, BigDecimal {}, PriceBasedAction {}, String {})",
+				security, limitPrice.toPlainString(), action, tif);
+		logger.debug("Security is type {}", security.getSecType());
+		if ((action.getSecurityType().equals(SecurityType.CALL))
+				|| (action.getSecurityType().equals(SecurityType.PUT))) {
+			logger.debug("Security is an option");
+			return new OptionOrder((Option) security, limitPrice, action, tif);
+		}
+		return new StockOrder((Stock) security, limitPrice, action, tif);
+		calculateClaimAgainstCash();
+		logger.debug("claimAgainstCash = ${}", claimAgainstCash);
+	}
 
-   public Order(Security security, BigDecimal limitPrice, String action, int totalQuantity, String tif) {
-      LOGGER.debug("Entering constructor Order(Security {}, double {}, String {}, int {}, String {})",
-         security, limitPrice, action, totalQuantity, tif);
-	   LOGGER.debug("Security is type {}", security.getSecType());
-	   ticker = security.getTicker();
-      LOGGER.debug("Assigning ticker = {} from security.getTicker() = {}", ticker, security.getTicker());
-      this.limitPrice = limitPrice;
-      LOGGER.debug("limitPrice = ${}", limitPrice);
-      this.action = action;
-      this.totalQuantity = totalQuantity;
-      secType = security.getSecType();
-	   if ((secType.equals(SecurityType.CALL)) || (secType.equals(SecurityType.PUT))) {
-		   LOGGER.debug("Security is an option");
-         expiry = ((Option) security).getExpiry();
-         LOGGER.debug("expiry = {}", expiry.toString("MMMM dd YYYY"));
-         underlyingTicker = ((Option) security).getUnderlyingTicker();
-         LOGGER.debug("underlyingTicker = {}", underlyingTicker);
-         strikePrice = ((Option) security).getStrike();
-         LOGGER.debug("strikePrice = ${}", strikePrice);
-      }
-      calculateClaimAgainstCash();
-      LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
-      this.tif = tif;
-      open = true;
-      instantOpened = Instant.now();
-	   LOGGER.info("Created order ID {} for {} to {} {} with {} @ ${} TIF : {}", orderId, underlyingTicker, action, totalQuantity, ticker, limitPrice, tif);
-   }
-
-	public TransactionId getOrderId() {
+	TransactionId getOrderId() {
 		return orderId;
-   }
+	}
 
-	void setOrderId(TransactionId orderId) {
-		this.orderId = orderId;
-   }
+//	void setOrderId(TransactionId orderId) { this.orderId = orderId;	}
 
-   public boolean isOpen() {
-      return open;
-   }
+	boolean isOpen() {
+		return open;
+	}
 
-   void setOpen(boolean open) {
-      this.open = open;
-   }
+	void setOpen(boolean open) {
+		this.open = open;
+	}
 
-   public String getTicker() {
-      return ticker;
-   }
+	public String getTicker() {
+		return ticker;
+	}
 
-   void setTicker(String ticker) {
-      this.ticker = ticker;
-   }
+	void setTicker(String ticker) {
+		this.ticker = ticker;
+	}
 
-   public BigDecimal getLimitPrice() {
-      return limitPrice;
-   }
+	BigDecimal getLimitPrice() {
+		return limitPrice;
+	}
 
-   void setLimitPrice(BigDecimal limitPrice) {
-      this.limitPrice = limitPrice;
-   }
+	void setLimitPrice(BigDecimal limitPrice) {
+		this.limitPrice = limitPrice;
+	}
 
-   public String getAction() {
-      return action;
-   }
+	PriceBasedAction getAction() {
+		return action;
+	}
 
-   void setAction(String action) {
-      this.action = action;
-   }
+	void setAction(String action) {
+		this.action = action;
+	}
 
-   public int getTotalQuantity() {
-      return totalQuantity;
-   }
+	int getTotalQuantity() {
+		return totalQuantity;
+	}
 
-   void setTotalQuantity(int totalQuantity) {
-      this.totalQuantity = totalQuantity;
-   }
+//	void setTotalQuantity(int totalQuantity) {this.totalQuantity = totalQuantity;}
 
-   public String getSecType() {
-      return secType;
-   }
+	String getSecType() {
+		return secType;
+	}
 
-	void setSecType(SecurityType secType) {
-		this.secType = secType;
-   }
+//	void setSecType(SecurityType secType) {this.secType = secType;}
 
-   public String getTif() {
-      return tif;
-   }
+	String getTif() {
+		return tif;
+	}
 
-   void setTif(String tif) {
-      this.tif = tif;
-   }
+	/*
 
-   public boolean isOption() {
-      return isPut() || isCall();
-   }
+	void setTif(String tif) {
+		this.tif = tif;
+	}
 
-   public boolean isCall() {
-      return secType.equals("CALL");
-   }
+	public boolean isOption() {
+		return isPut() || isCall();
+	}
 
-   public boolean isPut() {
-      return secType.equals("PUT");
-   }
+	public boolean isCall() {
+		return secType.equals("CALL");
+	}
 
-   public boolean isStock() {
-      return secType.equals("STOCK");
-   }
+	public boolean isPut() {
+		return secType.equals("PUT");
+	}
 
-   public boolean isLong() {
-      return action.equals("BUY");
-   }
+	public boolean isStock() {
+		return secType.equals("STOCK");
+	}
 
-   public boolean isShort() {
-      return !isLong();
-   }
+	public boolean isLong() {
+		return action.getBuyOrSell().equals("BUY");
+	}
 
-   /* Write changes in order to database */
-   public void fill(BigDecimal fillPrice) {
-      LOGGER.debug("Entering Order.fill(double {})", fillPrice);
-      closeReason = "FILLED";
-      open = false;
-      this.fillPrice = fillPrice;
-      instantClosed = Instant.now();
-      LOGGER.info("Order {} {} @ ${} epoch {}", orderId, closeReason, this.fillPrice, instantClosed);
-   }
+	public boolean isShort() {
+		return !isLong();
+	}
+*/
+	/* Write changes in order to database */
+	void fill(BigDecimal fillPrice) {
+		logger.debug("Entering Order.fill(double {})", fillPrice);
+		closeReason = "FILLED";
+		open = false;
+		this.fillPrice = fillPrice;
+		instantClosed = Instant.now();
+		logger.info("Order {} {} @ ${} epoch {}", orderId, closeReason, this.fillPrice, instantClosed);
+	}
 
-   public void closeExpired() {
-      close("EXPIRED");
-   }
+	void closeExpired() {
+		close("EXPIRED");
+	}
 
-   public void closeCancelled() {
-      close("CANCELLED");
-   }
+	public void closeCancelled() {
+		close("CANCELLED");
+	}
 
-   private void close(String closeReason) {
-      LOGGER.debug("Entering close()");
-      this.closeReason = closeReason;
-      open = false;
-      fillPrice = BigDecimal.ZERO;
-      instantClosed = Instant.now();
-      LOGGER.info("Order {} {} @ ${} epoch {}", this.orderId, closeReason, fillPrice, instantClosed);
+	private void close(String closeReason) {
+		logger.debug("Entering close()");
+		this.closeReason = closeReason;
+		open = false;
+		fillPrice = BigDecimal.ZERO;
+		instantClosed = Instant.now();
+		logger.info("Order {} {} @ ${} epoch {}", this.orderId, closeReason, fillPrice, instantClosed);
 
-   }
+	}
 
-   Instant getInstantOpened() {
-      return instantOpened;
-   }
+	Instant getInstantOpened() {
+		return instantOpened;
+	}
 
 	void setInstantOpened(Instant instantOpened) {
 		this.instantOpened = instantOpened;
-   }
+	}
 
-   Instant getInstantClosed() {
-      return instantClosed;
-   }
+	Instant getInstantClosed() {
+		return instantClosed;
+	}
 
 	void setInstantClosed(Instant instantClosed) {
 		this.instantClosed = instantClosed;
-   }
+	}
 
-   public String getCloseReason() {
-      return closeReason;
-   }
+	String getCloseReason() {
+		return closeReason;
+	}
 
 	void setCloseReason(String closeReason) {
 		this.closeReason = closeReason;
-   }
+	}
 
-   BigDecimal getFillPrice() {
-      return fillPrice;
-   }
+	BigDecimal getFillPrice() {
+		return fillPrice;
+	}
 
 	void setFillPrice(BigDecimal fillPrice) {
 		this.fillPrice = fillPrice;
 	}
 
-   void setExpiry(Instant expiry) {
-      this.expiry = expiry;
-   }
+	void setExpiry(Instant expiry) {
+		this.expiry = expiry;
+	}
 
-   Instant getExpiry() {
-      return expiry;
-   }
+	Instant getExpiry() {
+		return expiry;
+	}
 
 	void setExpiry(long expiryMillis) {
 		this.expiry = Instant.ofEpochMilli(expiryMillis);
-   }
+	}
 
-   String getUnderlyingTicker() {
-      return underlyingTicker;
-   }
+	String getUnderlyingTicker() {
+		return underlyingTicker;
+	}
 
 	void setUnderlyingTicker(String underlyingTicker) {
 		this.underlyingTicker = underlyingTicker;
-   }
+	}
 
-   BigDecimal getStrikePrice() {
-      return strikePrice;
-   }
 
-	void setStrikePrice(BigDecimal strikePrice) {
-		this.strikePrice = strikePrice;
-   }
+	BigDecimal getClaimAgainstCash() {
+		return claimAgainstCash;
+	}
 
-   BigDecimal getClaimAgainstCash() {
-      return claimAgainstCash;
-   }
+	void setClaimAgainstCash(BigDecimal requiredCash) {
+		claimAgainstCash = requiredCash;
+	}
 
-   void setClaimAgainstCash(BigDecimal requiredCash) {
-      claimAgainstCash = requiredCash;
-   }
+	BigDecimal calculateCostBasis() {
+		logger.debug("Entering Order.calculateClaimAgainstCash()");
+		BigDecimal costBasis = limitPrice.multiply(
+				new BigDecimal(
+						action.getNumberToTransact()
+								* (action.getSecurityType().equals(SecurityType.STOCK) ? 1.0 : 100.0)
+								* (action.getBuyOrSell().equals("BUY") ? 1.0 : -1.0)));
+		logger.debug("costBasis = ${}", costBasis);
+		return costBasis;
+	}
 
-   void calculateClaimAgainstCash() {
-      LOGGER.debug("Entering Order.calculateClaimAgainstCash()");
-      BigDecimal costBasis = limitPrice.multiply(new BigDecimal(totalQuantity * (isStock() ? 1.0 : 100.0) * (isLong() ? 1.0 : -1.0)));
-      LOGGER.debug("costBasis = ${}", costBasis);
-      if (isLong()) {
-         claimAgainstCash = costBasis;
-      } else if (isPut()) {
-         claimAgainstCash = strikePrice.multiply(new BigDecimal(totalQuantity * 100)).add(costBasis);
-      } else {
-         claimAgainstCash = BigDecimal.ZERO;
-      }
-   }
+	abstract BigDecimal calculateClaimAgainstCash()
 
-   public boolean canBeFilled(BigDecimal lastTick) {
-      if (lastTick.compareTo(BigDecimal.ZERO) < 0) {
-         return false;
-      }
-      return (isLong() && (lastTick.compareTo(limitPrice) <= 0)) || (isShort() && (lastTick.compareTo(limitPrice) >= 0));
-   }
+	boolean canBeFilled(BigDecimal lastTick) {
+		if (lastTick.compareTo(BigDecimal.ZERO) < 0) {
+			return false;
+		}
+		return (isLong() && (lastTick.compareTo(limitPrice) <= 0)) || (isShort() && (lastTick.compareTo(limitPrice) >= 0));
+	}
 
-   @Override
-   public String toString() {
-      return (orderId + " " + action + " " + totalQuantity + " " + ticker + " " + secType + " @ $" + limitPrice);
-   }
+	@Override
+	public String toString() {
+		return (orderId + " " + action + " " + totalQuantity + " " + ticker + " " + secType + " @ $" + limitPrice);
+	}
 }
