@@ -1,5 +1,8 @@
 package net.toddsarratt.GaussTrader;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
@@ -10,39 +13,24 @@ import java.time.Instant;
  * @since v0.2
  */
 
-public class OptionOrder extends Order {
-	private Option option;
+class OptionOrder extends Order {
+	private final static Logger LOGGER = LoggerFactory.getLogger(OptionOrder.class);
+	private final Option option;
 
-	/*
-		TransactionId orderId;
-	boolean open;
-	String ticker;
-	BigDecimal limitPrice;
-	PriceBasedAction action;
-	BigDecimal claimAgainstCash;
-	String tif;
-	Instant instantOpened;
-	 */
 	OptionOrder(Option option, BigDecimal limitPrice, PriceBasedAction action, String tif) {
 		this.option = option;
-		this.ticker = option.getTicker();
-		logger.debug("Assigning ticker = {} ", ticker);
-		this.limitPrice = limitPrice;
-		logger.debug("limitPrice = ${}", limitPrice);
 		this.action = action;
 		this.tif = tif;
-		open = true;
-		instantOpened = Instant.now();
-		logger.info("Created order ID {} for {} to {} {} with {} @ ${} TIF : {}", orderId, underlyingTicker, action, totalQuantity, ticker, limitPrice, tif);
-
+		this.open = true;
+		this.instantOpened = Instant.now();
+		this.claimAgainstCash = calculateClaimAgainstCash();
+		LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
+		LOGGER.info("Created order ID {} for {} to {} {} with {} @ ${} TIF : {}",
+				orderId, option.getUnderlyingTicker(), action, ticker, limitPrice, tif);
 	}
 
 	public Option getOption() {
 		return option;
-	}
-
-	BigDecimal getStrikePrice() {
-		return option.getStrike();
 	}
 
 	@Override
@@ -51,7 +39,8 @@ public class OptionOrder extends Order {
 			return calculateCostBasis();
 		}
 		if (option.isPut()) {
-			return option.getStrike().multiply(new BigDecimal(action.getNumberToTransact() * 100)).add(costBasis);
+			return option.getStrike().multiply(
+					new BigDecimal(action.getNumberToTransact() * 100)).add(calculateCostBasis());
 		}
 		return BigDecimal.ZERO;
 	}

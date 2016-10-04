@@ -81,7 +81,7 @@ abstract class Option implements Security {
 	 * @param year  year with the expiration
 	 * @return the expiration date's day with the month [15 - 21]
 	 */
-	static int calculateFutureExpiry(int month, int year) {
+	private static int calculateFutureExpiry(int month, int year) {
 		return 21 - LocalDate.of(year, month, 2)
 				.getDayOfWeek()
 				.getValue()
@@ -91,7 +91,7 @@ abstract class Option implements Security {
 	/**
 	 * Build option ticker. Example : Exxon Mobil Aug 17 2013 expiry call 90 Strike = XOM130817C00090000
 	 */
-	static String createOptionTicker(String stockTicker, LocalDate expiry, char indicator, BigDecimal strike) {
+	private static String createOptionTicker(String stockTicker, LocalDate expiry, char indicator, BigDecimal strike) {
 		LOGGER.debug("Entering createOptionTicker(String {}, BaseDateTime {}, char {}, BigDecimal {})",
 				stockTicker, expiry.toString(), indicator, strike);
 		StringBuilder tickerBuilder = new StringBuilder(stockTicker);
@@ -202,6 +202,14 @@ abstract class Option implements Security {
 	@Override
 	public boolean isOption() {
 		return true;
+	}
+
+	boolean isPut() {
+		return secType.equals(SecurityType.PUT);
+	}
+
+	boolean isCall() {
+		return secType.equals(SecurityType.CALL);
 	}
 
 	BigDecimal getStrike() {

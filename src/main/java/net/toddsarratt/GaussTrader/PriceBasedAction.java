@@ -26,7 +26,7 @@ class PriceBasedAction {
 	}
 
 	@Override
-	public static String toString() {
+	public String toString() {
 		return "";
 	}
 

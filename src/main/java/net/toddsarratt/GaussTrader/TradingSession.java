@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 
-public class TradingSession {
+class TradingSession {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TradingSession.class);
 	private Market market = GaussTrader.getMarket();
 	private DataStore dataStore = GaussTrader.getDataStore();
@@ -95,7 +95,7 @@ public class TradingSession {
 	}
 
 	/**
-	 * This is the heart with the matter. All trading strategy lives in this gold nuggets. Too bad it currently looks
+	 * This is the heart with the matter. All trading strategy lives in this gold nugget. Too bad it currently looks
 	 * more like a polished turd. TODO: Turn shit into shinola.
 	 *
 	 * @param stock  stock that we're buying or selling or transacting a derivative against
@@ -120,10 +120,9 @@ public class TradingSession {
 									break;
 								}
 								portfolio.addNewOrder(
-										new Order(optionToTrade,
-												action.getTriggerPrice(),
-												"SELL",
-												action.getNumberToTransact(),
+										Order.of(optionToTrade,
+												market.lastTick(optionToTrade).getPrice(),
+												action,
 												"GFD"));
 								break;
 							case STOCK:
