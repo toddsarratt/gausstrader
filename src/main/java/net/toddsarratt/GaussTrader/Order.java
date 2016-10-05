@@ -14,8 +14,8 @@ import java.time.Instant;
  * ticker : security being traded
  * limitPrice : Limit orders only
  * Action : "BUY" or "SELL"
- * totalQuantity : probably 1 contract, could be 100 shares
- * secType : "CALL", "PUT", "STOCK"
+ * totalQuantity : probably 1 contract, could be 100 shares :: REPLACED WITH ACTION
+ * secType : "CALL", "PUT", "STOCK" :: REPLACED WITH ACTION
  * tif (Time in Force) : "GTC" (Good 'Til Cancelled) vs "GFD" (Good For Day = day order)
  * epochOpened : milliseconds since epoch when order was opened
  * instantClosed : milliseconds since epoch when order was closed
