@@ -39,24 +39,25 @@ public class PostgresStore implements DataStore {
 
 	public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
 		LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
-		Position positionFromDb = new Position();
-		positionFromDb.setPositionId(dbResult.getLong("position_id"));
-		positionFromDb.setOpen(dbResult.getBoolean("open"));
-		positionFromDb.setTicker(dbResult.getString("ticker"));
-		positionFromDb.setSecType(dbResult.getString("sec_type"));
-		positionFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
-		positionFromDb.setStrikePrice(dbResult.getDouble("strike_price"));
-		positionFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
-		positionFromDb.setLongPosition(dbResult.getBoolean("long_position"));
-		positionFromDb.setNumberTransacted(dbResult.getInt("number_transacted"));
-		positionFromDb.setPriceAtOpen(dbResult.getDouble("price_at_open"));
-		positionFromDb.setCostBasis(dbResult.getDouble("cost_basis"));
-		positionFromDb.setPrice(dbResult.getDouble("last_tick"));
-		positionFromDb.setNetAssetValue(dbResult.getDouble("net_asset_value"));
-		positionFromDb.setExpiry(new DateTime(dbResult.getLong("epoch_expiry"), DateTimeZone.forID("America/New_York")));
-		positionFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
-		positionFromDb.setOriginatingOrderId(dbResult.getLong("originating_order_id"));
-		return positionFromDb;
+		PositionBuilder positionBuilder = new PositionBuilder();
+		positionBuilder.setPositionId(dbResult.getLong("position_id"))
+				.setOpen(dbResult.getBoolean("open"))
+				.setTicker(dbResult.getString("ticker"))
+				.setSecType(dbResult.getString("sec_type"))
+				.setUnderlyingTicker(dbResult.getString("underlying_ticker"))
+				.setStrikePrice(dbResult.getDouble("strike_price"))
+				.setEpochOpened(dbResult.getLong("epoch_opened"))
+				.setLongPosition(dbResult.getBoolean("long_position"))
+				.setNumberTransacted(dbResult.getInt("number_transacted"))
+				.setPriceAtOpen(dbResult.getDouble("price_at_open"))
+				.setCostBasis(dbResult.getDouble("cost_basis"))
+				.setPrice(dbResult.getDouble("last_tick"))
+				.setNetAssetValue(dbResult.getDouble("net_asset_value"))
+				// TODO: Add field "expiry" to take the place of "epoch_expiry" in database
+				.setExpiry(dbResult.getDate("expiry").toLocalDate())
+				.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"))
+				.setOriginatingOrderId(dbResult.getLong("originating_order_id"));
+		return positionBuilder.build();
 	}
 
 	public static Order dbToPortfolioOrder(ResultSet dbResult) throws SQLException {
