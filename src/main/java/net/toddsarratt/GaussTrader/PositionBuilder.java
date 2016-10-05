@@ -1,8 +1,5 @@
 package net.toddsarratt.GaussTrader;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -14,8 +11,6 @@ import java.time.LocalDate;
  * @since v0.2
  */
 public class PositionBuilder {
-	private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
-	private static Market market = GaussTrader.getMarket();
 	private Position position;
 	private TransactionId positionId;
 	private TransactionId originatingOrderId;
@@ -45,79 +40,98 @@ public class PositionBuilder {
 		return position;
 	}
 
-	public void setPositionId(TransactionId positionId) {
+	public PositionBuilder setPositionId(TransactionId positionId) {
 		position.setPositionId(positionId);
+		return this;
 	}
 
-	public void setOriginatingOrderId(TransactionId originatingOrderId) {
+	public PositionBuilder setOriginatingOrderId(TransactionId originatingOrderId) {
 		position.setOriginatingOrderId(originatingOrderId);
+		return this;
 	}
 
-	public void setOpen(boolean open) {
+	public PositionBuilder setOpen(boolean open) {
 		position.setOpen(open);
+		return this;
 	}
 
-	public void setTicker(String ticker) {
+	public PositionBuilder setTicker(String ticker) {
 		position.setTicker(ticker);
+		return this;
 	}
 
-	public void setSecType(SecurityType secType) {
+	public PositionBuilder setSecType(SecurityType secType) {
 		position.setSecType(secType);
+		return this;
 	}
 
-	public void setExpiry(LocalDate expiry) {
+	public PositionBuilder setExpiry(LocalDate expiry) {
 		position.setExpiry(expiry);
+		return this;
 	}
 
-	public void setUnderlyingTicker(String underlyingTicker) {
+	public PositionBuilder setUnderlyingTicker(String underlyingTicker) {
 		position.setUnderlyingTicker(underlyingTicker);
+		return this;
 	}
 
-	public void setStrikePrice(BigDecimal strikePrice) {
+	public PositionBuilder setStrikePrice(BigDecimal strikePrice) {
 		position.setStrikePrice(strikePrice);
+		return this;
 	}
 
-	public void setInstantOpened(Instant instantOpened) {
+	public PositionBuilder setInstantOpened(Instant instantOpened) {
 		position.setInstantOpened(instantOpened);
+		return this;
 	}
 
-	public void setLongPosition(boolean longPosition) {
+	public PositionBuilder setLongPosition(boolean longPosition) {
 		position.setLongPosition(longPosition);
+		return this;
 	}
 
-	public void setNumberTransacted(int numberTransacted) {
+	public PositionBuilder setNumberTransacted(int numberTransacted) {
 		position.setNumberTransacted(numberTransacted);
+		return this;
 	}
 
-	public void setPriceAtOpen(BigDecimal priceAtOpen) {
+	public PositionBuilder setPriceAtOpen(BigDecimal priceAtOpen) {
 		position.setPriceAtOpen(priceAtOpen);
+		return this;
 	}
 
-	public void setCostBasis(BigDecimal costBasis) {
+	public PositionBuilder setCostBasis(BigDecimal costBasis) {
 		position.setCostBasis(costBasis);
+		return this;
 	}
 
-	public void setClaimAgainstCash(BigDecimal claimAgainstCash) {
+	public PositionBuilder setClaimAgainstCash(BigDecimal claimAgainstCash) {
 		position.setClaimAgainstCash(claimAgainstCash);
+		return this;
 	}
 
-	public void setPrice(BigDecimal price) {
+	public PositionBuilder setPrice(BigDecimal price) {
 		position.setPrice(price);
+		return this;
 	}
 
-	public void setNetAssetValue(BigDecimal netAssetValue) {
+	public PositionBuilder setNetAssetValue(BigDecimal netAssetValue) {
 		position.setNetAssetValue(netAssetValue);
+		return this;
 	}
 
-	public void setInstantClosed(Instant instantClosed) {
+	public PositionBuilder setInstantClosed(Instant instantClosed) {
 		position.setInstantClosed(instantClosed);
+		return this;
 	}
 
-	public void setPriceAtClose(BigDecimal priceAtClose) {
+	public PositionBuilder setPriceAtClose(BigDecimal priceAtClose) {
 		position.setPriceAtClose(priceAtClose);
+		return this;
 	}
 
-	public void setProfit(BigDecimal profit) {
+	public PositionBuilder setProfit(BigDecimal profit) {
 		position.setProfit(profit);
+		return this;
 	}
 }
