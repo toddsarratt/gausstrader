@@ -102,8 +102,6 @@ class TradingSession {
 	 */
 	private void takeActionOnStock(Stock stock, PriceBasedAction action) {
 		LOGGER.debug("Entering takeActionOnStock()");
-		String stockTicker = stock.getTicker();
-		Option optionToTrade;
 		try {
 			if (action.isActionable()) {
 				switch (action.getBuyOrSell()) {
@@ -111,9 +109,7 @@ class TradingSession {
 						switch (action.getSecurityType()) {
 							case CALL:
 							case PUT:
-								optionToTrade = Option.with(stockTicker,
-										action.getSecurityType(),
-										action.getTriggerPrice());
+								Option optionToTrade = Option.with(stock, action);
 								if (optionToTrade == null) {
 									LOGGER.warn("Couldn't find valid option");
 									break;
@@ -138,7 +134,7 @@ class TradingSession {
 			}
 		} catch (InsufficientFundsException ife) {
 			LOGGER.warn("Not enough free cash to initiate order for {}, {} @ ${}",
-					stockTicker, action.getBuyOrSell(), action.getNumberToTransact(), ife);
+					stock.getTicker(), action.getBuyOrSell(), action.getNumberToTransact(), ife);
 		}
 	}
 
@@ -171,9 +167,6 @@ class TradingSession {
 			}
 		}
 	}
-
-
-
 
 	/**
 	 * If within two days with expiry exercise ITM options. If underlyingTicker < optionStrike then stock is PUT to Portfolio
