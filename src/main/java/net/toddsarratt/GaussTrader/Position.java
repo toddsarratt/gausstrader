@@ -3,9 +3,9 @@ package net.toddsarratt.GaussTrader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 public class Position {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
@@ -14,8 +14,8 @@ public class Position {
 	private TransactionId originatingOrderId;
 	private boolean open;
 	private String ticker;
-	private String secType;
-	private Instant expiry;
+	private SecurityType secType;
+	private LocalDate expiry;
 	private String underlyingTicker;
 	private BigDecimal strikePrice;
 	private Instant instantOpened;
@@ -32,35 +32,38 @@ public class Position {
 
 	Position() {
 		LOGGER.debug("Entering Position default constructor");
-		positionId = new TransactionId();
-		instantOpened = Instant.now();
-		open = true;
+		this.positionId = new TransactionId();
+		this.instantOpened = Instant.now();
+		this.open = true;
 	}
 
 	Position(Order orderToFill, BigDecimal priceAtOpen) {
 		LOGGER.debug("Entering Position constructor Position(Order {}, price {})", orderToFill.getOrderId(), priceAtOpen);
-		positionId = new TransactionId();
-		originatingOrderId = orderToFill.getOrderId();
-		open = true;
-		ticker = orderToFill.getTicker();
-		secType = orderToFill.getSecType();
-		if (isOption()) {
-			expiry = orderToFill.getExpiry();
-			underlyingTicker = orderToFill.getUnderlyingTicker();
-			strikePrice = orderToFill.getStrikePrice();
-		} else {
-			underlyingTicker = ticker;
-			expiry = null;
+		this.positionId = new TransactionId();
+		this.originatingOrderId = orderToFill.getOrderId();
+		this.open = true;
+		this.ticker = orderToFill.getTicker();
+		this.secType = orderToFill.getAction().getSecurityType();
+		switch (orderToFill.getAction().getSecurityType()) {
+			case PUT:
+			case CALL:
+				this.expiry = ((OptionOrder) orderToFill).getOption().getExpiry();
+				this.underlyingTicker = ((OptionOrder) orderToFill).getOption().getUnderlyingTicker();
+				this.strikePrice = ((OptionOrder) orderToFill).getOption().getStrike();
+				break;
+			default:
+				this.underlyingTicker = ticker;
+				this.expiry = null;
 		}
-		instantOpened = Instant.now();
-		longPosition = orderToFill.action.getBuyOrSell().equals("BUY");
-		numberTransacted = orderToFill.getAction().getNumberToTransact();
+		this.instantOpened = Instant.now();
+		this.longPosition = orderToFill.action.getBuyOrSell().equals("BUY");
+		this.numberTransacted = orderToFill.getAction().getNumberToTransact();
 		this.priceAtOpen = priceAtOpen;
-		calculateCostBasis();
-		calculateClaimAgainstCash();
+		this.costBasis = calculateCostBasis();
+		this.claimAgainstCash = calculateClaimAgainstCash();
 		LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
-		price = priceAtOpen;
-		netAssetValue = costBasis;
+		this.price = priceAtOpen;
+		this.netAssetValue = costBasis;
 		LOGGER.info("New position created with positionId " + positionId + " ticker " + ticker +
 				" secType " + secType + " open " + open + " instantOpened " + instantOpened);
 		LOGGER.info("longPosition " + longPosition + " numberTransacted " + numberTransacted +
@@ -74,7 +77,7 @@ public class Position {
 		BigDecimal lastTick;
 		newStockPosition.setTicker(ticker);
 		newStockPosition.setUnderlyingTicker(ticker);
-		newStockPosition.setSecType("STOCK");
+		newStockPosition.setSecType(SecurityType.STOCK);
 		newStockPosition.setLongPosition(true);
 		newStockPosition.setNumberTransacted(exercisingOptionPosition.getNumberTransacted() * 100);
 		newStockPosition.setPriceAtOpen(exercisingOptionPosition.getStrikePrice());
@@ -91,7 +94,7 @@ public class Position {
 		return newStockPosition;
 	}
 
-	public void close(BigDecimal closePrice) {
+	void close(BigDecimal closePrice) {
 		open = false;
 		instantClosed = Instant.now();
 		priceAtClose = closePrice;
@@ -100,17 +103,21 @@ public class Position {
 				.subtract(costBasis);
 	}
 
-	public TransactionId getPositionId() {
+	TransactionId getPositionId() {
 		return positionId;
 	}
 
-//	void setPositionId(long positionId) {this.positionId = positionId;}
+	void setPositionId(TransactionId positionId) {
+		this.positionId = positionId;
+	}
 
-	public TransactionId getOriginatingOrderId() {
+	TransactionId getOriginatingOrderId() {
 		return originatingOrderId;
 	}
 
-//	void setOriginatingOrderId(long originatingOrderId) {this.originatingOrderId = originatingOrderId;}
+	void setOriginatingOrderId(TransactionId originatingOrderId) {
+		this.originatingOrderId = originatingOrderId;
+	}
 
 	public String getTicker() {
 		return ticker;
@@ -120,39 +127,39 @@ public class Position {
 		this.ticker = ticker;
 	}
 
-	public String getSecType() {
+	SecurityType getSecType() {
 		return secType;
 	}
 
-	void setSecType(String secType) {
+	void setSecType(SecurityType secType) {
 		this.secType = secType;
 	}
 
 	public boolean isCall() {
-		return secType.equals("CALL");
+		return secType.equals(SecurityType.CALL);
 	}
 
 	public boolean isPut() {
-		return secType.equals("PUT");
+		return secType.equals(SecurityType.PUT);
 	}
 
 	public boolean isStock() {
-		return secType.equals("STOCK");
+		return secType.equals(SecurityType.STOCK);
 	}
 
 	public boolean isOption() {
 		return (isCall() || isPut());
 	}
 
-	public Instant getExpiry() {
+	LocalDate getExpiry() {
 		return expiry;
 	}
 
-	void setExpiry(Instant expiry) {
+	void setExpiry(LocalDate expiry) {
 		this.expiry = expiry;
 	}
 
-	public String getUnderlyingTicker() {
+	String getUnderlyingTicker() {
 		return underlyingTicker;
 	}
 
@@ -160,7 +167,7 @@ public class Position {
 		this.underlyingTicker = underlyingTicker;
 	}
 
-	public BigDecimal getStrikePrice() {
+	BigDecimal getStrikePrice() {
 		return strikePrice;
 	}
 
@@ -176,7 +183,7 @@ public class Position {
 		this.instantOpened = instantOpened;
 	}
 
-	public boolean isLong() {
+	boolean isLong() {
 		return longPosition;
 	}
 
@@ -184,11 +191,11 @@ public class Position {
 		this.longPosition = longPosition;
 	}
 
-	public boolean isShort() {
+	boolean isShort() {
 		return !longPosition;
 	}
 
-	public int getNumberTransacted() {
+	int getNumberTransacted() {
 		return numberTransacted;
 	}
 
@@ -196,7 +203,7 @@ public class Position {
 		this.numberTransacted = numberTransacted;
 	}
 
-	public BigDecimal getPriceAtOpen() {
+	BigDecimal getPriceAtOpen() {
 		return priceAtOpen;
 	}
 
@@ -204,7 +211,7 @@ public class Position {
 		this.priceAtOpen = priceAtOpen;
 	}
 
-	public BigDecimal getCostBasis() {
+	BigDecimal getCostBasis() {
 		return costBasis;
 	}
 
@@ -212,23 +219,12 @@ public class Position {
 		this.costBasis = costBasis;
 	}
 
-	void calculateCostBasis() {
-		costBasis = priceAtOpen.multiply(new BigDecimal(numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1)));
+	BigDecimal calculateCostBasis() {
+		return priceAtOpen.multiply(new BigDecimal(numberTransacted * (isStock() ? 1 : 100) * (isLong() ? 1 : -1)));
 	}
 
-	public BigDecimal getLastTick() {
-		try {
-			if (isStock()) {
-				price = market.lastTick(ticker).getPrice();
-			} else {
-				price = Option.lastTick(ticker);
-			}
-			netAssetValue = price.multiply(new BigDecimal(numberTransacted * (isStock() ? 1 : 100) * (longPosition ? 1 : -1)));
-		} catch (IOException ioe) {
-			LOGGER.warn("Caught IOException trying to get lastTick({}). Returning last known tick (We are no longer real-time).", ticker);
-			LOGGER.debug("Caught (IOException ioe) ", ioe);
-		}
-		return price;
+	BigDecimal getLastTick() {
+		return market.lastTick(ticker).getPrice();
 	}
 
 	public BigDecimal getPrice() {
@@ -254,22 +250,19 @@ public class Position {
 		this.instantClosed = instantClosed;
 	}
 
-	public BigDecimal getPriceAtClose() {
+	BigDecimal getPriceAtClose() {
 		if (!open) {
 			return priceAtClose;
 		}
-		return Constants.BIGDECIMAL_MINUS_ONE;
+		throw new IllegalStateException("Position is not closed, cannot return priceAtClose");
 	}
 
 	void setPriceAtClose(BigDecimal priceAtClose) {
 		this.priceAtClose = priceAtClose;
 	}
 
-	public BigDecimal getProfit() {
-		if (open) {
-			profit = netAssetValue.subtract(costBasis);
-		}
-		return profit;
+	BigDecimal calculateProfit() {
+		return netAssetValue.subtract(costBasis);
 	}
 
 	void setProfit(BigDecimal profit) {
@@ -284,7 +277,7 @@ public class Position {
 		this.open = open;
 	}
 
-	public BigDecimal getClaimAgainstCash() {
+	BigDecimal getClaimAgainstCash() {
 		return claimAgainstCash;
 	}
 
@@ -292,26 +285,22 @@ public class Position {
 		claimAgainstCash = requiredCash;
 	}
 
-	public boolean isExpired() {
-		return isOption() && expiry.isBefore(Instant.now());
+	boolean isExpired() {
+		return isOption() && expiry.isBefore(LocalDate.from(market.getCurrentDateTime()));
 	}
 
-	/* Position.claimAgainstCash() is a bit disingenuous. Selling an option or shorting a stock
+	/* Position.claimAgainstCash() is a bit disingenuous. Selling a call or shorting a stock
 	 * could result in an infinite liability. Only calculating for selling a put which has
 	 * a fixed obligation.
 	 */
 	BigDecimal calculateClaimAgainstCash() {
-		if (isPut() && isShort()) {
-			return (claimAgainstCash = strikePrice.multiply(new BigDecimal(numberTransacted * 100)));
-		}
-		return (claimAgainstCash = BigDecimal.ZERO);
+		return (isPut() && isShort()) ? strikePrice.multiply(new BigDecimal(numberTransacted * 100)) : BigDecimal.ZERO;
 	}
 
-	public BigDecimal calculateNetAssetValue() {
+	BigDecimal calculateNetAssetValue() {
 		netAssetValue = price.multiply(new BigDecimal(numberTransacted))
 				.multiply(isStock() ? BigDecimal.ONE : Constants.BIGDECIMAL_ONE_HUNDRED)
 				.multiply(isLong() ? BigDecimal.ONE : Constants.BIGDECIMAL_MINUS_ONE);
-		profit = netAssetValue.subtract(costBasis);
 		return netAssetValue;
 	}
 
