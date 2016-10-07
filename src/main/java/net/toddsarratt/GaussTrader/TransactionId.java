@@ -16,6 +16,10 @@ class TransactionId {
 		this.id = generateNewId();
 	}
 
+	TransactionId(long id) {
+		this.id = id;
+	}
+
 	/**
 	 * Returns bit shifted epoch + (random int and 22 bit bitmask) to generate unique numbers to use as order and
 	 * position ids. It looks something like this, in hex:

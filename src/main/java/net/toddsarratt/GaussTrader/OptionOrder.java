@@ -15,7 +15,11 @@ import java.time.Instant;
 
 class OptionOrder extends Order {
 	private final static Logger LOGGER = LoggerFactory.getLogger(OptionOrder.class);
-	private final Option option;
+	private Option option;
+
+	OptionOrder() {
+		LOGGER.debug("OptionOrder() created with default constructor. Should only happen when using OrderBuilder");
+	}
 
 	OptionOrder(Option option, BigDecimal limitPrice, PriceBasedAction action, String tif) {
 		this.option = option;

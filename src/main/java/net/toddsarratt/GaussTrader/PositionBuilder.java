@@ -12,25 +12,6 @@ import java.time.LocalDate;
  */
 public class PositionBuilder {
 	private Position position;
-	private TransactionId positionId;
-	private TransactionId originatingOrderId;
-	private boolean open;
-	private String ticker;
-	private SecurityType secType;
-	private LocalDate expiry;
-	private String underlyingTicker;
-	private BigDecimal strikePrice;
-	private Instant instantOpened;
-	private boolean longPosition;
-	private int numberTransacted;
-	private BigDecimal priceAtOpen;
-	private BigDecimal costBasis;
-	private BigDecimal claimAgainstCash;
-	private BigDecimal price;
-	private BigDecimal netAssetValue;
-	private Instant instantClosed;
-	private BigDecimal priceAtClose;
-	private BigDecimal profit;
 
 	public PositionBuilder() {
 		position = new Position();
@@ -40,97 +21,97 @@ public class PositionBuilder {
 		return position;
 	}
 
-	public PositionBuilder setPositionId(TransactionId positionId) {
+	public PositionBuilder positionId(TransactionId positionId) {
 		position.setPositionId(positionId);
 		return this;
 	}
 
-	public PositionBuilder setOriginatingOrderId(TransactionId originatingOrderId) {
+	public PositionBuilder originatingOrderId(TransactionId originatingOrderId) {
 		position.setOriginatingOrderId(originatingOrderId);
 		return this;
 	}
 
-	public PositionBuilder setOpen(boolean open) {
+	public PositionBuilder open(boolean open) {
 		position.setOpen(open);
 		return this;
 	}
 
-	public PositionBuilder setTicker(String ticker) {
+	public PositionBuilder ticker(String ticker) {
 		position.setTicker(ticker);
 		return this;
 	}
 
-	public PositionBuilder setSecType(SecurityType secType) {
+	public PositionBuilder securityType(SecurityType secType) {
 		position.setSecType(secType);
 		return this;
 	}
 
-	public PositionBuilder setExpiry(LocalDate expiry) {
+	public PositionBuilder expiry(LocalDate expiry) {
 		position.setExpiry(expiry);
 		return this;
 	}
 
-	public PositionBuilder setUnderlyingTicker(String underlyingTicker) {
+	public PositionBuilder underlyingTicker(String underlyingTicker) {
 		position.setUnderlyingTicker(underlyingTicker);
 		return this;
 	}
 
-	public PositionBuilder setStrikePrice(BigDecimal strikePrice) {
+	public PositionBuilder strikePrice(BigDecimal strikePrice) {
 		position.setStrikePrice(strikePrice);
 		return this;
 	}
 
-	public PositionBuilder setInstantOpened(Instant instantOpened) {
+	public PositionBuilder instantOpened(Instant instantOpened) {
 		position.setInstantOpened(instantOpened);
 		return this;
 	}
 
-	public PositionBuilder setLongPosition(boolean longPosition) {
+	public PositionBuilder longPosition(boolean longPosition) {
 		position.setLongPosition(longPosition);
 		return this;
 	}
 
-	public PositionBuilder setNumberTransacted(int numberTransacted) {
+	public PositionBuilder numberTransacted(int numberTransacted) {
 		position.setNumberTransacted(numberTransacted);
 		return this;
 	}
 
-	public PositionBuilder setPriceAtOpen(BigDecimal priceAtOpen) {
+	public PositionBuilder priceAtOpen(BigDecimal priceAtOpen) {
 		position.setPriceAtOpen(priceAtOpen);
 		return this;
 	}
 
-	public PositionBuilder setCostBasis(BigDecimal costBasis) {
+	public PositionBuilder costBasis(BigDecimal costBasis) {
 		position.setCostBasis(costBasis);
 		return this;
 	}
 
-	public PositionBuilder setClaimAgainstCash(BigDecimal claimAgainstCash) {
+	public PositionBuilder claimAgainstCash(BigDecimal claimAgainstCash) {
 		position.setClaimAgainstCash(claimAgainstCash);
 		return this;
 	}
 
-	public PositionBuilder setPrice(BigDecimal price) {
+	public PositionBuilder price(BigDecimal price) {
 		position.setPrice(price);
 		return this;
 	}
 
-	public PositionBuilder setNetAssetValue(BigDecimal netAssetValue) {
+	public PositionBuilder netAssetValue(BigDecimal netAssetValue) {
 		position.setNetAssetValue(netAssetValue);
 		return this;
 	}
 
-	public PositionBuilder setInstantClosed(Instant instantClosed) {
+	public PositionBuilder instantClosed(Instant instantClosed) {
 		position.setInstantClosed(instantClosed);
 		return this;
 	}
 
-	public PositionBuilder setPriceAtClose(BigDecimal priceAtClose) {
+	public PositionBuilder priceAtClose(BigDecimal priceAtClose) {
 		position.setPriceAtClose(priceAtClose);
 		return this;
 	}
 
-	public PositionBuilder setProfit(BigDecimal profit) {
+	public PositionBuilder profit(BigDecimal profit) {
 		position.setProfit(profit);
 		return this;
 	}

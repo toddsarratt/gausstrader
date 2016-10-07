@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
@@ -40,43 +41,44 @@ public class PostgresStore implements DataStore {
 	public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
 		LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
 		PositionBuilder positionBuilder = new PositionBuilder();
-		positionBuilder.setPositionId(dbResult.getLong("position_id"))
-				.setOpen(dbResult.getBoolean("open"))
-				.setTicker(dbResult.getString("ticker"))
-				.setSecType(dbResult.getString("sec_type"))
-				.setUnderlyingTicker(dbResult.getString("underlying_ticker"))
-				.setStrikePrice(dbResult.getDouble("strike_price"))
-				.setEpochOpened(dbResult.getLong("epoch_opened"))
-				.setLongPosition(dbResult.getBoolean("long_position"))
-				.setNumberTransacted(dbResult.getInt("number_transacted"))
-				.setPriceAtOpen(dbResult.getDouble("price_at_open"))
-				.setCostBasis(dbResult.getDouble("cost_basis"))
-				.setPrice(dbResult.getDouble("last_tick"))
-				.setNetAssetValue(dbResult.getDouble("net_asset_value"))
+		positionBuilder.positionId(new TransactionId(dbResult.getLong("position_id")))
+				.open(dbResult.getBoolean("open"))
+				.ticker(dbResult.getString("ticker"))
+				.securityType(SecurityType.of(dbResult.getString("sec_type")))
+				.underlyingTicker(dbResult.getString("underlying_ticker"))
+				.strikePrice(BigDecimal.valueOf(dbResult.getDouble("strike_price")))
+				.instantOpened(Instant.ofEpochMilli(dbResult.getLong("epoch_opened")))
+				.longPosition(dbResult.getBoolean("long_position"))
+				.numberTransacted(dbResult.getInt("number_transacted"))
+				.priceAtOpen(BigDecimal.valueOf(dbResult.getDouble("price_at_open")))
+				.costBasis(BigDecimal.valueOf(dbResult.getDouble("cost_basis")))
+				.price(BigDecimal.valueOf(dbResult.getDouble("last_tick")))
+				.netAssetValue(BigDecimal.valueOf(dbResult.getDouble("net_asset_value")))
 				// TODO: Add field "expiry" to take the place of "epoch_expiry" in database
-				.setExpiry(dbResult.getDate("expiry").toLocalDate())
-				.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"))
-				.setOriginatingOrderId(dbResult.getLong("originating_order_id"));
+				.expiry(dbResult.getDate("expiry").toLocalDate())
+				.claimAgainstCash(BigDecimal.valueOf(dbResult.getDouble("claim_against_cash")))
+				.originatingOrderId(new TransactionId(dbResult.getLong("originating_order_id")));
 		return positionBuilder.build();
 	}
 
 	public static Order dbToPortfolioOrder(ResultSet dbResult) throws SQLException {
 		LOGGER.debug("Entering Portfolio.dbToPortfolioOrder(ResultSet dbResult)");
-		Order orderFromDb = new Order();
-		orderFromDb.setOrderId(dbResult.getLong("order_id"));
-		orderFromDb.setOpen(true);
-		orderFromDb.setTicker(dbResult.getString("ticker"));
-		orderFromDb.setUnderlyingTicker(dbResult.getString("underlying_ticker"));
-		orderFromDb.setStrikePrice(dbResult.getDouble("strike_price"));
-		orderFromDb.setLimitPrice(dbResult.getDouble("limit_price"));
-		orderFromDb.setAction(dbResult.getString("action"));
-		orderFromDb.setTotalQuantity(dbResult.getInt("total_quantity"));
-		orderFromDb.setSecType(dbResult.getString("sec_type"));
-		orderFromDb.setTif(dbResult.getString("tif"));
-		orderFromDb.setEpochOpened(dbResult.getLong("epoch_opened"));
-		orderFromDb.setExpiry(dbResult.getLong("epoch_expiry"));
-		orderFromDb.setClaimAgainstCash(dbResult.getDouble("claim_against_cash"));
-		return orderFromDb;
+		SecurityType secType = SecurityType.of(dbResult.getString("sec_type"));
+		OrderBuilder orderBuilder = OrderBuilder.of(secType);
+		orderBuilder.orderId(dbResult.getLong("order_id"))
+				.open(true)
+				.ticker(dbResult.getString("ticker"))
+				.underlyingTicker(dbResult.getString("underlying_ticker"))
+				.strikePrice(dbResult.getDouble("strike_price"))
+				.limitPrice(dbResult.getDouble("limit_price"))
+				.action(dbResult.getString("action"))
+				.totalQuantity(dbResult.getInt("total_quantity"))
+				.secType(secType)
+				.tif(dbResult.getString("tif"))
+				.epochOpened(dbResult.getLong("epoch_opened"))
+				.expiry(dbResult.getLong("epoch_expiry"))
+				.claimAgainstCash(dbResult.getDouble("claim_against_cash"));
+		return orderBuilder.build();
 	}
 
 	/**

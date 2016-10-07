@@ -56,26 +56,48 @@ abstract class Order {
 		return orderId;
 	}
 
-//	void setOrderId(TransactionId orderId) { this.orderId = orderId;	}
+	void setOrderId(TransactionId orderId) {
+		this.orderId = orderId;
+	}
 
 	boolean isOpen() {
 		return open;
+	}
+
+	void setOpen(boolean open) {
+		this.open = open;
 	}
 
 	public String getTicker() {
 		return ticker;
 	}
 
+	void setTicker(String ticker) {
+		this.ticker = ticker;
+	}
+
 	BigDecimal getLimitPrice() {
 		return limitPrice;
+	}
+
+	void setLimitPrice(BigDecimal limitPrice) {
+		this.limitPrice = limitPrice;
 	}
 
 	PriceBasedAction getAction() {
 		return action;
 	}
 
+	void setAction(PriceBasedAction action) {
+		this.action = action;
+	}
+
 	String getTif() {
 		return tif;
+	}
+
+	void setTif(String tif) {
+		this.tif = tif;
 	}
 
 	void fill(BigDecimal fillPrice) {
@@ -108,20 +130,40 @@ abstract class Order {
 		return instantOpened;
 	}
 
+	void setInstantOpened(Instant instantOpened) {
+		this.instantOpened = instantOpened;
+	}
+
 	Instant getInstantClosed() {
 		return instantClosed;
+	}
+
+	void setInstantClosed(Instant instantClosed) {
+		this.instantClosed = instantClosed;
 	}
 
 	String getCloseReason() {
 		return closeReason;
 	}
 
+	public void setCloseReason(String closeReason) {
+		this.closeReason = closeReason;
+	}
+
 	BigDecimal getFillPrice() {
 		return fillPrice;
 	}
 
+	public void setFillPrice(BigDecimal fillPrice) {
+		this.fillPrice = fillPrice;
+	}
+
 	BigDecimal getClaimAgainstCash() {
 		return claimAgainstCash;
+	}
+
+	void setClaimAgainstCash(BigDecimal claimAgainstCash) {
+		this.claimAgainstCash = claimAgainstCash;
 	}
 
 	BigDecimal calculateCostBasis() {

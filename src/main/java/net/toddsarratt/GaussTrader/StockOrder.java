@@ -14,7 +14,11 @@ import java.time.Instant;
  */
 public class StockOrder extends Order {
 	private final static Logger LOGGER = LoggerFactory.getLogger(StockOrder.class);
-	private final Stock stock;
+	private Stock stock;
+
+	StockOrder() {
+		LOGGER.debug("OptionOrder() created with default constructor. Should only happen when using OrderBuilder");
+	}
 
 	StockOrder(Stock stock, BigDecimal limitPrice, PriceBasedAction action, String tif) {
 		this.stock = stock;
@@ -26,6 +30,10 @@ public class StockOrder extends Order {
 		LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
 		LOGGER.info("Created order ID {} for {} to {} {} with {} @ ${} TIF : {}",
 				orderId, stock.getTicker(), action, ticker, limitPrice, tif);
+	}
+
+	public Stock getStock() {
+		return stock;
 	}
 
 	@Override
