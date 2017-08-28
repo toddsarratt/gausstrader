@@ -41,7 +41,7 @@ public class GaussTrader {
 	/**
 	 * @return Market associated with the application.
 	 */
-	static Market getMarket() {
+	public static Market getMarket() {
 		return market;
 	}
 

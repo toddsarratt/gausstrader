@@ -1,4 +1,4 @@
-package net.toddsarratt.GaussTrader;
+package net.toddsarratt.GaussTrader.Security;
 
 @SuppressWarnings("serial")
 public class SecurityNotFoundException extends Exception {

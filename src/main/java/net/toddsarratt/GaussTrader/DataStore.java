@@ -1,5 +1,8 @@
 package net.toddsarratt.GaussTrader;
 
+import net.toddsarratt.GaussTrader.Order.Order;
+import net.toddsarratt.GaussTrader.Security.Stock;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;

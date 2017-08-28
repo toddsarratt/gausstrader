@@ -1,5 +1,7 @@
 package net.toddsarratt.GaussTrader;
 
+import net.toddsarratt.GaussTrader.Security.SecurityType;
+
 import java.math.BigDecimal;
 
 /**
@@ -9,7 +11,7 @@ import java.math.BigDecimal;
  * @since v0.1
  */
 
-class PriceBasedAction {
+public class PriceBasedAction {
 	static final PriceBasedAction DO_NOTHING = new PriceBasedAction(Constants.BIGDECIMAL_MINUS_ONE, false, "", null, 0);
 	private final BigDecimal triggerPrice;
 	private final boolean isActionable;

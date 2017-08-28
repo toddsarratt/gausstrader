@@ -1,5 +1,7 @@
 package net.toddsarratt.GaussTrader;
 
+import net.toddsarratt.GaussTrader.Security.Security;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;

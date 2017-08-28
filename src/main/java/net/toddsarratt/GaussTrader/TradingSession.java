@@ -1,5 +1,8 @@
 package net.toddsarratt.GaussTrader;
 
+import net.toddsarratt.GaussTrader.Order.Order;
+import net.toddsarratt.GaussTrader.Security.Option;
+import net.toddsarratt.GaussTrader.Security.Stock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

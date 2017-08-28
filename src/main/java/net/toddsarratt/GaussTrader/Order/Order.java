@@ -1,5 +1,11 @@
-package net.toddsarratt.GaussTrader;
+package net.toddsarratt.GaussTrader.Order;
 
+import net.toddsarratt.GaussTrader.PriceBasedAction;
+import net.toddsarratt.GaussTrader.Security.Option;
+import net.toddsarratt.GaussTrader.Security.Security;
+import net.toddsarratt.GaussTrader.Security.Stock;
+import net.toddsarratt.GaussTrader.Security.SecurityType;
+import net.toddsarratt.GaussTrader.TransactionId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +29,7 @@ import java.time.Instant;
  * fillPrice : price at which order was filled and closed
  */
 
-abstract class Order {
+public abstract class Order {
 	private final static Logger LOGGER = LoggerFactory.getLogger(Option.class);
 	TransactionId orderId;
 	boolean open;
@@ -100,7 +106,7 @@ abstract class Order {
 		this.tif = tif;
 	}
 
-	void fill(BigDecimal fillPrice) {
+	public void fill(BigDecimal fillPrice) {
 		LOGGER.debug("Entering fill(${})", fillPrice.toPlainString());
 		this.closeReason = "FILLED";
 		this.open = false;

@@ -1,5 +1,9 @@
 package net.toddsarratt.GaussTrader;
 
+import net.toddsarratt.GaussTrader.Order.Order;
+import net.toddsarratt.GaussTrader.Security.Option;
+import net.toddsarratt.GaussTrader.Security.Security;
+import net.toddsarratt.GaussTrader.Security.Stock;
 import org.joda.time.MutableDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -7,6 +11,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 
 public class Portfolio {
@@ -275,7 +282,7 @@ public class Portfolio {
 	   // The suggested idiom for performing these comparisons is: (x.compareTo(y) <op> 0), where <op> is one of the six comparison operators.
 	   if (freeCash.compareTo(orderRequiredCash) < 0) {
          LOGGER.debug("freeCash {} < orderRequiredCash {}", freeCash, orderRequiredCash);
-         throw new InsufficientFundsException(orderToAdd.getTicker(), orderRequiredCash.doubleValue(), freeCash.doubleValue());
+         throw new InsufficientFundsException(orderRequiredCash, freeCash);
       }
       LOGGER.debug("reservedCash ${} += orderRequiredCash ${} == ${}", reservedCash, orderRequiredCash, reservedCash.add(orderRequiredCash));
       reservedCash = reservedCash.add(orderRequiredCash);
@@ -355,7 +362,7 @@ public class Portfolio {
 
    public void fillOrder(Order orderToFill, BigDecimal fillPrice) {
       LOGGER.debug("Entering Portfolio.fillOrder(Order {}, BigDecimal {})", orderToFill.getOrderId(), fillPrice);
-      Position positionTakenByOrder = new Position(orderToFill, fillPrice.doubleValue());
+      Position positionTakenByOrder = new Position(orderToFill, fillPrice);
       positions.add(positionTakenByOrder);
    /* Unreserve cash to fill order */
       LOGGER.debug("freeCash ${} += orderToFill.getClaimAgainstCash() ${} == ${}", freeCash, orderToFill.getClaimAgainstCash(), freeCash.add(BigDecimal.valueOf(orderToFill.getClaimAgainstCash())));
@@ -371,16 +378,17 @@ public class Portfolio {
       LOGGER.debug("freeCash ${} -= positionTakenByOrder.getCostBasis() ${} == ${}", freeCash, positionTakenByOrder.getCostBasis(), freeCash.subtract(BigDecimal.valueOf(positionTakenByOrder.getCostBasis())));
       freeCash = freeCash.subtract(BigDecimal.valueOf(positionTakenByOrder.getCostBasis()));
       calculateTotalCash();
-      orderToFill.fill(fillPrice.doubleValue());
+      orderToFill.fill(fillPrice);
       dataStore.write(positionTakenByOrder);
       dataStore.close(orderToFill);
    }
-
+/*
    private void reconcileExpiredOptionPosition(Position expiredOptionPosition) {
-      MutableDateTime expiryFriday = new MutableDateTime(expiredOptionPosition.getExpiry());
-      expiryFriday.addDays(-1);
-      expiryFriday.setMillisOfDay((16 * 60 + 20) * 60 * 1000);
-      BigDecimal expirationPrice = BigDecimal.valueOf(YahooMarket.getHistoricalClosingPrice(expiredOptionPosition.getUnderlyingTicker(), expiryFriday));
+      LocalDateTime expiryFriday = LocalDateTime.of(
+      		expiredOptionPosition.getExpiry().minusDays(1),
+		      LocalTime.of(16, 20)
+      );
+      BigDecimal expirationPrice = BigDecimal.valueOf(market.getHistoricalClosingPrice(expiredOptionPosition.getUnderlyingTicker(), expiryFriday));
       if (expiredOptionPosition.isPut() &&
               (expirationPrice.compareTo(BigDecimal.valueOf(expiredOptionPosition.getStrikePrice())) <= 0)) {
          exerciseOption(expiredOptionPosition);
@@ -391,7 +399,7 @@ public class Portfolio {
          expireOptionPosition(expiredOptionPosition);
       }
    }
-
+*/
    void exerciseOption(Position optionPositionToExercise) {
 	/* If short put buy the stock at the strike price
 	 * if short call find a position in the stock to sell at strike price or buy the stock and then deliver

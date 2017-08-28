@@ -1,6 +1,6 @@
-package net.toddsarratt.GaussTrader;
+package net.toddsarratt.GaussTrader.Security;
 
-interface Security {
+public interface Security {
 
 	String getTicker();
 

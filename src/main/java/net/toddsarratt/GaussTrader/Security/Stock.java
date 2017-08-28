@@ -1,4 +1,4 @@
-package net.toddsarratt.GaussTrader;
+package net.toddsarratt.GaussTrader.Security;
 
 /*	
  * bollingerBand[0] = moving average (period determined by command line args, default 20DMA)
@@ -11,6 +11,10 @@ package net.toddsarratt.GaussTrader;
  * TODO: Handle dividends
  */
 
+import net.toddsarratt.GaussTrader.Constants;
+import net.toddsarratt.GaussTrader.DataStore;
+import net.toddsarratt.GaussTrader.GaussTrader;
+import net.toddsarratt.GaussTrader.Market;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

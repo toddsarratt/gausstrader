@@ -1,5 +1,6 @@
-package net.toddsarratt.GaussTrader;
+package net.toddsarratt.GaussTrader.Security;
 
+import net.toddsarratt.GaussTrader.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +18,7 @@ import java.util.regex.Pattern;
  * Read more: http://www.investopedia.com/articles/optioninvestor/10/options-symbol-rules.asp#ixzz2IOZQ4kou
  */
 
-abstract class Option implements Security {
+public abstract class Option implements Security {
 	private final static Market MARKET = GaussTrader.getMarket();
 	private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
 	private final String ticker;

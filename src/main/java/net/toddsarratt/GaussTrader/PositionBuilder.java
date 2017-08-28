@@ -1,5 +1,7 @@
 package net.toddsarratt.GaussTrader;
 
+import net.toddsarratt.GaussTrader.Security.SecurityType;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
