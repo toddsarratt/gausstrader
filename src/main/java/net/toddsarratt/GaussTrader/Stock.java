@@ -292,8 +292,8 @@ public class Stock extends Security {
       LOGGER.debug("Entering Stock.askYahoo(String {}, String {})", ticker, arguments);
       for(int yahooAttempt = 1; yahooAttempt <= GaussTrader.YAHOO_RETRIES; yahooAttempt++) {
          try {
-         final URL YAHOO_URL = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
-            BufferedReader br = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
+	         final URL YAHOO_URL = new URL("http://download.finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
+	         BufferedReader br = new BufferedReader(new InputStreamReader(YAHOO_URL.openStream()));
             String[] yahooResults = br.readLine().replaceAll("[\"+%]", "").split("[,]");
             LOGGER.debug("Retrieved from Yahoo! for ticker {} with arguments {} : {}", ticker, arguments, Arrays.toString(yahooResults));
             return yahooResults;
