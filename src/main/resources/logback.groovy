@@ -1,17 +1,15 @@
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
-import ch.qos.logback.core.rolling.RollingFileAppender
-import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
 
 import static ch.qos.logback.classic.Level.DEBUG
 
 scan()
 
-def PROJECT_HOME = "/home/tsarratt/codeDir/GaussTrader"
+def PROJECT_HOME = "/home/tsarratt/codeDir/gaussTrader"
 
 appender("FILE", RollingFileAppender) {
-  file = "${PROJECT_HOME}/logs/GaussTrader.log"
+    file = "${PROJECT_HOME}/logs/gaussTrader.log"
   rollingPolicy(TimeBasedRollingPolicy) {
-    fileNamePattern = "${PROJECT_HOME}/logs/GaussTrader.log.%d"
+      fileNamePattern = "${PROJECT_HOME}/logs/gaussTrader.log.%d"
     maxHistory = 120
   }
   encoder(PatternLayoutEncoder) {
