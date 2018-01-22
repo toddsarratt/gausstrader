@@ -1,9 +1,16 @@
-package net.toddsarratt.gaussTrader.singletons;
+package net.toddsarratt.gaussTrader.persistence.store;
 
-import net.toddsarratt.gaussTrader.*;
+import net.toddsarratt.gaussTrader.InstantPrice;
+import net.toddsarratt.gaussTrader.Position;
+import net.toddsarratt.gaussTrader.PositionBuilder;
+import net.toddsarratt.gaussTrader.TransactionId;
+import net.toddsarratt.gaussTrader.orders.Order;
 import net.toddsarratt.gaussTrader.orders.OrderBuilder;
-import net.toddsarratt.gaussTrader.securities.SecurityType;
-import net.toddsarratt.gaussTrader.securities.Stock;
+import net.toddsarratt.gaussTrader.persistence.dao.Stock;
+import net.toddsarratt.gaussTrader.portfolio.Portfolio;
+import net.toddsarratt.gaussTrader.portfolio.PortfolioSummary;
+import net.toddsarratt.gaussTrader.singletons.Constants;
+import net.toddsarratt.gaussTrader.singletons.SecurityType;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +21,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
@@ -42,6 +51,7 @@ public class PostgresStore implements DataStore {
 		pgDataSource.setPassword(Constants.DB_PASSWORD);
 	}
 
+	/* TODO: Here should be DTOs */
 	public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
 		LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
 		PositionBuilder positionBuilder = new PositionBuilder();
@@ -396,7 +406,7 @@ public class PostgresStore implements DataStore {
 
 	@Override
 	public void closeOrder(Order portfolioOrder) throws SQLException {
-   /* Nothing changes in an order unless it is filled (i.e. closed) */
+		/* Nothing changes in an order unless it is filled (i.e. closed) */
 		LOGGER.debug("Entering Portfolio.closeDbOrder(Order {})", portfolioOrder.getOrderId());
 		Connection dbConnection = pgDataSource.getConnection();
 		if (!portfolioOrder.isOpen()) {
@@ -588,5 +598,45 @@ public class PostgresStore implements DataStore {
 		}
 		dbConnection.close();
 		LOGGER.info("Returning from DB netAssetValue {} freeCash {} reservedCash {}", netAssetValue, freeCash, reservedCash);
+	}
+
+	@Override
+	public HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestCloseDate) {
+		return null;
+	}
+
+	@Override
+	public void writeStockPrice(String ticker, LocalDate date, BigDecimal adjClose) {
+
+	}
+
+	@Override
+	public void writeStockPrice(String ticker, InstantPrice instantPrice) {
+
+	}
+
+	@Override
+	public void writeStockPrice(Stock stock, InstantPrice instantPrice) {
+
+	}
+
+	@Override
+	public boolean portfolioInStore(String name) {
+		return false;
+	}
+
+	@Override
+	public PortfolioSummary getPortfolioSummary(String portfolioName) {
+		return null;
+	}
+
+	@Override
+	public Set<Order> getPortfolioOrders() {
+		return null;
+	}
+
+	@Override
+	public void close(Order orderToFill) {
+
 	}
 }

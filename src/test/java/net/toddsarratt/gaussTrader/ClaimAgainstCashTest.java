@@ -1,12 +1,8 @@
 package net.toddsarratt.gaussTrader;
 
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-
 @Deprecated
 /* Better unit testing coming in v0.2 */
-public class ClaimAgainstCashTest {
+public class ClaimAgainstCashTest {/*
    @Test
    public void testNewOptionOrder() {
       Order testOrder = new Order();
@@ -49,5 +45,5 @@ public class ClaimAgainstCashTest {
       testOrder.setAction("BUY");
       testOrder.calculateClaimAgainstCash();
       assertEquals(testOrder.getClaimAgainstCash(), 10_000.00);
-   }
+   }*/
 }

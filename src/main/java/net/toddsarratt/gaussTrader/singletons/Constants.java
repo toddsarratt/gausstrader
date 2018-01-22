@@ -23,72 +23,72 @@ public class Constants {
 	public static final BigDecimal BIGDECIMAL_MINUS_ONE = new BigDecimal(-1);
 	public static final BigDecimal BIGDECIMAL_ONE_HUNDRED = new BigDecimal(100);
 	/* Fields only used by the Constants class */
-	private static final Logger LOGGER = LoggerFactory.getLogger(Constants.class);
-	private static final String DEFAULT_CONFIG_FILENAME = "GaussTrader.properties";
-	private static final Properties PROPERTIES = new Properties();
-	private static final String PORTFOLIO_NAME = PROPERTIES.getProperty("PORTFOLIO_NAME");
-	private static final String DB_IP = PROPERTIES.getProperty("DB_IP");
-	private static final String DB_NAME = PROPERTIES.getProperty("DB_NAME");
-	private static final String DB_USER = PROPERTIES.getProperty("DB_USER");
-	private static final String DB_PASSWORD = PROPERTIES.getProperty("DB_PASSWORD");
-	private static final BigDecimal STOCK_PCT_OF_PORTFOLIO = new BigDecimal(PROPERTIES.getProperty("STOCK_PCT_OF_PORTFOLIO"));
-	private static final BigDecimal STARTING_CASH = new BigDecimal(PROPERTIES.getProperty("STARTING_CASH"));
-	private static final int BOLL_BAND_PERIOD = Integer.valueOf(PROPERTIES.getProperty("BOLL_BAND_PERIOD"));
-	private static final BigDecimal BOLLINGER_SD1 = new BigDecimal(PROPERTIES.getProperty("BOLLINGER_SD1");
-	private static final BigDecimal BOLLINGER_SD2 = new BigDecimal(PROPERTIES.getProperty("BOLLINGER_SD2");
-	private static final BigDecimal BOLLINGER_SD3 = new BigDecimal(PROPERTIES.getProperty("BOLLINGER_SD3"));
-	private static final Boolean DELAYED_QUOTES = Boolean.valueOf(PROPERTIES.getProperty("DELAYED_QUOTES"));
-	private static final int DELAY_MS = 1000 *
+	public static final Logger LOGGER = LoggerFactory.getLogger(Constants.class);
+	public static final String DEFAULT_CONFIG_FILENAME = "GaussTrader.properties";
+	public static final Properties PROPERTIES = new Properties();
+	public static final String PORTFOLIO_NAME = PROPERTIES.getProperty("PORTFOLIO_NAME");
+	public static final String DB_IP = PROPERTIES.getProperty("DB_IP");
+	public static final String DB_NAME = PROPERTIES.getProperty("DB_NAME");
+	public static final String DB_USER = PROPERTIES.getProperty("DB_USER");
+	public static final String DB_PASSWORD = PROPERTIES.getProperty("DB_PASSWORD");
+	public static final BigDecimal STOCK_PCT_OF_PORTFOLIO = new BigDecimal(PROPERTIES.getProperty("STOCK_PCT_OF_PORTFOLIO"));
+	public static final BigDecimal STARTING_CASH = new BigDecimal(PROPERTIES.getProperty("STARTING_CASH"));
+	public static final int BOLL_BAND_PERIOD = Integer.valueOf(PROPERTIES.getProperty("BOLL_BAND_PERIOD"));
+	public static final BigDecimal BOLLINGER_SD1 = new BigDecimal(PROPERTIES.getProperty("BOLLINGER_SD1"));
+	public static final BigDecimal BOLLINGER_SD2 = new BigDecimal(PROPERTIES.getProperty("BOLLINGER_SD2"));
+	public static final BigDecimal BOLLINGER_SD3 = new BigDecimal(PROPERTIES.getProperty("BOLLINGER_SD3"));
+	public static final Boolean DELAYED_QUOTES = Boolean.valueOf(PROPERTIES.getProperty("DELAYED_QUOTES"));
+	public static final int DELAY_MS = 1000 *
 			Integer.valueOf(
 					PROPERTIES.getProperty("DELAY", "60")
 			);
-	private static final List TICKERS = List.of(
+	public static final List<String> TICKERS = List.of(
 			PROPERTIES.getProperty("TICKERS")
 					.replaceAll("\\s", "")
 					.split(",")
 	);
 	/* Hard coded closed and early closure trading days : https://www.nyse.com/markets/hours-calendars */
-	private static final List JULIAN_HOLIDAYS_2017 =
+	public static final List<Integer> JULIAN_HOLIDAYS_2017 =
 			Arrays.stream(
 					PROPERTIES.getProperty("JULIAN_HOLIDAYS_2017").split(","))
 					.map(Integer::valueOf)
 					.collect(Collectors.toCollection(List::of)
 					);
-	private static final List JULIAN_HOLIDAYS_2018 =
+	public static final List<Integer> JULIAN_HOLIDAYS_2018 =
 			Arrays.stream(
 					PROPERTIES.getProperty("JULIAN_HOLIDAYS_2018").split(","))
 					.map(Integer::valueOf)
 					.collect(Collectors.toCollection(List::of)
 					);
-	private static final List JULIAN_HOLIDAYS_2019 =
+	public static final List<Integer> JULIAN_HOLIDAYS_2019 =
 			Arrays.stream(
 					PROPERTIES.getProperty("JULIAN_HOLIDAYS_2019").split(","))
 					.map(Integer::valueOf)
 					.collect(Collectors.toCollection(List::of)
 					);
-	private static final List JULIAN_1PM_CLOSE_2017 =
+	public static final List<Integer> JULIAN_1PM_CLOSE_2017 =
 			Arrays.stream(
 					PROPERTIES.getProperty("JULIAN_1PM_CLOSE_2017").split(","))
 					.map(Integer::valueOf)
 					.collect(Collectors.toCollection(List::of)
 					);
-	private static final List JULIAN_1PM_CLOSE_2018 =
+	public static final List<Integer> JULIAN_1PM_CLOSE_2018 =
 			Arrays.stream(
 					PROPERTIES.getProperty("JULIAN_1PM_CLOSE_2018").split(","))
 					.map(Integer::valueOf)
 					.collect(Collectors.toCollection(List::of)
 					);
-	private static final List JULIAN_1PM_CLOSE_2019 =
+	public static final List<Integer> JULIAN_1PM_CLOSE_2019 =
 			Arrays.stream(
 					PROPERTIES.getProperty("JULIAN_1PM_CLOSE_2019").split(","))
 					.map(Integer::valueOf)
 					.collect(Collectors.toCollection(List::of)
 					);
-	private static final Map HOLIDAY_MAP = Map.of(
+	public static final Map<Integer, List<Integer>> HOLIDAY_MAP = Map.of(
 			2017, JULIAN_HOLIDAYS_2017,
 			2018, JULIAN_HOLIDAYS_2018,
 			2019, JULIAN_HOLIDAYS_2019);
-	private static final Map EARLY_CLOSE_MAP = Map.of(
+	public static final Map<Integer, List<Integer>> EARLY_CLOSE_MAP = Map.of(
 			2017, JULIAN_1PM_CLOSE_2017,
 			2018, JULIAN_1PM_CLOSE_2018,
 			2019, JULIAN_1PM_CLOSE_2019);
@@ -107,76 +107,12 @@ public class Constants {
 		return DEFAULT_CONFIG_FILENAME;
 	}
 
-	public static Properties getPROPERTIES() {
+	public static Properties getProperties() {
 		return PROPERTIES;
-	}
-
-	public static String getDowJones30() {
-		return DOW_JONES_30;
-	}
-
-	public static List getJulianHolidays2017() {
-		return JULIAN_HOLIDAYS_2017;
-	}
-
-	public static List getJulianHolidays2018() {
-		return JULIAN_HOLIDAYS_2018;
-	}
-
-	public static List getJulianHolidays2019() {
-		return JULIAN_HOLIDAYS_2019;
-	}
-
-	public static List getJulian1pmClose2017() {
-		return JULIAN_1PM_CLOSE_2017;
-	}
-
-	public static List getJulian1pmClose2018() {
-		return JULIAN_1PM_CLOSE_2018;
-	}
-
-	public static List getJulian1pmClose2019() {
-		return JULIAN_1PM_CLOSE_2019;
-	}
-
-	public static BigDecimal getBigdecimalMinusOne() {
-		return BIGDECIMAL_MINUS_ONE;
-	}
-
-	public static BigDecimal getBigdecimalOneHundred() {
-		return BIGDECIMAL_ONE_HUNDRED;
 	}
 
 	public static String getPortfolioName() {
 		return PORTFOLIO_NAME;
-	}
-
-	public static String getDbIp() {
-		return DB_IP;
-	}
-
-	public static String getDbName() {
-		return DB_NAME;
-	}
-
-	public static String getDbUser() {
-		return DB_USER;
-	}
-
-	public static String getDbPassword() {
-		return DB_PASSWORD;
-	}
-
-	public static int getMarketQueryRetries() {
-		return MARKET_QUERY_RETRIES;
-	}
-
-	public static BigDecimal getStockPctOfPortfolio() {
-		return STOCK_PCT_OF_PORTFOLIO;
-	}
-
-	public static BigDecimal getStartingCash() {
-		return STARTING_CASH;
 	}
 
 	public static int getBollBandPeriod() {
@@ -195,26 +131,11 @@ public class Constants {
 		return BOLLINGER_SD3;
 	}
 
-	public static Boolean isDelayedQuotes() {
-		if (DELAYED_QUOTES == null) {
-
-		}
-		return DELAYED_QUOTES;
-	}
-
-	public static int getDelayMs() {
-		return DELAY_MS;
-	}
-
-	public static List getTICKERS() {
-		return TICKERS;
-	}
-
-	public static Map getHolidayMap() {
+	public static Map<Integer, List<Integer>> getHolidayMap() {
 		return HOLIDAY_MAP;
 	}
 
-	public static Map getEarlyCloseMap() {
+	public static Map<Integer, List<Integer>> getEarlyCloseMap() {
 		return EARLY_CLOSE_MAP;
 	}
 }

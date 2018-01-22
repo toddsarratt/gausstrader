@@ -1,7 +1,8 @@
-package net.toddsarratt.gaussTrader;
+package net.toddsarratt.gaussTrader.views;
 
-import net.toddsarratt.gaussTrader.securities.Stock;
-import net.toddsarratt.gaussTrader.singletons.DataStore;
+import net.toddsarratt.gaussTrader.GaussTrader;
+import net.toddsarratt.gaussTrader.persistence.dao.Stock;
+import net.toddsarratt.gaussTrader.persistence.store.DataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +13,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
+ * TODO: What the front end sees, or maybe replace this completely
  * This represents a list of stocks being watched by gaussTrader. Only one watch list is currently supported per
  * application instance. Use getInstance() to reference this singleton.
  *
@@ -19,7 +21,7 @@ import java.util.stream.Collectors;
  * @since gaussTrader v0.1
  */
 
-class WatchList {
+public class WatchList {
 	private static final WatchList INSTANCE = new WatchList();
 	private static final Logger LOGGER = LoggerFactory.getLogger(WatchList.class);
 	private static final DataStore DATA_STORE = GaussTrader.getDataStore();
@@ -29,10 +31,12 @@ class WatchList {
 	private Set<Stock> tradeableStockSet = new HashSet<>();
 
 	/* Though shalt not instantiate outside the singleton declaration */
-	private WatchList() {}
+	private WatchList() {
+	}
 
 	/**
 	 * Supports singleton pattern.
+	 *
 	 * @return singleton object of the WatchList class
 	 */
 	static WatchList getInstance() {
@@ -68,7 +72,7 @@ class WatchList {
 	/**
 	 * @return a Set<Stock> containing all the Stock objects in the watchlist
 	 */
-	Set<Stock> getStockSet() {
+	public Set<Stock> getStockSet() {
 		return tradeableStockSet;
 	}
 

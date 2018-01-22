@@ -1,7 +1,7 @@
 package net.toddsarratt.gaussTrader.orders;
 
 import net.toddsarratt.gaussTrader.PriceBasedAction;
-import net.toddsarratt.gaussTrader.securities.Stock;
+import net.toddsarratt.gaussTrader.domain.Stock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

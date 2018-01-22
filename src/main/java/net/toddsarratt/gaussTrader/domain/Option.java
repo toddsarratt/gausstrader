@@ -1,8 +1,10 @@
-package net.toddsarratt.gaussTrader.securities;
+package net.toddsarratt.gaussTrader.domain;
 
 import net.toddsarratt.gaussTrader.GaussTrader;
+import net.toddsarratt.gaussTrader.InstantPrice;
 import net.toddsarratt.gaussTrader.PriceBasedAction;
-import net.toddsarratt.gaussTrader.singletons.Market;
+import net.toddsarratt.gaussTrader.market.Market;
+import net.toddsarratt.gaussTrader.singletons.SecurityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +22,7 @@ import java.util.regex.Pattern;
  * Read more: http://www.investopedia.com/articles/optioninvestor/10/options-symbol-rules.asp#ixzz2IOZQ4kou
  */
 
-abstract class Option implements Security {
+public class Option implements Security {
 	private final static Market MARKET = GaussTrader.getMarket();
 	private static final Logger LOGGER = LoggerFactory.getLogger(Option.class);
 	private final String ticker;
@@ -28,6 +30,7 @@ abstract class Option implements Security {
 	private final LocalDate expiry;
 	private final String underlyingTicker;
 	private final BigDecimal strike;
+	private InstantPrice lastPrice = InstantPrice.NO_PRICE;
 
 	Option(String ticker,
 	       SecurityType secType,
@@ -98,7 +101,7 @@ abstract class Option implements Security {
 		LOGGER.debug("Entering createOptionTicker(String {}, BaseDateTime {}, char {}, BigDecimal {})",
 				stockTicker, expiry.toString(), indicator, strike);
 		StringBuilder tickerBuilder = new StringBuilder(stockTicker);
-	/* Option strike format is xxxxx.yyy * 10^3 Example : Strike $82.50 = 00082500 */
+		/* OptionDao strike format is xxxxx.yyy * 10^3 Example : Strike $82.50 = 00082500 */
 		tickerBuilder.append(expiry.format(DateTimeFormatter.ofPattern("yyMMdd")));
 		LOGGER.debug("Assembling option ticker with {} (expiry : {})",
 				expiry.format(DateTimeFormatter.ofPattern("yyMMdd")),
@@ -110,7 +113,7 @@ abstract class Option implements Security {
 		return tickerBuilder.toString();
 	}
 
-	static Option with(Stock stock, PriceBasedAction action) {
+	public static Option with(Stock stock, PriceBasedAction action) {
 		LOGGER.debug("Entering with(Stock {}, action {})", stock, action);
 		LocalDate expiry;
 		ZonedDateTime currentZonedDateTime = MARKET.getCurrentZonedDateTime();
@@ -133,7 +136,7 @@ abstract class Option implements Security {
 			case PUT:
 				return findValidPut(stock, action, expiry);
 		}
-		LOGGER.warn("Should never be in this state. Returning null from Option.with()");
+		LOGGER.warn("Should never be in this state. Returning null from OptionDao.with()");
 		return null;  // Failed to supply valid information
 	}
 
@@ -187,7 +190,7 @@ abstract class Option implements Security {
 				.compareTo(BigDecimal.valueOf(0.1))) > 0) {
 			String optionTickerToTry = createOptionTicker(stock.getTicker(), expiry, 'P', strikePrice);
 			if (MARKET.tickerValid(optionTickerToTry)) {
-				LOGGER.debug("Returning new Option(\"{}\")", optionTickerToTry);
+				LOGGER.debug("Returning new OptionDao(\"{}\")", optionTickerToTry);
 				return Option.with(optionTickerToTry);
 			}
 			strikePrice = strikePrice.subtract(BigDecimal.valueOf(0.50));
@@ -216,7 +219,16 @@ abstract class Option implements Security {
 		return true;
 	}
 
-	boolean isPut() {
+	@Override
+	public InstantPrice getLastPrice() {
+		return lastPrice;
+	}
+
+	public void setLastPrice(InstantPrice lastPrice) {
+		this.lastPrice = lastPrice;
+	}
+
+	public boolean isPut() {
 		return secType.equals(SecurityType.PUT);
 	}
 
@@ -224,15 +236,15 @@ abstract class Option implements Security {
 		return secType.equals(SecurityType.CALL);
 	}
 
-	BigDecimal getStrike() {
+	public BigDecimal getStrike() {
 		return strike;
 	}
 
-	LocalDate getExpiry() {
+	public LocalDate getExpiry() {
 		return expiry;
 	}
 
-	String getUnderlyingTicker() {
+	public String getUnderlyingTicker() {
 		return underlyingTicker;
 	}
 }

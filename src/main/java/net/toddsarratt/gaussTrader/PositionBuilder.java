@@ -1,6 +1,6 @@
 package net.toddsarratt.gaussTrader;
 
-import net.toddsarratt.gaussTrader.securities.SecurityType;
+import net.toddsarratt.gaussTrader.singletons.SecurityType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -93,7 +93,7 @@ public class PositionBuilder {
 		return this;
 	}
 
-	public PositionBuilder price(BigDecimal price) {
+	public PositionBuilder price(InstantPrice price) {
 		position.setPrice(price);
 		return this;
 	}

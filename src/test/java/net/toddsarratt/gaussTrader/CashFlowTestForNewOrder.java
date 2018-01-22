@@ -1,13 +1,8 @@
 package net.toddsarratt.gaussTrader;
 
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-
-
 @Deprecated
 /* Better unit testing coming in v0.2 */
-public class CashFlowTestForNewOrder {
+public class CashFlowTestForNewOrder {/*
    Portfolio testPortfolio = new Portfolio();
    Order sellPutOrder = new Order();
    Stock testStock = new Stock();
@@ -41,9 +36,6 @@ public class CashFlowTestForNewOrder {
 
       testPortfolio.fillOrder(sellPutOrder, 1.05);
 
-      /** Delta (last argument) should exceed expected test completion time (in ms)
-       * Testing on 1/31/14 took 249s
-      */
       assertEquals(System.currentTimeMillis(), sellPutOrder.getEpochClosed(), 500_000);
       assertEquals("FILLED", sellPutOrder.getCloseReason());
       assertEquals(testPortfolio.getFreeCash(), 990_105.00);
@@ -80,5 +72,5 @@ public class CashFlowTestForNewOrder {
       assertEquals(expireOrderPortfolio.getReservedCash(), 0.00);
       assertEquals(expireOrderPortfolio.calculateTotalCash(), 1_000_000.00);
       assertEquals(expireOrderPortfolio.numberOfOpenPutShorts(testStock), 0);
-   }
+   }*/
 }

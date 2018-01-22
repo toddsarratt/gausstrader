@@ -1,16 +1,8 @@
 package net.toddsarratt.gaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.MutableDateTime;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
 @Deprecated
 /* Better unit testing coming in v0.2 */
-public class HolidayTest {
+public class HolidayTest {/*
    @Test
    public void testIsMarketHoliday() {
       assertTrue(TradingSession.isMarketHoliday(new DateTime(2014, 12, 25, 0, 0, DateTimeZone.forID("America/New_York"))));
@@ -21,5 +13,5 @@ public class HolidayTest {
       assertFalse(TradingSession.isMarketHoliday(69, 2015));
       assertTrue(TradingSession.isMarketHoliday(359, 2015));
       assertFalse(TradingSession.isMarketHoliday(358, 2015));
-   }
+   }*/
 }

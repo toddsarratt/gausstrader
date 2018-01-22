@@ -1,12 +1,8 @@
 package net.toddsarratt.gaussTrader;
 
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-
 @Deprecated
 /* Better unit testing coming in v0.2 */
-public class OptionExpiryTest {
+public class OptionExpiryTest {/*
    @Test
    public void testGetExpirySaturday() {
       assertEquals(Option.calculateFutureExpiry(2, 2015), 20);
@@ -20,5 +16,5 @@ public class OptionExpiryTest {
       assertEquals(Option.calculateFutureExpiry(10, 2015), 16);
       assertEquals(Option.calculateFutureExpiry(11, 2015), 20);
       assertEquals(Option.calculateFutureExpiry(12, 2015), 18);
-   }
+   }*/
 }

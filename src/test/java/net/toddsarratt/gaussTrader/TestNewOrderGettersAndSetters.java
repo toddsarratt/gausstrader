@@ -1,14 +1,9 @@
 package net.toddsarratt.gaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.*;
 
 @Deprecated
 /* Better unit testing coming in v0.2 */
-public class TestNewOrderGettersAndSetters {
+public class TestNewOrderGettersAndSetters {/*
    Order testOrder = new Order();
    Order testOrderFilled;
    Order testOrderExpired;
@@ -52,5 +47,5 @@ public class TestNewOrderGettersAndSetters {
    @Test(enabled = false)
    public void testOrderClosure() {
       // TODO : Close clones of original order in available ways and test
-   }
+   }*/
 }

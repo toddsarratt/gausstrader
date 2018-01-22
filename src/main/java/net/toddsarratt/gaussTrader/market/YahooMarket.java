@@ -1,8 +1,8 @@
-package net.toddsarratt.gaussTrader;
+package net.toddsarratt.gaussTrader.market;
 
-import net.toddsarratt.gaussTrader.securities.Security;
+import net.toddsarratt.gaussTrader.InstantPrice;
+import net.toddsarratt.gaussTrader.domain.Security;
 import net.toddsarratt.gaussTrader.singletons.Constants;
-import net.toddsarratt.gaussTrader.singletons.Market;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -26,14 +26,14 @@ import java.util.LinkedHashMap;
  * @author Todd Sarratt todd.sarratt@gmail.com
  * @since v0.2
  */
-class YahooMarket extends Market {
+public class YahooMarket extends Market {
 	//	Add 20 minutes to market open (9:30am) to allow for Yahoo! 20 minute delay
 	private static final LocalTime MARKET_OPEN_TIME = LocalTime.of(9, 50);
 	private static final ZoneId MARKET_ZONE = ZoneId.of("America/New_York");
 	private static final String VALID_OPTION_TICKER_FORMAT = "^[A-Z]{1,4}\\d{6}[CP]\\d{8}$";
 	private static final DateTimeFormatter YAHOO_API_FORMATTER = DateTimeFormatter.ofPattern("MM/dd/yyyyhh:mmaa");
 	private static final int YAHOO_RETRIES = Integer.valueOf(
-			Constants.getPROPERTIES().getProperty("YAHOO_RETRIES")
+			Constants.getProperties().getProperty("YAHOO_RETRIES")
 	);
 	private static LocalTime marketClosingTime;
 
@@ -133,10 +133,10 @@ class YahooMarket extends Market {
 	 * @return true if the market is open right now
 	 */
 	@Override
-	public boolean isOpenRightNow() {
-		logger.debug("Inside marketIsOpenThisInstant()");
+	public boolean isOpen() {
+		logger.debug("Inside isOpen()");
 		ZonedDateTime todaysDateTime = ZonedDateTime.now(MARKET_ZONE);
-		//	Add 20 minutes to market close (4pm) to allow for Yahoo! 20 minute delay
+		// Add 20 minutes to market close (4pm) to allow for Yahoo! 20 minute delay
 		// 1:20 pm will be used for early close days
 		LocalTime marketCloseTime = isEarlyClose(todaysDateTime.toLocalDate()) ?
 				LocalTime.of(13, 20) : LocalTime.of(16, 20);
@@ -154,7 +154,7 @@ class YahooMarket extends Market {
 
 	/**
 	 * Takes the current day in New York and checks to see if the market is open today. It may be after market close
-	 * as this is a date and not time based check. If time is a consideration use isOpenRightNow()
+	 * as this is a date and not time based check. If time is a consideration use isOpen()
 	 *
 	 * @return true if the market is open on today's date
 	 */
@@ -263,7 +263,7 @@ class YahooMarket extends Market {
 	 */
 	@Override
 	public boolean marketPricesCurrent() {
-   /* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
+		/* Get date/time for last BAC tick. Very liquid, should be representative of how current Yahoo! prices are */
 		logger.debug("Inside yahooPricesCurrent()");
 		ZonedDateTime currentTime = Instant.now().atZone(MARKET_ZONE);
 		logger.debug("currentTime = {}", currentTime);
@@ -308,7 +308,7 @@ class YahooMarket extends Market {
 			logger.warn("Caught IOException in readHistoricalPrices()");
 			logger.debug("Caught (IOException ioe)", ioe);
 		}
-		return new LinkedHashMap<>(Collections.EMPTY_MAP);
+		return new LinkedHashMap<>(Collections.emptyMap());
 	}
 
 	/**
@@ -336,8 +336,8 @@ class YahooMarket extends Market {
 	}
 
 	@Override
-	public Duration timeUntilMarketOpens() {
-		logger.debug("Entering timeUntilMarketOpens()");
+	public Duration durationUntilMarketOpens() {
+		logger.debug("Entering durationUntilMarketOpens()");
 		return Duration.between(MARKET_OPEN_TIME, LocalTime.from(Instant.now().atZone(MARKET_ZONE)));
 	}
 
@@ -352,7 +352,7 @@ class YahooMarket extends Market {
 		logger.debug("Entering yahooGummyApi(String {}, String {})", ticker, arguments);
 		try {
 			URL yahooUrl = new URL("http://finance.yahoo.com/d/quotes.csv?s=" + ticker + "&f=" + arguments);
-			for (int yahooAttempt = 1; yahooAttempt <= Constants.MARKET_QUERY_RETRIES; yahooAttempt++) {
+			for (int yahooAttempt = 1; yahooAttempt <= YAHOO_RETRIES; yahooAttempt++) {
 				try (InputStream inputStream = yahooUrl.openStream();
 				     InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
 				     BufferedReader yahooReader = new BufferedReader(inputStreamReader)

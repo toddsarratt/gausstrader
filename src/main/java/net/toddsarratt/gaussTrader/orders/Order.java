@@ -1,16 +1,20 @@
 package net.toddsarratt.gaussTrader.orders;
 
 import net.toddsarratt.gaussTrader.PriceBasedAction;
-import net.toddsarratt.gaussTrader.TransactionId;
-import net.toddsarratt.gaussTrader.securities.Option;
-import net.toddsarratt.gaussTrader.securities.Security;
-import net.toddsarratt.gaussTrader.securities.SecurityType;
-import net.toddsarratt.gaussTrader.securities.Stock;
+import net.toddsarratt.gaussTrader.domain.Option;
+import net.toddsarratt.gaussTrader.domain.Security;
+import net.toddsarratt.gaussTrader.domain.Stock;
+import net.toddsarratt.gaussTrader.singletons.BuyOrSell;
+import net.toddsarratt.gaussTrader.singletons.SecurityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+
+import static net.toddsarratt.gaussTrader.singletons.BuyOrSell.BUY;
+import static net.toddsarratt.gaussTrader.singletons.SecurityType.CALL;
+import static net.toddsarratt.gaussTrader.singletons.SecurityType.PUT;
 
 /**
  * Class to record each order
@@ -29,11 +33,12 @@ import java.time.Instant;
  * fillPrice : price at which order was filled and closed
  */
 
-abstract class Order {
+public abstract class Order {
 	private final static Logger LOGGER = LoggerFactory.getLogger(Option.class);
-	TransactionId orderId;
+	long orderId;
 	boolean open;
-	String ticker;
+	Security security;
+	BuyOrSell buyOrSell;
 	BigDecimal limitPrice;
 	PriceBasedAction action;
 	BigDecimal claimAgainstCash;
@@ -42,44 +47,45 @@ abstract class Order {
 	Instant instantClosed;
 	String closeReason;
 	BigDecimal fillPrice;
+	private String underlyingTicker;
+	private int totalQuantity;
 
 	Order() {
 	}
 
-	static Order of(Security security, BigDecimal limitPrice, PriceBasedAction action, String tif) {
+	public static Order of(Security security, BigDecimal limitPrice, PriceBasedAction action, String tif) {
 		LOGGER.debug("Entering Order factory method of(Security {}, BigDecimal {}, PriceBasedAction {}, String {})",
 				security, limitPrice.toPlainString(), action, tif);
 		LOGGER.debug("Security is type {}", security.getSecType());
-		if ((action.getSecurityType().equals(SecurityType.CALL))
-				|| (action.getSecurityType().equals(SecurityType.PUT))) {
+		if (action.getSecurityType() == CALL || action.getSecurityType() == PUT) {
 			LOGGER.debug("Security is an option");
 			return new OptionOrder((Option) security, limitPrice, action, tif);
 		}
 		return new StockOrder((Stock) security, limitPrice, action, tif);
 	}
 
-	TransactionId getOrderId() {
+	public boolean isCall() {
+		return security.getSecType() == CALL;
+	}
+
+	public boolean isPut() {
+		return security.getSecType() == PUT;
+	}
+
+	public long getOrderId() {
 		return orderId;
 	}
 
-	void setOrderId(TransactionId orderId) {
+	void setOrderId(long orderId) {
 		this.orderId = orderId;
 	}
 
-	boolean isOpen() {
+	public boolean isOpen() {
 		return open;
 	}
 
 	void setOpen(boolean open) {
 		this.open = open;
-	}
-
-	public String getTicker() {
-		return ticker;
-	}
-
-	void setTicker(String ticker) {
-		this.ticker = ticker;
 	}
 
 	BigDecimal getLimitPrice() {
@@ -90,7 +96,7 @@ abstract class Order {
 		this.limitPrice = limitPrice;
 	}
 
-	PriceBasedAction getAction() {
+	public PriceBasedAction getAction() {
 		return action;
 	}
 
@@ -98,7 +104,7 @@ abstract class Order {
 		this.action = action;
 	}
 
-	String getTif() {
+	public String getTif() {
 		return tif;
 	}
 
@@ -106,7 +112,7 @@ abstract class Order {
 		this.tif = tif;
 	}
 
-	void fill(BigDecimal fillPrice) {
+	public void fill(BigDecimal fillPrice) {
 		LOGGER.debug("Entering fill(${})", fillPrice.toPlainString());
 		this.closeReason = "FILLED";
 		this.open = false;
@@ -115,7 +121,7 @@ abstract class Order {
 		LOGGER.info("Order {} {} @ ${} epoch {}", orderId, closeReason, this.fillPrice, instantClosed);
 	}
 
-	void closeExpired() {
+	public void closeExpired() {
 		close("EXPIRED");
 	}
 
@@ -164,7 +170,7 @@ abstract class Order {
 		this.fillPrice = fillPrice;
 	}
 
-	BigDecimal getClaimAgainstCash() {
+	public BigDecimal getClaimAgainstCash() {
 		return claimAgainstCash;
 	}
 
@@ -185,14 +191,34 @@ abstract class Order {
 
 	abstract BigDecimal calculateClaimAgainstCash();
 
-	boolean canBeFilled(BigDecimal lastTick) {
+	public boolean canBeFilled(BigDecimal lastTick) {
 		return (lastTick.compareTo(BigDecimal.ZERO) > 0) &&
-				(action.getBuyOrSell().equals("BUY") ?
+				(action.getBuyOrSell() == BUY ?
 						(lastTick.compareTo(limitPrice) <= 0) : (lastTick.compareTo(limitPrice) >= 0));
+	}
+
+	public Security getSecurity() {
+		return security;
+	}
+
+	public void setSecurity(Security security) {
+		this.security = security;
 	}
 
 	@Override
 	public String toString() {
-		return (orderId + " " + action + " " + ticker + " " + " @ $" + limitPrice);
+		return (orderId + " " + action + " " + security.getTicker() + " " + " @ $" + limitPrice);
+	}
+
+	public String getUnderlyingTicker() {
+		return underlyingTicker;
+	}
+
+	public BuyOrSell getBuyOrSell() {
+		return buyOrSell;
+	}
+
+	public int getTotalQuantity() {
+		return totalQuantity;
 	}
 }

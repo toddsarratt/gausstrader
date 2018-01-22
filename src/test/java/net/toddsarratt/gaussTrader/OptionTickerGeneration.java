@@ -1,15 +1,8 @@
 package net.toddsarratt.gaussTrader;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 @Deprecated
 /* Better unit testing coming in v0.2 */
-public class OptionTickerGeneration {
+public class OptionTickerGeneration {/*
    @Test
    public void testOptionTickerGeneration() {
       DateTime midDecemberDay = new DateTime(2014, 12, 20, 14, 0, 0, 0, DateTimeZone.forID("America/New_York"));
@@ -35,5 +28,5 @@ public class OptionTickerGeneration {
       assertEquals(testXomPut.getSecType(), "PUT");
       assertTrue(testXomPut.getExpiry() != null);
       assertEquals(testXomPut.getUnderlyingTicker(), "XOM");
-   }
+   }*/
 }

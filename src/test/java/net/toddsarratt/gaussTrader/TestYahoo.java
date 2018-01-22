@@ -1,14 +1,8 @@
 package net.toddsarratt.gaussTrader;
 
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-
-import static org.testng.Assert.assertTrue;
-
 @Deprecated
 /* Better unit testing coming in v0.2 */
-public class TestYahoo {
+public class TestYahoo {/*
    @Test
    public void testStockyahooGummyApi() {
       try {
@@ -18,5 +12,5 @@ public class TestYahoo {
       } catch (IOException ioe) {
          ioe.printStackTrace();
       }
-   }
+   }*/
 }

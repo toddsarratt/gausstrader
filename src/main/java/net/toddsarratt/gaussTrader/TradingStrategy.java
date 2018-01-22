@@ -1,8 +1,9 @@
 package net.toddsarratt.gaussTrader;
 
-import net.toddsarratt.gaussTrader.securities.SecurityType;
-import net.toddsarratt.gaussTrader.securities.Stock;
+import net.toddsarratt.gaussTrader.domain.Stock;
+import net.toddsarratt.gaussTrader.portfolio.Portfolio;
 import net.toddsarratt.gaussTrader.singletons.Constants;
+import net.toddsarratt.gaussTrader.singletons.SecurityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +18,7 @@ import java.math.RoundingMode;
  * @since v0.2
  */
 
-class TradingStrategy {
+public class TradingStrategy {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TradingStrategy.class);
 
 	private static PriceBasedAction createCallAction(Stock stock, BigDecimal stockPrice, Portfolio portfolio) {
@@ -34,7 +35,7 @@ class TradingStrategy {
 					SecurityType.CALL,
 					Math.min(portfolio.numberOfOpenStockLongs(stock), 5));
 		}
-	  /* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met, though
+		/* TODO : Consider removing this if statement. We should not be in this method if the condition wasn't met, though
 	  * it does protect against misuse of the API. Also, why is the PriceBasedAction exactly the same as above? */
 		if (stockPrice.compareTo(stock.getBollingerBand(1)) >= 0) {
 			LOGGER.info("Stock {} at ${} is above 1st Bollinger Band of {}", stock.getTicker(), stockPrice, stock.getBollingerBand(1));
@@ -91,7 +92,7 @@ class TradingStrategy {
 	 * @param portfolio  portfolio being traded
 	 * @return PriceBasedAction based on input parameters and trade strategy
 	 */
-	static PriceBasedAction findActionToTake(Stock stock, BigDecimal stockPrice, Portfolio portfolio) {
+	public static PriceBasedAction findActionToTake(Stock stock, BigDecimal stockPrice, Portfolio portfolio) {
 		LOGGER.debug("Entering findActionToTake(Stock {})", stock.getTicker());
 		LOGGER.debug("Comparing current price ${} against Bollinger Bands {}", stockPrice, stock.describeBollingerBands());
 		if (stockPrice.compareTo(stock.getBollingerBand(1)) >= 0) {

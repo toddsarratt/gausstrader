@@ -1,7 +1,8 @@
-package net.toddsarratt.gaussTrader.singletons;
+package net.toddsarratt.gaussTrader.market;
 
 import net.toddsarratt.gaussTrader.InstantPrice;
-import net.toddsarratt.gaussTrader.Security;
+import net.toddsarratt.gaussTrader.domain.Security;
+import net.toddsarratt.gaussTrader.singletons.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,7 +17,7 @@ import java.util.HashMap;
  * @author Todd Sarratt todd.sarratt@gmail.com
  * @since gaussTrader v0.2
  */
-public abstract class Market {
+public abstract class Market implements Runnable {
 	final Logger logger = LoggerFactory.getLogger(getClass());
 
 	/**
@@ -27,7 +28,7 @@ public abstract class Market {
 	 * @return true if the day specified is found in the holiday map
 	 */
 	static boolean isHoliday(int julianDay, int year) {
-		return Constants.HOLIDAY_MAP.get(year).contains(julianDay);
+		return Constants.getHolidayMap().get(year).contains(julianDay);
 	}
 
 	/**
@@ -49,7 +50,7 @@ public abstract class Market {
 	 * @return true if the day specified is found in the early close map
 	 */
 	static boolean isEarlyClose(int julianDay, int year) {
-		return Constants.EARLY_CLOSE_MAP.get(year).contains(julianDay);
+		return Constants.getEarlyCloseMap().get(year).contains(julianDay);
 	}
 
 	/**
@@ -67,11 +68,11 @@ public abstract class Market {
 
 	abstract LocalDateTime getClosingDateTime();
 
-	abstract LocalDateTime getCurrentDateTime();
+	public abstract LocalDateTime getCurrentDateTime();
 
-	abstract ZonedDateTime getClosingZonedDateTime();
+	public abstract ZonedDateTime getClosingZonedDateTime();
 
-	abstract ZonedDateTime getCurrentZonedDateTime();
+	public abstract ZonedDateTime getCurrentZonedDateTime();
 
 	/**
 	 * Retrieves a past stock closing price.
@@ -80,7 +81,7 @@ public abstract class Market {
 	 * @param historicalDate LocalDate for the close price being requested
 	 * @return BigDecimal with the closing price with the stock on the date requrested
 	 */
-	BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
+	public BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
 		HashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, historicalDate);
 		logger.debug("Map {}", priceMap.toString());
 		return priceMap.get(historicalDate);
@@ -88,7 +89,7 @@ public abstract class Market {
 
 	abstract ZoneId getMarketZone();
 
-	abstract BigDecimal[] getMovingAverages(String ticker);
+	public abstract BigDecimal[] getMovingAverages(String ticker);
 
 	abstract String getName();
 
@@ -99,7 +100,7 @@ public abstract class Market {
 	 */
 	public boolean isOpenMarketDate(LocalDate dateToCheck) {
 		logger.debug("Entering isOpenMarketDate()");
-		logger.debug("Comparing to list of holidays {}", Constants.HOLIDAY_MAP.entrySet());
+		logger.debug("Comparing to list of holidays {}", Constants.getHolidayMap().entrySet());
 		if (isHoliday(dateToCheck)) {
 			logger.debug("{} is a market holiday.", dateToCheck);
 			return false;
@@ -111,23 +112,23 @@ public abstract class Market {
 		return true;
 	}
 
-	abstract boolean isOpenRightNow();
+	public abstract boolean isOpen();
 
-	abstract boolean isOpenToday();
+	public abstract boolean isOpenToday();
 
 	abstract InstantPrice lastAsk(String ticker);
 
 	abstract InstantPrice lastBid(String ticker);
 
-	abstract InstantPrice lastTick(Security security);
+	public abstract InstantPrice lastTick(Security security);
 
 	abstract InstantPrice lastTick(String ticker);
 
 	abstract boolean marketPricesCurrent();
 
-	abstract HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestDate);
+	public abstract HashMap<LocalDate, BigDecimal> readHistoricalPrices(String ticker, LocalDate earliestDate);
 
-	abstract boolean tickerValid(String ticker);
+	public abstract boolean tickerValid(String ticker);
 
-	abstract Duration timeUntilMarketOpens();
+	public abstract Duration durationUntilMarketOpens();
 }

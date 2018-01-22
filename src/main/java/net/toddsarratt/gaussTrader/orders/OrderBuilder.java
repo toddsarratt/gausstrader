@@ -1,7 +1,6 @@
 package net.toddsarratt.gaussTrader.orders;
 
-import net.toddsarratt.gaussTrader.TransactionId;
-import net.toddsarratt.gaussTrader.securities.SecurityType;
+import net.toddsarratt.gaussTrader.singletons.SecurityType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -34,7 +33,7 @@ public class OrderBuilder {
 		return order;
 	}
 
-	public OrderBuilder orderId(TransactionId orderId) {
+	public OrderBuilder orderId(long orderId) {
 		order.setOrderId(orderId);
 		return this;
 	}

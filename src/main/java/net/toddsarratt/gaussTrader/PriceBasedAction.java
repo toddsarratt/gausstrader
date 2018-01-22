@@ -1,7 +1,8 @@
 package net.toddsarratt.gaussTrader;
 
-import net.toddsarratt.gaussTrader.securities.SecurityType;
+import net.toddsarratt.gaussTrader.singletons.BuyOrSell;
 import net.toddsarratt.gaussTrader.singletons.Constants;
+import net.toddsarratt.gaussTrader.singletons.SecurityType;
 
 import java.math.BigDecimal;
 
@@ -12,15 +13,15 @@ import java.math.BigDecimal;
  * @since v0.1
  */
 
-class PriceBasedAction {
-	static final PriceBasedAction DO_NOTHING = new PriceBasedAction(Constants.BIGDECIMAL_MINUS_ONE, false, "", null, 0);
+public class PriceBasedAction {
+	static final PriceBasedAction DO_NOTHING = new PriceBasedAction(Constants.BIGDECIMAL_MINUS_ONE, false, null, null, 0);
 	private final BigDecimal triggerPrice;
 	private final boolean isActionable;
-	private final String buyOrSell;
+	private final BuyOrSell buyOrSell;
 	private final SecurityType securityType;
 	private final int numberToTransact;
 
-	PriceBasedAction(BigDecimal triggerPrice, boolean isActionable, String buyOrSell, SecurityType securityType, int numberToTransact) {
+	PriceBasedAction(BigDecimal triggerPrice, boolean isActionable, BuyOrSell buyOrSell, SecurityType securityType, int numberToTransact) {
 		this.triggerPrice = triggerPrice;
 		this.isActionable = isActionable;
 		this.buyOrSell = buyOrSell;
@@ -33,23 +34,23 @@ class PriceBasedAction {
 		return "";
 	}
 
-	BigDecimal getTriggerPrice() {
+	public BigDecimal getTriggerPrice() {
 		return triggerPrice;
 	}
 
-	boolean isActionable() {
+	public boolean isActionable() {
 		return isActionable;
 	}
 
-	String getBuyOrSell() {
+	public BuyOrSell getBuyOrSell() {
 		return buyOrSell;
 	}
 
-	SecurityType getSecurityType() {
+	public SecurityType getSecurityType() {
 		return securityType;
 	}
 
-	int getNumberToTransact() {
+	public int getNumberToTransact() {
 		return numberToTransact;
 	}
 }

@@ -3,13 +3,9 @@ package net.toddsarratt.gaussTrader;
 // import java.io.IOException;
 // import java.net.MalformedURLException;
 
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.*;
-
 @Deprecated
 /* Better unit testing coming in v0.2 */
-public class PortfolioExerciseShortPut {
+public class PortfolioExerciseShortPut {/*
    @Test
    public void testPortfolioExerciseShortPut() {
       Stock testStock = new Stock();
@@ -46,5 +42,5 @@ public class PortfolioExerciseShortPut {
       assertEquals(portfolio.countUncoveredLongStockPositions(testStock), 1);
       assertEquals(portfolio.numberOfOpenStockLongs(testStock), 1);
       assertEquals(portfolio.numberOfOpenPutShorts(testStock), 0);
-   }
+   }*/
 }

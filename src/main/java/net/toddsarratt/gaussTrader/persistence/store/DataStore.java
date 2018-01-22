@@ -1,10 +1,10 @@
-package net.toddsarratt.gaussTrader.singletons;
+package net.toddsarratt.gaussTrader.persistence.store;
 
 import net.toddsarratt.gaussTrader.InstantPrice;
-import net.toddsarratt.gaussTrader.Order;
-import net.toddsarratt.gaussTrader.PortfolioSummary;
 import net.toddsarratt.gaussTrader.Position;
-import net.toddsarratt.gaussTrader.securities.Stock;
+import net.toddsarratt.gaussTrader.domain.Stock;
+import net.toddsarratt.gaussTrader.orders.Order;
+import net.toddsarratt.gaussTrader.portfolio.PortfolioSummary;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

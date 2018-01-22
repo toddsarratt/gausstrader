@@ -1,4 +1,4 @@
-package net.toddsarratt.gaussTrader.securities;
+package net.toddsarratt.gaussTrader.singletons;
 
 /**
  * Enum for Security Type. Currently only stocks and options are supported by the application. Bonds, commodities,
