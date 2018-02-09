@@ -32,9 +32,9 @@ public class TransactionId {
 	 * This should work until epoch time equals 0x40000000000ms, at which point shifting left 22 bits will place a "1"
 	 * in the 64th bit, creating a negative number. This will happen some time on 5/15/2109.
 	 *
-	 * @return unique Long of 63 significant bits
+	 * @return unique long of 63 significant bits
 	 */
-	public static synchronized Long generateNewId() {
+	public static synchronized long generateNewId() {
 		return (System.currentTimeMillis() << 22) | (random.nextInt() & 0x003FFFFF);
 	}
 }

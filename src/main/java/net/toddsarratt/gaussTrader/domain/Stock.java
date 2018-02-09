@@ -17,13 +17,16 @@ import net.toddsarratt.gaussTrader.market.Market;
 import net.toddsarratt.gaussTrader.persistence.store.DataStore;
 import net.toddsarratt.gaussTrader.singletons.Constants;
 import net.toddsarratt.gaussTrader.singletons.SecurityType;
+import net.toddsarratt.gaussTrader.technicals.BollingerBands;
+import net.toddsarratt.gaussTrader.technicals.MovingAverages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static net.toddsarratt.gaussTrader.singletons.SecurityType.STOCK;
@@ -33,10 +36,9 @@ public class Stock implements Security {
 	private static final DataStore DATA_STORE = GaussTrader.getDataStore();
 	private static final Logger LOGGER = LoggerFactory.getLogger(Stock.class);
 	private final String ticker;
-	private BigDecimal fiftyDma;
-	private BigDecimal twoHundredDma;
+	private MovingAverages movingAverages;
 	//	public LinkedList<Dividend> dividendsPaid = null;
-	private BigDecimal[] bollingerBands = new BigDecimal[6];
+	private BollingerBands bollingerBands;
 	private InstantPrice lastPrice;
 
 	/**
@@ -45,28 +47,22 @@ public class Stock implements Security {
 	 * @param ticker a String representing the ticker
 	 */
 	private Stock(String ticker,
-	              BigDecimal fiftyDma,
-	              BigDecimal twoHundredDma,
-	              BigDecimal[] bollingerBands
+	              MovingAverages movingAverages,
+	              BollingerBands bollingerBands
 	) {
 		LOGGER.debug("Entering constructor Stock(String {})", ticker);
 		this.ticker = ticker;
-		this.fiftyDma = fiftyDma;
-		this.twoHundredDma = twoHundredDma;
+		this.movingAverages = movingAverages;
 		this.bollingerBands = bollingerBands;
 	}
 
 	public static Stock of(String ticker) {
 		LOGGER.debug("Entering factory method of(\"{}\")", ticker);
 		if (MARKET.tickerValid(ticker)) {
-			BigDecimal[] movingAverages = MARKET.getMovingAverages(ticker);
-			BigDecimal fiftyDma = movingAverages[0];
-			BigDecimal twoHundredDma = movingAverages[1];
-			// TODO: Move this to WatchList
-			// dataStore.writeStockMetrics(newStock);
+			MovingAverages movingAverages = MARKET.getMovingAverages(ticker);
 			HashMap<LocalDate, BigDecimal> historicalPriceMap = fetchHistoricalPrices(ticker);
-			BigDecimal[] bollingerBands = calculateBollingerBands(historicalPriceMap);
-			return new Stock(ticker, fiftyDma, twoHundredDma, bollingerBands);
+			BollingerBands bollingerBands = BollingerBands.generateBollingerBands(historicalPriceMap);
+			return new Stock(ticker, movingAverages, bollingerBands);
 		}
 		throw new IllegalArgumentException("Ticker invalid");
 	}
@@ -129,45 +125,6 @@ public class Stock implements Security {
 		return openMarketDates;
 	}
 
-
-	private static BigDecimal[] calculateBollingerBands(Map<LocalDate, BigDecimal> priceMap) {
-		LOGGER.debug("Entering calculateBollingerBands()");
-		BigDecimal[] bollingerBands = new BigDecimal[6];
-		Arrays.fill(bollingerBands, Constants.BIGDECIMAL_MINUS_ONE);
-		if (priceMap.containsValue(Constants.BIGDECIMAL_MINUS_ONE)) {
-			LOGGER.warn("Not enough historical data to calculate Bollinger Bands");
-			return bollingerBands;
-		}
-		BigDecimal currentSMASum;
-		BigDecimal currentSMA;
-		BigDecimal currentSDSum;
-		BigDecimal currentSD;
-		Collection<BigDecimal> historicalPriceArray = priceMap.values();
-		currentSMASum = historicalPriceArray
-				.stream()
-				.reduce(BigDecimal.ZERO, BigDecimal::add);
-		LOGGER.debug("currentSMASum = {}", currentSMASum);
-		BigDecimal period = new BigDecimal(Constants.getBollBandPeriod());
-		currentSMA = currentSMASum.divide(period, 3, RoundingMode.HALF_UP);
-		LOGGER.debug("currentSMA = {}", currentSMA);
-		currentSDSum = historicalPriceArray
-				.stream()
-				.map(adjClose -> adjClose.subtract(currentSMA))
-				.map(distance -> distance.pow(2))
-				.reduce(BigDecimal.ZERO, BigDecimal::add);
-		LOGGER.debug("currentSDSum = {}", currentSDSum);
-		// Seriously, is there no square root method in BigDecimal?
-		currentSD = BigDecimal.valueOf(Math.sqrt(currentSDSum.divide(period, 3, RoundingMode.HALF_UP).doubleValue()));
-		LOGGER.debug("currentSD = {}", currentSD);
-		bollingerBands[0] = currentSMA;
-		bollingerBands[1] = currentSMA.add(currentSD.multiply(Constants.getBollingerSd1()));
-		bollingerBands[2] = currentSMA.add(currentSD.multiply(Constants.getBollingerSd2()));
-		bollingerBands[3] = currentSMA.subtract(currentSD.multiply(Constants.getBollingerSd1()));
-		bollingerBands[4] = currentSMA.subtract(currentSD.multiply(Constants.getBollingerSd2()));
-		bollingerBands[5] = currentSMA.subtract(currentSD.multiply(Constants.getBollingerSd3()));
-		return bollingerBands;
-	}
-
 	@Override
 	public String getTicker() {
 		return ticker;
@@ -186,16 +143,12 @@ public class Stock implements Security {
 		return false;
 	}
 
-	public BigDecimal getBollingerBand(int index) {
-		return bollingerBands[index];
+	public MovingAverages getMovingAverages() {
+		return movingAverages;
 	}
 
-	public BigDecimal getFiftyDma() {
-		return fiftyDma;
-	}
-
-	public BigDecimal getTwoHundredDma() {
-		return twoHundredDma;
+	public BollingerBands getBollingerBands() {
+		return bollingerBands;
 	}
 
 	@Override
@@ -207,18 +160,13 @@ public class Stock implements Security {
 		this.lastPrice = lastPrice;
 	}
 
-	String describeBollingerBands() {
-		return "SMA " + bollingerBands[0] +
-				" Upper 1st " + bollingerBands[1] +
-				" 2nd " + bollingerBands[2] +
-				" Lower 1st " + bollingerBands[3] +
-				" 2nd " + bollingerBands[4] +
-				" 3rd " + bollingerBands[5];
-	}
-
-	// TODO : This is a sorry toString()
 	@Override
 	public String toString() {
-		return ticker;
+		return "Stock{" +
+				"ticker='" + ticker + '\'' +
+				", movingAverages=" + movingAverages +
+				", bollingerBands=" + bollingerBands +
+				", lastPrice=" + lastPrice +
+				'}';
 	}
 }

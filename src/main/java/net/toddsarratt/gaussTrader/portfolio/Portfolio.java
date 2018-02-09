@@ -32,8 +32,8 @@ public class Portfolio {
 			BigDecimal.ZERO,
 			Constants.STARTING_CASH
 	);
-	private static final Set<Position> NO_POSITIONS = Collections.EMPTY_SET;
-	private static final Set<Order> NO_ORDERS = Collections.EMPTY_SET;
+	private static final Set<Position> NO_POSITIONS = Collections.emptySet();
+	private static final Set<Order> NO_ORDERS = Collections.emptySet();
 	private static DataStore dataStore = GaussTrader.getDataStore();
 	private String name;
 	private BigDecimal netAssetValue;
@@ -58,6 +58,7 @@ public class Portfolio {
 		this.netAssetValue = netAssetValue;
 		this.freeCash = freeCash;
 		this.reservedCash = reservedCash;
+		this.totalCash = totalCash;
 		this.positions = positions;
 		this.orders = orders;
 	}
@@ -463,10 +464,10 @@ public class Portfolio {
 				/* Buy the stock at market price and deliver it */
 				optionPositionToExercise.setNumberTransacted(contractsToHonor);
 				Position buyStockToDeliverPosition = Position.exerciseOptionPosition(optionPositionToExercise);
-				BigDecimal positionLastTick = buyStockToDeliverPosition.getLastTick();
+				BigDecimal positionLastPrice = buyStockToDeliverPosition.getLastTick().getPrice();
 				LOGGER.debug("freeCash ${} -= buyStockToDeliverPosition.getLastTick() ${} * buyStockToDeliverPosition.getNumberTransacted() ${}",
-						freeCash, positionLastTick, buyStockToDeliverPosition.getNumberTransacted());
-				freeCash = freeCash.subtract(positionLastTick).multiply(new BigDecimal(buyStockToDeliverPosition.getNumberTransacted()));
+						freeCash, positionLastPrice, buyStockToDeliverPosition.getNumberTransacted());
+				freeCash = freeCash.subtract(positionLastPrice).multiply(new BigDecimal(buyStockToDeliverPosition.getNumberTransacted()));
 				LOGGER.debug("freeCash == ${}", freeCash);
 				buyStockToDeliverPosition.close(optionPositionToExercise.getStrikePrice());
 				contractsToHonor--;
@@ -582,7 +583,7 @@ public class Portfolio {
 		LOGGER.debug("Entering Portfolio.updateOptionPositions");
 		for (Position optionPositionToUpdate : getListOfOpenOptionPositions()) {
 			if (stock.getTicker().equals(optionPositionToUpdate.getUnderlyingTicker())) {
-				optionPositionToUpdate.setLastPrice(optionPositionToUpdate.getLastTick());
+				optionPositionToUpdate.setPrice(optionPositionToUpdate.getLastTick());
 				optionPositionToUpdate.calculateNetAssetValue();
 				dataStore.write(optionPositionToUpdate);
 			}
@@ -593,7 +594,7 @@ public class Portfolio {
 		LOGGER.debug("Entering Portfolio.updateStockPositions");
 		for (Position stockPositionToUpdate : getListOfOpenStockPositions()) {
 			if (stockPositionToUpdate.getTicker().equals(stock.getTicker())) {
-				stockPositionToUpdate.setPrice(stock.getPrice());
+				stockPositionToUpdate.setPrice(stock.getLastPrice());
 				stockPositionToUpdate.calculateNetAssetValue();
 				dataStore.write(stockPositionToUpdate);
 			}
@@ -601,6 +602,6 @@ public class Portfolio {
 	}
 
 	public List<Stock> getWatchList() {
-		return Collections.EMPTY_LIST;
+		return Collections.emptyList();
 	}
 }

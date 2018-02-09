@@ -3,6 +3,7 @@ package net.toddsarratt.gaussTrader.market;
 import net.toddsarratt.gaussTrader.InstantPrice;
 import net.toddsarratt.gaussTrader.domain.Security;
 import net.toddsarratt.gaussTrader.singletons.Constants;
+import net.toddsarratt.gaussTrader.technicals.MovingAverages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +80,7 @@ public abstract class Market implements Runnable {
 	 *
 	 * @param ticker         string representing stock symbol
 	 * @param historicalDate LocalDate for the close price being requested
-	 * @return BigDecimal with the closing price with the stock on the date requrested
+	 * @return BigDecimal with the closing price with the stock on the date requested
 	 */
 	public BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
 		HashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, historicalDate);
@@ -89,7 +90,7 @@ public abstract class Market implements Runnable {
 
 	abstract ZoneId getMarketZone();
 
-	public abstract BigDecimal[] getMovingAverages(String ticker);
+	public abstract MovingAverages getMovingAverages(String ticker);
 
 	abstract String getName();
 

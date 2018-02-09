@@ -3,18 +3,18 @@ package net.toddsarratt.gaussTrader.persistence.store;
 import net.toddsarratt.gaussTrader.InstantPrice;
 import net.toddsarratt.gaussTrader.Position;
 import net.toddsarratt.gaussTrader.PositionBuilder;
-import net.toddsarratt.gaussTrader.TransactionId;
+import net.toddsarratt.gaussTrader.domain.Stock;
 import net.toddsarratt.gaussTrader.orders.Order;
 import net.toddsarratt.gaussTrader.orders.OrderBuilder;
-import net.toddsarratt.gaussTrader.persistence.dao.Stock;
 import net.toddsarratt.gaussTrader.portfolio.Portfolio;
 import net.toddsarratt.gaussTrader.portfolio.PortfolioSummary;
 import net.toddsarratt.gaussTrader.singletons.Constants;
 import net.toddsarratt.gaussTrader.singletons.SecurityType;
-import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
@@ -34,7 +35,10 @@ import java.util.Set;
  */
 public class PostgresStore implements DataStore {
 	private static final Logger LOGGER = LoggerFactory.getLogger(PostgresStore.class);
-	private static PGSimpleDataSource pgDataSource = new PGSimpleDataSource();
+//	private static PGSimpleDataSource pgDataSource = new PGSimpleDataSource();
+
+	@PersistenceContext
+	EntityManager em;
 
 	/**
 	 * Set up Postgres database connection
@@ -55,7 +59,7 @@ public class PostgresStore implements DataStore {
 	public static Position dbToPortfolioPosition(ResultSet dbResult) throws SQLException {
 		LOGGER.debug("Entering Portfolio.dbToPortfolioPosition(ResultSet dbResult)");
 		PositionBuilder positionBuilder = new PositionBuilder();
-		positionBuilder.positionId(new TransactionId(dbResult.getLong("position_id")))
+		positionBuilder.positionId(dbResult.getLong("position_id"))
 				.open(dbResult.getBoolean("open"))
 				.ticker(dbResult.getString("ticker"))
 				.securityType(SecurityType.of(dbResult.getString("sec_type")))
@@ -70,8 +74,8 @@ public class PostgresStore implements DataStore {
 				.netAssetValue(BigDecimal.valueOf(dbResult.getDouble("net_asset_value")))
 				// TODO: Add field "expiry" to take the place of "epoch_expiry" in database
 				.expiry(dbResult.getDate("expiry").toLocalDate())
-				.claimAgainstCash(BigDecimal.valueOf(dbResult.getDouble("claim_against_cash")))
-				.originatingOrderId(new TransactionId(dbResult.getLong("originating_order_id")));
+				.claimAgainstCash(BigDecimal.valueOf(dbResult.getDouble("claim_against_cash")));
+//				.originatingOrderId(new TransactionId(dbResult.getLong("originating_order_id")));
 		return positionBuilder.build();
 	}
 
@@ -81,17 +85,17 @@ public class PostgresStore implements DataStore {
 		OrderBuilder orderBuilder = OrderBuilder.of(secType);
 		orderBuilder.orderId(dbResult.getLong("order_id"))
 				.open(true)
-				.ticker(dbResult.getString("ticker"))
-				.underlyingTicker(dbResult.getString("underlying_ticker"))
-				.strikePrice(dbResult.getDouble("strike_price"))
-				.limitPrice(dbResult.getDouble("limit_price"))
-				.action(dbResult.getString("action"))
-				.totalQuantity(dbResult.getInt("total_quantity"))
-				.secType(secType)
-				.tif(dbResult.getString("tif"))
-				.epochOpened(dbResult.getLong("epoch_opened"))
-				.expiry(dbResult.getLong("epoch_expiry"))
-				.claimAgainstCash(dbResult.getDouble("claim_against_cash"));
+				.ticker(dbResult.getString("ticker"));
+//				.underlyingTicker(dbResult.getString("underlying_ticker"))
+//				.strikePrice(dbResult.getDouble("strike_price"))
+//				.limitPrice(dbResult.getDouble("limit_price"))
+//				.action(dbResult.getString("action"))
+//				.totalQuantity(dbResult.getInt("total_quantity"))
+//				.secType(secType)
+//				.tif(dbResult.getString("tif"))
+//				.epochOpened(dbResult.getLong("epoch_opened"))
+//				.expiry(dbResult.getLong("epoch_expiry"))
+//				.claimAgainstCash(dbResult.getDouble("claim_against_cash"));
 		return orderBuilder.build();
 	}
 
@@ -112,9 +116,9 @@ public class PostgresStore implements DataStore {
 			LOGGER.debug("Inserting current stock price for ticker {} into database.", ticker);
 			Connection dbConnection = pgDataSource.getConnection();
 			sqlStatement = dbConnection.prepareStatement(sqlCommand);
-			BigDecimal currentPrice = stock.getPrice();
-			long lastTickEpoch = stock.getLastPriceUpdateEpoch();
-			sqlStatement.setDouble(1, currentPrice.doubleValue());
+			InstantPrice currentPrice = stock.getLastPrice();
+			long lastTickEpoch = currentPrice.getEpoch();
+			sqlStatement.setDouble(1, currentPrice.getPriceAsDouble());
 			sqlStatement.setLong(2, lastTickEpoch);
 			sqlStatement.setString(3, ticker);
 			LOGGER.debug("Executing UPDATE watchlist SET last_tick = {}, last_tick_epoch = {} WHERE ticker = {}", currentPrice, lastTickEpoch, ticker);
@@ -167,13 +171,13 @@ public class PostgresStore implements DataStore {
 				sqlUpdateStatement = dbConnection.prepareStatement("INSERT INTO watchlist (twenty_dma, first_low_boll, first_high_boll, " +
 						"second_low_boll, second_high_boll, last_tick, last_tick_epoch, active, ticker) VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, ?)");
 			}
-			sqlUpdateStatement.setDouble(1, stockToUpdate.getTwentyDma().doubleValue());
-			sqlUpdateStatement.setDouble(2, stockToUpdate.getBollingerBand(3).doubleValue());
-			sqlUpdateStatement.setDouble(3, stockToUpdate.getBollingerBand(1).doubleValue());
-			sqlUpdateStatement.setDouble(4, stockToUpdate.getBollingerBand(4).doubleValue());
-			sqlUpdateStatement.setDouble(5, stockToUpdate.getBollingerBand(2).doubleValue());
-			sqlUpdateStatement.setDouble(6, stockToUpdate.getPrice().doubleValue());
-			sqlUpdateStatement.setLong(7, stockToUpdate.getLastPriceUpdateEpoch());
+			sqlUpdateStatement.setDouble(1, stockToUpdate.getMovingAverages().getTwentyDma().doubleValue());
+			sqlUpdateStatement.setDouble(2, stockToUpdate.getBollingerBands().calcSdFromSma(-1).doubleValue());
+			sqlUpdateStatement.setDouble(3, stockToUpdate.getBollingerBands().calcSdFromSma(1).doubleValue());
+			sqlUpdateStatement.setDouble(4, stockToUpdate.getBollingerBands().calcSdFromSma(-2).doubleValue());
+			sqlUpdateStatement.setDouble(5, stockToUpdate.getBollingerBands().calcSdFromSma(2).doubleValue());
+			sqlUpdateStatement.setDouble(6, stockToUpdate.getLastPrice().getPrice().doubleValue());
+			sqlUpdateStatement.setLong(7, stockToUpdate.getLastPrice().getEpoch());
 			sqlUpdateStatement.setString(8, stockToUpdate.getTicker());
 			LOGGER.debug("Executing SQL insert into watchlist table");
 			sqlUpdateStatement.executeUpdate();
@@ -225,25 +229,27 @@ public class PostgresStore implements DataStore {
 	}
 
 	@Override
-	public Set<Position> getPortfolioPositions() throws SQLException {
+	public Set<Position> getPortfolioPositions(Portfolio portfolio) throws SQLException {
 		LOGGER.debug("Entering Portfolio.getDbPortfolioPositions()");
 		Connection dbConnection = pgDataSource.getConnection();
 		Position portfolioPositionEntry;
+		Set<Position> positions = new HashSet<>();
 		PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND open = true");
-		positionSqlStatement.setString(1, name);
-		LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND open = true", name);
+		positionSqlStatement.setString(1, portfolio.getName());
+		LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND open = true", portfolio.getName());
 		ResultSet openPositionsResultSet = positionSqlStatement.executeQuery();
 		while (openPositionsResultSet.next()) {
 			portfolioPositionEntry = dbToPortfolioPosition(openPositionsResultSet);
 			if (portfolioPositionEntry.isExpired()) {
 				LOGGER.warn("Position {} read from the database has expired", portfolioPositionEntry.getTicker());
-				reconcileExpiredOptionPosition(portfolioPositionEntry);
+				portfolio.reconcileExpiredOptionPosition(portfolioPositionEntry);
 			} else {
 				LOGGER.debug("Adding {} {}", portfolioPositionEntry.getPositionId(), portfolioPositionEntry.getTicker());
-				portfolioPositions.add(portfolioPositionEntry);
+				positions.add(portfolioPositionEntry);
 			}
 		}
 		dbConnection.close();
+		return positions;
 	}
 
 	@Override

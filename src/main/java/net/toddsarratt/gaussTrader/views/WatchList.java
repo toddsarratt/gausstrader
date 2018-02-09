@@ -1,14 +1,14 @@
 package net.toddsarratt.gaussTrader.views;
 
 import net.toddsarratt.gaussTrader.GaussTrader;
-import net.toddsarratt.gaussTrader.persistence.dao.Stock;
+import net.toddsarratt.gaussTrader.domain.Stock;
 import net.toddsarratt.gaussTrader.persistence.store.DataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -49,15 +49,13 @@ public class WatchList {
 	 * @param tickers String vararg representing tickers to watch
 	 */
 	public void watch(List<String> tickers) {
-		tradeableStockSet.addAll(
-				tickers.stream()
-						.map(Stock::of)
-						// If "ticker" is not valid, Stock.of(ticker) might return null TODO: Handle invalid ticker
-						.filter(stock -> stock != null)
-						// Make sure Bollinger bands have been calculated TODO: There is probably a better way to do this
-						.filter(stock -> stock.getBollingerBand(0).compareTo(BigDecimal.ZERO) > 0)
-						.collect(Collectors.toList())
-		);
+		tickers.stream()
+				.map(Stock::of)
+				// If "ticker" is not valid, Stock.of(ticker) might return null TODO: Handle invalid ticker
+				.filter(Objects::nonNull)
+				// Make sure Bollinger bands have been calculated
+				.filter(stock -> stock.getBollingerBands() != null)
+				.forEach(tradeableStockSet::add);
 	}
 
 	/**

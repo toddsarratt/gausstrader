@@ -7,6 +7,7 @@ import net.toddsarratt.gaussTrader.orders.Order;
 import net.toddsarratt.gaussTrader.portfolio.PortfolioSummary;
 
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Set;
@@ -45,7 +46,7 @@ public interface DataStore {
 
 	PortfolioSummary getPortfolioSummary(String portfolioName);
 
-	Set<Position> getPortfolioPositions();
+	Set<Position> getPortfolioPositions() throws SQLException;
 
 	Set<Order> getPortfolioOrders();
 

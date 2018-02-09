@@ -23,7 +23,7 @@ public class PositionBuilder {
 		return position;
 	}
 
-	public PositionBuilder positionId(TransactionId positionId) {
+	public PositionBuilder positionId(long positionId) {
 		position.setPositionId(positionId);
 		return this;
 	}
@@ -69,7 +69,7 @@ public class PositionBuilder {
 	}
 
 	public PositionBuilder longPosition(boolean longPosition) {
-		position.setLongPosition(longPosition);
+		position.setBuyOrSell(longPosition);
 		return this;
 	}
 

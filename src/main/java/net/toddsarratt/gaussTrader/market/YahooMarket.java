@@ -3,6 +3,9 @@ package net.toddsarratt.gaussTrader.market;
 import net.toddsarratt.gaussTrader.InstantPrice;
 import net.toddsarratt.gaussTrader.domain.Security;
 import net.toddsarratt.gaussTrader.singletons.Constants;
+import net.toddsarratt.gaussTrader.technicals.MovingAverages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -27,6 +30,7 @@ import java.util.LinkedHashMap;
  * @since v0.2
  */
 public class YahooMarket extends Market {
+	private static final Logger LOGGER = LoggerFactory.getLogger(YahooMarket.class);
 	//	Add 20 minutes to market open (9:30am) to allow for Yahoo! 20 minute delay
 	private static final LocalTime MARKET_OPEN_TIME = LocalTime.of(9, 50);
 	private static final ZoneId MARKET_ZONE = ZoneId.of("America/New_York");
@@ -36,13 +40,39 @@ public class YahooMarket extends Market {
 			Constants.getProperties().getProperty("YAHOO_RETRIES")
 	);
 	private static LocalTime marketClosingTime;
+	private static boolean shutdown;
 
-	static {
-		if (isEarlyClose(LocalDate.now())) {
-			marketClosingTime = LocalTime.of(13, 20);
-		} else {
-			marketClosingTime = LocalTime.of(16, 20);
+	public YahooMarket() {
+		try {
+			if (isEarlyClose(LocalDate.now())) {
+				marketClosingTime = LocalTime.of(13, 20);
+			} else {
+				marketClosingTime = LocalTime.of(16, 20);
+			}
+		} catch (Exception pokemon) {
+			marketClosingTime = null;
 		}
+	}
+
+	public void run() {
+		if (!shutdown) {
+			LOGGER.error("Yahoo! Market already running");
+			return;
+		}
+		shutdown = false;
+		while (!shutdown) {
+			// TODO: Respond to requests for information
+			try {
+				Thread.sleep(10_000);
+				Thread.yield();
+			} catch (InterruptedException ie) {
+				LOGGER.info("Yahoo! Market told to stop", ie);
+			}
+		}
+	}
+
+	public void stop() {
+		shutdown = true;
 	}
 
 	/**
@@ -112,8 +142,11 @@ public class YahooMarket extends Market {
 	 * @return BigDecimal array with the 50 and 200 daily moving averages
 	 */
 	@Override
-	public BigDecimal[] getMovingAverages(String ticker) {
-		return Arrays.stream(yahooGummyApi(ticker, "m3m4")).toArray(BigDecimal[]::new);
+	public MovingAverages getMovingAverages(String ticker) {
+		BigDecimal[] movingAverages = Arrays.stream(yahooGummyApi(ticker, "m3m4")).toArray(BigDecimal[]::new);
+		return new MovingAverages(null, movingAverages[0], movingAverages[1]);
+
+		//  http://finance.yahoo.com/d/quotes.csv?s=XOM&f=m3m4
 	}
 
 	/**
@@ -159,7 +192,7 @@ public class YahooMarket extends Market {
 	 * @return true if the market is open on today's date
 	 */
 	@Override
-	boolean isOpenToday() {
+	public boolean isOpenToday() {
 		ZonedDateTime todaysDateTime = ZonedDateTime.now(MARKET_ZONE);
 		return isOpenMarketDate(todaysDateTime.toLocalDate());
 	}
