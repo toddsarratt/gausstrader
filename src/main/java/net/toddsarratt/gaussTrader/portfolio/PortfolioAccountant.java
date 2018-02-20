@@ -1,5 +1,6 @@
 package net.toddsarratt.gaussTrader.portfolio;
 
+import net.toddsarratt.gaussTrader.InstantPrice;
 import net.toddsarratt.gaussTrader.market.Market;
 import net.toddsarratt.gaussTrader.persistence.entity.*;
 import net.toddsarratt.gaussTrader.singletons.Constants;
@@ -37,7 +38,7 @@ public class PortfolioAccountant {
 		return calculateTotalCash().add(calcOpenPositionsNav());
 	}
 
-	public BigDecimal calcOpenPositionsNav() {
+	BigDecimal calcOpenPositionsNav() {
 		return portfolio.getPositions().stream()
 				.filter(Position::isOpen)
 				.map(this::calculatePositionNetAssetValue)
@@ -55,27 +56,22 @@ public class PortfolioAccountant {
 	}
 
 
-	public BigDecimal calculateTotalCash() {
+	BigDecimal calculateTotalCash() {
 		return portfolio.getFreeCash().add(portfolio.getReservedCash());
 	}
 
-	int countUncoveredLongStockPositions(Stock stock) {
-		return (numberOfOpenStockLongs(stock) - numberOfOpenCallShorts(stock));
+	long countUncoveredLongStockPositions(Stock stock) {
+		return (countOfOpenLongStockShares(stock) - numberOfOpenCallShorts(stock));
 	}
 
-	public int numberOfOpenStockLongs(Security security) {
-		int openLongCount = 0;
-		// TODO : Lamda
-		for (Position portfolioPosition : positions) {
-			if ((security.getTicker().equals(portfolioPosition.getTicker())) &&
-					portfolioPosition.isOpen() &&
-					portfolioPosition.isLong() &&
-					(portfolioPosition.isStock())) {
-				openLongCount += portfolioPosition.getNumberTransacted();
-			}
-		}
-		openLongCount /= 100;
-		LOGGER.debug("Returning openLongCount = {} from Portfolio.numberOfOpenStockLongs(Security {})", openLongCount, security.getTicker());
+	public long countOfOpenLongStockShares(Security security) {
+		long openLongCount = portfolio.getPositions().stream()
+				.filter(p -> p.getSecurity().equals(security) &&
+						p.isOpen() &&
+						p.getSecurity().getSecurityType() == STOCK &&
+						p.getSentiment() == LONG)
+				.count();
+		LOGGER.debug("Returning openLongCount = {} from portfolio of ticker {}", openLongCount, security.getTicker());
 		return openLongCount;
 	}
 
