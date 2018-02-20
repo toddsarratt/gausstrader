@@ -1,7 +1,8 @@
 package net.toddsarratt.gaussTrader.market;
 
-import net.toddsarratt.gaussTrader.InstantPrice;
-import net.toddsarratt.gaussTrader.domain.Security;
+import net.toddsarratt.gaussTrader.persistence.entity.InstantPrice;
+import net.toddsarratt.gaussTrader.persistence.entity.Security;
+import net.toddsarratt.gaussTrader.persistence.entity.Stock;
 import net.toddsarratt.gaussTrader.singletons.Constants;
 import net.toddsarratt.gaussTrader.technicals.MovingAverages;
 import org.slf4j.Logger;
@@ -19,7 +20,7 @@ import java.util.HashMap;
  * @since gaussTrader v0.2
  */
 public abstract class Market implements Runnable {
-	final Logger logger = LoggerFactory.getLogger(getClass());
+	final Logger LOGGER = LoggerFactory.getLogger(Market.class);
 
 	/**
 	 * Checks if the day and year supplied is a market holiday, per the map with holidays created at application runtime.
@@ -84,7 +85,7 @@ public abstract class Market implements Runnable {
 	 */
 	public BigDecimal getHistoricalClosingPrice(String ticker, LocalDate historicalDate) {
 		HashMap<LocalDate, BigDecimal> priceMap = readHistoricalPrices(ticker, historicalDate);
-		logger.debug("Map {}", priceMap.toString());
+		LOGGER.debug("Map {}", priceMap.toString());
 		return priceMap.get(historicalDate);
 	}
 
@@ -100,14 +101,14 @@ public abstract class Market implements Runnable {
 	 * @return true if the market is open on the specified date
 	 */
 	public boolean isOpenMarketDate(LocalDate dateToCheck) {
-		logger.debug("Entering isOpenMarketDate()");
-		logger.debug("Comparing to list of holidays {}", Constants.getHolidayMap().entrySet());
+		LOGGER.debug("Entering isOpenMarketDate()");
+		LOGGER.debug("Comparing to list of holidays {}", Constants.getHolidayMap().entrySet());
 		if (isHoliday(dateToCheck)) {
-			logger.debug("{} is a market holiday.", dateToCheck);
+			LOGGER.debug("{} is a market holiday.", dateToCheck);
 			return false;
 		}
 		if ((dateToCheck.getDayOfWeek() == DayOfWeek.SATURDAY) || (dateToCheck.getDayOfWeek() == DayOfWeek.SUNDAY)) {
-			logger.warn("Market is closed the weekend day of {}", dateToCheck);
+			LOGGER.warn("Market is closed the weekend day of {}", dateToCheck);
 			return false;
 		}
 		return true;
@@ -121,9 +122,9 @@ public abstract class Market implements Runnable {
 
 	abstract InstantPrice lastBid(String ticker);
 
-	public abstract InstantPrice lastTick(Security security);
+	public abstract InstantPrice getLastTick(Security security);
 
-	abstract InstantPrice lastTick(String ticker);
+	abstract InstantPrice getLastTick(String ticker);
 
 	abstract boolean marketPricesCurrent();
 
@@ -132,4 +133,29 @@ public abstract class Market implements Runnable {
 	public abstract boolean tickerValid(String ticker);
 
 	public abstract Duration durationUntilMarketOpens();
+
+
+	/**
+	 * This method should NOT be called if options expiration occurs on a Friday when the market is closed//.
+	 * Do not make any change to this logic assuming that it will always be run on a day when
+	 * option positions have been opened, closed, or updated
+	 */
+	private void persistClosingPrices() {
+		LOGGER.debug("Entering persistClosingPrices()");
+		LOGGER.info("Writing closing prices to DB");
+		InstantPrice closingPrice;
+		for (Stock stock : portfolio.getWatchList()) {
+			closingPrice = market.lastTick(stock);
+			if (closingPrice == InstantPrice.NO_PRICE) {
+				LOGGER.warn("Could not get valid price for ticker {}", stock.getTicker());
+				return;
+			}
+			if (closingPrice.getInstant().isBefore(getClosingZonedDateTime().toInstant())) {
+				LOGGER.warn("closingPrice.getInstant() {} is before market.getClosingZonedDateTime() {}",
+						closingPrice.getInstant(), getClosingZonedDateTime());
+				return;
+			}
+			dataStore.writeStockPrice(stock.getTicker(), closingPrice);
+		}
+	}
 }

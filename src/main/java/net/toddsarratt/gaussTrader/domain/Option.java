@@ -1,9 +1,9 @@
 package net.toddsarratt.gaussTrader.domain;
 
 import net.toddsarratt.gaussTrader.GaussTrader;
-import net.toddsarratt.gaussTrader.InstantPrice;
 import net.toddsarratt.gaussTrader.PriceBasedAction;
 import net.toddsarratt.gaussTrader.market.Market;
+import net.toddsarratt.gaussTrader.persistence.entity.InstantPrice;
 import net.toddsarratt.gaussTrader.singletons.SecurityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

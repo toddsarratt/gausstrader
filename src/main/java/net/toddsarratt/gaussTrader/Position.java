@@ -1,11 +1,9 @@
 package net.toddsarratt.gaussTrader;
 
-import net.toddsarratt.gaussTrader.domain.Security;
 import net.toddsarratt.gaussTrader.market.Market;
 import net.toddsarratt.gaussTrader.orders.OptionOrder;
 import net.toddsarratt.gaussTrader.orders.Order;
 import net.toddsarratt.gaussTrader.singletons.BuyOrSell;
-import net.toddsarratt.gaussTrader.singletons.Constants;
 import net.toddsarratt.gaussTrader.singletons.SecurityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,18 +22,12 @@ public class Position {
 	private long originatingOrderId;
 	private boolean open;
 	private Security security;
-	private String ticker;
-	private SecurityType secType;
-	private LocalDate expiry;
-	private String underlyingTicker;
-	private BigDecimal strikePrice;
-	private Instant instantOpened;
+	private InstantPrice priceAtOpen;
 	private BuyOrSell buyOrSell;
 	private int numberTransacted;
-	private BigDecimal priceAtOpen;
 	private BigDecimal costBasis;
 	private BigDecimal claimAgainstCash;
-	private InstantPrice price;
+	private InstantPrice lastTick;
 	private BigDecimal netAssetValue;
 	private Instant instantClosed;
 	private BigDecimal priceAtClose;
@@ -49,7 +41,7 @@ public class Position {
 	}
 
 	public Position(Order orderToFill, BigDecimal priceAtOpen) {
-		LOGGER.debug("Entering Position constructor Position(Order {}, price {})", orderToFill.getOrderId(), priceAtOpen);
+		LOGGER.debug("Entering Position constructor Position(Order {}, lastTick {})", orderToFill.getOrderId(), priceAtOpen);
 		this.positionId = TransactionId.generateNewId();
 		this.originatingOrderId = orderToFill.getOrderId();
 		this.open = true;
@@ -73,7 +65,7 @@ public class Position {
 		this.costBasis = calculateCostBasis();
 		this.claimAgainstCash = calculateClaimAgainstCash();
 		LOGGER.debug("claimAgainstCash = ${}", claimAgainstCash);
-		this.price = InstantPrice.of(priceAtOpen, instantOpened);
+		this.lastTick = InstantPrice.of(priceAtOpen, instantOpened);
 		this.netAssetValue = costBasis;
 		LOGGER.info("New position created with positionId " + positionId + " ticker " + ticker +
 				" secType " + secType + " open " + open + " instantOpened " + instantOpened);
@@ -93,14 +85,14 @@ public class Position {
 		newStockPosition.setPriceAtOpen(exercisingOptionPosition.getStrikePrice());
 		newStockPosition.setCostBasis(newStockPosition.getPriceAtOpen()
 				.multiply(new BigDecimal(newStockPosition.getNumberTransacted())));
-		newStockPosition.setPrice(market.lastTick(exercisingOptionPosition.security));
+		newStockPosition.setLastTick(market.lastTick(exercisingOptionPosition.security));
 /*      } catch (IOException ioe) {
          LOGGER.info("Could not connect to yahoo! to get lastTick() for {} when exercising option position {}", ticker, exercisingOptionPosition.getPositionId());
          LOGGER.info("lastTick and netAssetValue are incorrect for current open position {}", newStockPosition.getPositionId());
          LOGGER.debug("Caught (IOException ioe)", ioe);
-         newStockPosition.setPrice(lastTick = newStockPosition.getPriceAtOpen());
+         newStockPosition.setLastTick(lastTick = newStockPosition.getPriceAtOpen());
       } */
-		newStockPosition.setNetAssetValue(newStockPosition.getPrice().getPrice().multiply(new BigDecimal(newStockPosition.getNumberTransacted())));
+		newStockPosition.setNetAssetValue(newStockPosition.getLastTick().getPrice().multiply(new BigDecimal(newStockPosition.getNumberTransacted())));
 		return newStockPosition;
 	}
 
@@ -235,15 +227,15 @@ public class Position {
 
 	public InstantPrice getLastTick() {
 		// TODO: Market needs to return an InstantPrice and not have one created here
-		return price = InstantPrice.of(market.lastTick(security).getPrice(), Instant.now());
+		return lastTick = InstantPrice.of(market.lastTick(security).getPrice(), Instant.now());
 	}
 
-	public InstantPrice getPrice() {
-		return price;
+	public InstantPrice getLastTick() {
+		return lastTick;
 	}
 
-	public void setPrice(InstantPrice lastTick) {
-		this.price = lastTick;
+	public void setLastTick(InstantPrice lastTick) {
+		this.lastTick = lastTick;
 	}
 
 	void setNetAssetValue(BigDecimal netAssetValue) {
@@ -316,12 +308,6 @@ public class Position {
 		return (isPut() && isShort()) ? strikePrice.multiply(new BigDecimal(numberTransacted * 100)) : BigDecimal.ZERO;
 	}
 
-	public BigDecimal calculateNetAssetValue() {
-		netAssetValue = price.getPrice().multiply(new BigDecimal(numberTransacted))
-				.multiply(isStock() ? BigDecimal.ONE : Constants.BIGDECIMAL_ONE_HUNDRED)
-				.multiply(isLong() ? BigDecimal.ONE : Constants.BIGDECIMAL_MINUS_ONE);
-		return netAssetValue;
-	}
 
 	@Override
 	public String toString() {

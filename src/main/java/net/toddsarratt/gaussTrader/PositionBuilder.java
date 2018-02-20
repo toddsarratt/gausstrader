@@ -94,7 +94,7 @@ public class PositionBuilder {
 	}
 
 	public PositionBuilder price(InstantPrice price) {
-		position.setPrice(price);
+		position.setLastTick(price);
 		return this;
 	}
 

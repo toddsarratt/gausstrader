@@ -1,12 +1,12 @@
 package net.toddsarratt.gaussTrader.persistence.store;
 
-import net.toddsarratt.gaussTrader.InstantPrice;
 import net.toddsarratt.gaussTrader.Position;
 import net.toddsarratt.gaussTrader.PositionBuilder;
 import net.toddsarratt.gaussTrader.domain.Stock;
 import net.toddsarratt.gaussTrader.orders.Order;
 import net.toddsarratt.gaussTrader.orders.OrderBuilder;
-import net.toddsarratt.gaussTrader.portfolio.Portfolio;
+import net.toddsarratt.gaussTrader.persistence.entity.InstantPrice;
+import net.toddsarratt.gaussTrader.portfolio.PortfolioAccountant;
 import net.toddsarratt.gaussTrader.portfolio.PortfolioSummary;
 import net.toddsarratt.gaussTrader.singletons.Constants;
 import net.toddsarratt.gaussTrader.singletons.SecurityType;
@@ -229,20 +229,20 @@ public class PostgresStore implements DataStore {
 	}
 
 	@Override
-	public Set<Position> getPortfolioPositions(Portfolio portfolio) throws SQLException {
+	public Set<Position> getPortfolioPositions(PortfolioAccountant portfolioAccountant) throws SQLException {
 		LOGGER.debug("Entering Portfolio.getDbPortfolioPositions()");
 		Connection dbConnection = pgDataSource.getConnection();
 		Position portfolioPositionEntry;
 		Set<Position> positions = new HashSet<>();
 		PreparedStatement positionSqlStatement = dbConnection.prepareStatement("SELECT * FROM positions WHERE portfolio = ? AND open = true");
-		positionSqlStatement.setString(1, portfolio.getName());
-		LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND open = true", portfolio.getName());
+		positionSqlStatement.setString(1, portfolioAccountant.getName());
+		LOGGER.debug("Executing SELECT * FROM positions WHERE portfolio = {} AND open = true", portfolioAccountant.getName());
 		ResultSet openPositionsResultSet = positionSqlStatement.executeQuery();
 		while (openPositionsResultSet.next()) {
 			portfolioPositionEntry = dbToPortfolioPosition(openPositionsResultSet);
 			if (portfolioPositionEntry.isExpired()) {
 				LOGGER.warn("Position {} read from the database has expired", portfolioPositionEntry.getTicker());
-				portfolio.reconcileExpiredOptionPosition(portfolioPositionEntry);
+				portfolioAccountant.reconcileExpiredOptionPosition(portfolioPositionEntry);
 			} else {
 				LOGGER.debug("Adding {} {}", portfolioPositionEntry.getPositionId(), portfolioPositionEntry.getTicker());
 				positions.add(portfolioPositionEntry);
@@ -442,7 +442,7 @@ public class PostgresStore implements DataStore {
 				"cost_basis, last_tick, net_asset_value, claim_against_cash, originating_order_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 		PreparedStatement newPositionSqlStatement;
 		int insertedRowCount;
-		double positionPrice = portfolioPosition.getPrice();
+		double positionPrice = portfolioPosition.getLastTick();
 		newPositionSqlStatement = dbConnection.prepareStatement(sqlString);
 		newPositionSqlStatement.setString(1, name);
 		newPositionSqlStatement.setLong(2, portfolioPosition.getPositionId());
@@ -481,7 +481,7 @@ public class PostgresStore implements DataStore {
 		String sqlString = "UPDATE positions SET last_tick = ?, net_asset_value = ? WHERE position_id = ?";
 		PreparedStatement updatePositionSqlStatement;
 		int updatedRowCount;
-		double positionPrice = portfolioPosition.getPrice();
+		double positionPrice = portfolioPosition.getLastTick();
 		updatePositionSqlStatement = dbConnection.prepareStatement(sqlString);
 		updatePositionSqlStatement.setDouble(1, positionPrice);
 		updatePositionSqlStatement.setDouble(2, portfolioPosition.calculateNetAssetValue());
@@ -529,7 +529,7 @@ public class PostgresStore implements DataStore {
 	}
 
 	@Override
-	public void updateSummary(Portfolio portfolio) throws SQLException {
+	public void updateSummary(PortfolioAccountant portfolioAccountant) throws SQLException {
 		LOGGER.debug("Entering Portfolio.updateDbSummary()");
 		Connection dbConnection = pgDataSource.getConnection();
 		String sqlString = "UPDATE portfolios SET net_asset_value = ?, free_cash = ?, reserved_cash = ?, total_cash = ? WHERE name = ?";

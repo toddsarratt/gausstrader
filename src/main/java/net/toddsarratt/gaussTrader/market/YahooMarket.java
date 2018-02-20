@@ -1,7 +1,6 @@
 package net.toddsarratt.gaussTrader.market;
 
-import net.toddsarratt.gaussTrader.InstantPrice;
-import net.toddsarratt.gaussTrader.domain.Security;
+import net.toddsarratt.gaussTrader.persistence.entity.InstantPrice;
 import net.toddsarratt.gaussTrader.singletons.Constants;
 import net.toddsarratt.gaussTrader.technicals.MovingAverages;
 import org.slf4j.Logger;

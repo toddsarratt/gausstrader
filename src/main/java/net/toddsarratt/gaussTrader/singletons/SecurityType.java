@@ -14,7 +14,7 @@ public enum SecurityType {
 	 * Case-insensitive string representation of a Security Type
 	 *
 	 * @param secType case-insensitive string of "STOCK", "CALL", or "PUT"
-	 * @return appropriate SecrutityType enum value
+	 * @return appropriate SecurityType enum value
 	 */
 	public static SecurityType of(String secType) {
 		switch (secType.toUpperCase()) {

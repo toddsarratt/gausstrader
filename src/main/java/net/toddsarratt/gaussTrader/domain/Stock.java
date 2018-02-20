@@ -12,8 +12,8 @@ package net.toddsarratt.gaussTrader.domain;
  */
 
 import net.toddsarratt.gaussTrader.GaussTrader;
-import net.toddsarratt.gaussTrader.InstantPrice;
 import net.toddsarratt.gaussTrader.market.Market;
+import net.toddsarratt.gaussTrader.persistence.entity.InstantPrice;
 import net.toddsarratt.gaussTrader.persistence.store.DataStore;
 import net.toddsarratt.gaussTrader.singletons.Constants;
 import net.toddsarratt.gaussTrader.singletons.SecurityType;

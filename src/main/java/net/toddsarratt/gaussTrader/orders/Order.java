@@ -2,7 +2,6 @@ package net.toddsarratt.gaussTrader.orders;
 
 import net.toddsarratt.gaussTrader.PriceBasedAction;
 import net.toddsarratt.gaussTrader.domain.Option;
-import net.toddsarratt.gaussTrader.domain.Security;
 import net.toddsarratt.gaussTrader.domain.Stock;
 import net.toddsarratt.gaussTrader.singletons.BuyOrSell;
 import net.toddsarratt.gaussTrader.singletons.SecurityType;

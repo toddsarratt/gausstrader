@@ -1,166 +1,62 @@
 package net.toddsarratt.gaussTrader.portfolio;
 
-import net.toddsarratt.gaussTrader.GaussTrader;
-import net.toddsarratt.gaussTrader.InstantPrice;
-import net.toddsarratt.gaussTrader.InsufficientFundsException;
-import net.toddsarratt.gaussTrader.Position;
-import net.toddsarratt.gaussTrader.domain.Security;
-import net.toddsarratt.gaussTrader.domain.Stock;
-import net.toddsarratt.gaussTrader.orders.Order;
-import net.toddsarratt.gaussTrader.persistence.store.DataStore;
+import net.toddsarratt.gaussTrader.market.Market;
+import net.toddsarratt.gaussTrader.persistence.entity.*;
 import net.toddsarratt.gaussTrader.singletons.Constants;
+import net.toddsarratt.gaussTrader.singletons.SecurityType;
+import net.toddsarratt.gaussTrader.singletons.Sentiment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.SQLException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static net.toddsarratt.gaussTrader.singletons.BuyOrSell.BUY;
 import static net.toddsarratt.gaussTrader.singletons.BuyOrSell.SELL;
 import static net.toddsarratt.gaussTrader.singletons.Constants.BIGDECIMAL_ONE_HUNDRED;
+import static net.toddsarratt.gaussTrader.singletons.SecurityType.STOCK;
+import static net.toddsarratt.gaussTrader.singletons.Sentiment.LONG;
 
-public class Portfolio {
-	private static final Logger LOGGER = LoggerFactory.getLogger(Portfolio.class);
-	private static final PortfolioSummary INITIAL_SUMMARY = new PortfolioSummary(
-			"INITIAL",
-			Constants.STARTING_CASH,
-			Constants.STARTING_CASH,
-			BigDecimal.ZERO,
-			Constants.STARTING_CASH
-	);
-	private static final Set<Position> NO_POSITIONS = Collections.emptySet();
-	private static final Set<Order> NO_ORDERS = Collections.emptySet();
-	private static DataStore dataStore = GaussTrader.getDataStore();
-	private String name;
-	private BigDecimal netAssetValue;
-	private BigDecimal freeCash;
-	private BigDecimal reservedCash;
-	private BigDecimal totalCash;
-	private Set<Position> positions;
-	private Set<Order> orders;
+public class PortfolioAccountant {
+	private static final Logger LOGGER = LoggerFactory.getLogger(PortfolioAccountant.class);
+	private Portfolio portfolio;
+	private Market market;
 
-	/**
-	 * Use static factory method .of() to create objects of the Portfolio class.
-	 */
-	private Portfolio(String portfolioName,
-	                  BigDecimal netAssetValue,
-	                  BigDecimal freeCash,
-	                  BigDecimal reservedCash,
-	                  BigDecimal totalCash,
-	                  Set<Position> positions,
-	                  Set<Order> orders) {
-		LOGGER.debug("Entering private constructor");
-		this.name = portfolioName;
-		this.netAssetValue = netAssetValue;
-		this.freeCash = freeCash;
-		this.reservedCash = reservedCash;
-		this.totalCash = totalCash;
-		this.positions = positions;
-		this.orders = orders;
+	PortfolioAccountant(Portfolio portfolio,
+	                    Market market) {
+		this.portfolio = portfolio;
+		this.market = market;
 	}
 
-	public static Portfolio of(String portfolioName) {
-		Portfolio newPortfolio;
-		LOGGER.debug("Entering Portfolio constructor Portfolio(String {})", portfolioName);
-		if (dataStore.portfolioInStore(portfolioName)) {
-			LOGGER.info("Starting with portfolio named \"{}\"", portfolioName);
-			newPortfolio = getPortfolioFromStore(portfolioName);
-		} else {
-			LOGGER.info("Could not find portfolio \"{}\"", portfolioName);
-			newPortfolio = new Portfolio(portfolioName,
-					INITIAL_SUMMARY.getNetAssetValue(),
-					INITIAL_SUMMARY.getFreeCash(),
-					INITIAL_SUMMARY.getReservedCash(),
-					INITIAL_SUMMARY.getTotalCash(),
-					NO_POSITIONS,
-					NO_ORDERS
-			);
-			LOGGER.info("Created portfolio \"{}\" with ${} free cash", portfolioName, newPortfolio.getFreeCash());
-		}
-		newPortfolio.calculateNetAssetValue();
-		LOGGER.debug("Starting portfolio \"{}\" with netAssetValue {} reservedCash {} totalCash {}",
-				portfolioName, newPortfolio.getNetAssetValue(), newPortfolio.getReservedCash(), newPortfolio.getTotalCash());
-		return newPortfolio;
+	public BigDecimal calcPortfolioNav() {
+		return calculateTotalCash().add(calcOpenPositionsNav());
 	}
 
-	public static Portfolio of(String portfolioName, BigDecimal startingCash) {
-		LOGGER.debug("Entering of(String {}, BigDecimal {})", portfolioName, startingCash);
-		if (dataStore.portfolioInStore(portfolioName)) {
-			LOGGER.error("Portfolio {} already exists", portfolioName);
-			throw new IllegalArgumentException("Portfolio already exists.");
-		}
-		Portfolio newPortfolio = getPortfolioFromStore(portfolioName);
-		newPortfolio.calculateNetAssetValue();
-		LOGGER.debug("Starting portfolio \"{}\" with netAssetValue {} reservedCash {} totalCash {}",
-				portfolioName, newPortfolio.getNetAssetValue(), newPortfolio.getReservedCash(), newPortfolio.getTotalCash());
-		return newPortfolio;
-	}
-
-	static Portfolio getPortfolioFromStore(String portfolioName) {
-		LOGGER.debug("Entering Portfolio.getDbPortfolio()");
-		PortfolioSummary summary = dataStore.getPortfolioSummary(portfolioName);
-		Set<Position> positions = dataStore.getPortfolioPositions();
-		Set<Order> orders = dataStore.getPortfolioOrders();
-		return new Portfolio(portfolioName,
-				summary.getNetAssetValue(),
-				summary.getFreeCash(),
-				summary.getReservedCash(),
-				summary.getTotalCash(),
-				positions,
-				orders);
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	void setName(String name) {
-		this.name = name;
-	}
-
-	public BigDecimal getNetAssetValue() {
-		return netAssetValue;
-	}
-
-	@SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
-	public BigDecimal calculateNetAssetValue() {
-		calculateTotalCash();
-		BigDecimal openPositionNavs = positions.stream()
+	public BigDecimal calcOpenPositionsNav() {
+		return portfolio.getPositions().stream()
 				.filter(Position::isOpen)
-				.map(Position::calculateNetAssetValue)
+				.map(this::calculatePositionNetAssetValue)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
-		netAssetValue = totalCash.add(openPositionNavs);
-		return netAssetValue;
 	}
 
-	public BigDecimal getFreeCash() {
-		return freeCash;
+	private BigDecimal calculatePositionNetAssetValue(Position position) {
+		Security security = position.getSecurity();
+		SecurityType securityType = security.getSecurityType();
+		Sentiment sentiment = position.getSentiment();
+		InstantPrice lastTick = market.getLastTick(security);
+		return lastTick.getPrice().multiply(new BigDecimal(position.getNumberTransacted()))
+				.multiply(securityType == STOCK ? BigDecimal.ONE : Constants.BIGDECIMAL_ONE_HUNDRED)
+				.multiply(sentiment == LONG ? BigDecimal.ONE : Constants.BIGDECIMAL_MINUS_ONE);
 	}
 
-	private void setFreeCash(BigDecimal freeCash) {
-		this.freeCash = freeCash;
-	}
-
-	public BigDecimal getReservedCash() {
-		return reservedCash;
-	}
-
-	private void setReservedCash(BigDecimal reservedCash) {
-		this.reservedCash = reservedCash;
-	}
 
 	public BigDecimal calculateTotalCash() {
-		totalCash = freeCash.add(reservedCash);
-		return totalCash;
-	}
-
-	// TODO : This should not cause state change
-	public BigDecimal getTotalCash() {
-		return calculateTotalCash();
+		return portfolio.getFreeCash().add(portfolio.getReservedCash());
 	}
 
 	int countUncoveredLongStockPositions(Stock stock) {
@@ -578,30 +474,32 @@ public class Portfolio {
 		dataStore.close(expiredOrder);
 	}
 
-	void updateOptionPositions(Stock stock) throws IOException, SQLException {
+	void updateOptionPositions() {
 		// TODO : Load returning options tickers into a set and only getLastTick() once
 		LOGGER.debug("Entering Portfolio.updateOptionPositions");
 		for (Position optionPositionToUpdate : getListOfOpenOptionPositions()) {
-			if (stock.getTicker().equals(optionPositionToUpdate.getUnderlyingTicker())) {
-				optionPositionToUpdate.setPrice(optionPositionToUpdate.getLastTick());
+			optionPositionToUpdate.setLastTick(optionPositionToUpdate.getLastTick());
 				optionPositionToUpdate.calculateNetAssetValue();
-				dataStore.write(optionPositionToUpdate);
-			}
 		}
 	}
 
-	void updateStockPositions(Stock stock) throws IOException, SQLException {
+	void updateStockPositions() {
 		LOGGER.debug("Entering Portfolio.updateStockPositions");
 		for (Position stockPositionToUpdate : getListOfOpenStockPositions()) {
-			if (stockPositionToUpdate.getTicker().equals(stock.getTicker())) {
-				stockPositionToUpdate.setPrice(stock.getLastPrice());
+			stockPositionToUpdate.setLastTick(stock.getLastPrice());
 				stockPositionToUpdate.calculateNetAssetValue();
-				dataStore.write(stockPositionToUpdate);
-			}
 		}
 	}
 
 	public List<Stock> getWatchList() {
 		return Collections.emptyList();
+	}
+
+	public TradingStrategy getTradingStrategy() {
+		return null;
+	}
+
+	public void setTradingStrategy(TradingStrategy tradingStrategy) {
+		this.tradingStrategy = tradingStrategy;
 	}
 }
