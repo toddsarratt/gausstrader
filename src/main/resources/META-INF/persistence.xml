@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence" version="2.1">
+    <persistence-unit name="net.toddsarratt.gaussTrader.jpa">
+        <description>This unit manages the market and portfolio data
+            for the GaussTrader application
+        </description>
+    </persistence-unit>
+</persistence>
