@@ -1,6 +1,8 @@
 package net.toddsarratt.gaussTrader.portfolio;
 
 import net.toddsarratt.gaussTrader.InstantPrice;
+import net.toddsarratt.gaussTrader.InsufficientFundsException;
+import net.toddsarratt.gaussTrader.TradingStrategy;
 import net.toddsarratt.gaussTrader.market.Market;
 import net.toddsarratt.gaussTrader.persistence.entity.*;
 import net.toddsarratt.gaussTrader.singletons.Constants;
