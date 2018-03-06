@@ -22,8 +22,10 @@ import java.util.List;
 import static net.toddsarratt.gaussTrader.singletons.BuyOrSell.BUY;
 import static net.toddsarratt.gaussTrader.singletons.BuyOrSell.SELL;
 import static net.toddsarratt.gaussTrader.singletons.Constants.BIGDECIMAL_ONE_HUNDRED;
+import static net.toddsarratt.gaussTrader.singletons.SecurityType.CALL;
 import static net.toddsarratt.gaussTrader.singletons.SecurityType.STOCK;
 import static net.toddsarratt.gaussTrader.singletons.Sentiment.LONG;
+import static net.toddsarratt.gaussTrader.singletons.Sentiment.SHORT;
 
 public class PortfolioAccountant {
 	private static final Logger LOGGER = LoggerFactory.getLogger(PortfolioAccountant.class);
@@ -62,7 +64,7 @@ public class PortfolioAccountant {
 		return portfolio.getFreeCash().add(portfolio.getReservedCash());
 	}
 
-	long countUncoveredLongStockPositions(Stock stock) {
+	long countUncoveredLongStockShares(Stock stock) {
 		return (countOfOpenLongStockShares(stock) - numberOfOpenCallShorts(stock));
 	}
 
@@ -72,39 +74,37 @@ public class PortfolioAccountant {
 						p.isOpen() &&
 						p.getSecurity().getSecurityType() == STOCK &&
 						p.getSentiment() == LONG)
-				.count();
+				.mapToLong(Position::getNumberTransacted)
+				.sum();
 		LOGGER.debug("Returning openLongCount = {} from portfolio of ticker {}", openLongCount, security.getTicker());
 		return openLongCount;
 	}
 
-	public int numberOfOpenStockShorts(Security security) {
-		int openShortCount = 0;
-		// TODO : Lamda
-		for (Position portfolioPosition : positions) {
-			if ((security.getTicker().equals(portfolioPosition.getTicker())) && portfolioPosition.isOpen() &&
-					portfolioPosition.isShort() && portfolioPosition.isStock()) {
-				openShortCount += portfolioPosition.getNumberTransacted();
-			}
-		}
-		openShortCount /= 100;
+	public long countOfOpenShortStockShares(Security security) {
+		long openShortCount = portfolio.getPositions().stream()
+				.filter(p -> p.getSecurity().equals(security) &&
+						p.isOpen() &&
+						p.getSecurity().getSecurityType() == STOCK &&
+						p.getSentiment() == SHORT)
+				.mapToLong(Position::getNumberTransacted)
+				.sum();
 		LOGGER.debug("Returning openShortCount = {} from Portfolio.numberOfOpenStockShorts(Security {})", openShortCount, security.getTicker());
 		return openShortCount;
 	}
 
-	public int numberOfOpenCallLongs(Security security) {
-		int openLongCount = 0;
-		// TODO : Lamda
-		for (Position portfolioPosition : positions) {
-			if ((security.getTicker().equals(portfolioPosition.getUnderlyingTicker())) && portfolioPosition.isOpen() &&
-					portfolioPosition.isLong() && portfolioPosition.isCall()) {
-				openLongCount++;
-			}
-		}
+	public long numberOfOpenCallLongs(Security security) {
+		long openLongCount = portfolio.getPositions().stream()
+				.filter(p -> p.getSecurity().equals(security) &&
+						p.isOpen() &&
+						p.getSecurity().getSecurityType() == CALL &&
+						p.getSentiment() == LONG)
+				.mapToLong(Position::getNumberTransacted)
+				.sum();
 		LOGGER.debug("Returning openLongCount = {} from Portfolio.numberOfOpenCallLongs(Security {})", openLongCount, security.getTicker());
 		return openLongCount;
 	}
 
-	public int numberOfOpenCallShorts(Security security) {
+	public long numberOfOpenCallShorts(Security security) {
 		int openShortCount = 0;
 		// TODO : Lamda
 		for (Position portfolioPosition : positions) {
